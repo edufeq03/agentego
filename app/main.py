@@ -39,14 +39,18 @@ async def webhook(request: Request):
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
             
     # Se ainda assim não tiver mensagem, retorna ignorado
-    # Recupera a última mensagem que o bot enviou para esse número
-    ultima_msg = historico_conversas.get(telefone)
+    # Recupera o histórico completo desse número (ou cria uma lista vazia)
+    historico = historico_conversas.get(telefone, [])
     
-    # Processa a nova mensagem passando o contexto anterior
-    resposta = processar_mensagem(mensagem, ultima_mensagem=ultima_msg)
+    # Processa a nova mensagem passando o histórico
+    resposta = processar_mensagem(mensagem, historico=historico)
     
-    # Salva a nova resposta na memória para a próxima iteração
-    historico_conversas[telefone] = resposta
+    # Adiciona a pergunta do usuário e a resposta da IA no histórico
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": resposta})
+    
+    # Mantém apenas as últimas 6 mensagens (3 interações completas) para economizar tokens
+    historico_conversas[telefone] = historico[-6:]
 
     print(f"Mensagem recebida de {telefone}: {mensagem}")
     print(f"Resposta gerada (IA Livre): {resposta}")
