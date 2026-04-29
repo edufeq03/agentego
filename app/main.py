@@ -65,7 +65,15 @@ async def webhook(request: Request):
     if not mensagem:
         return {"status": "ignorado", "motivo": "sem_texto"}
 
-    # Se o bot estiver pausado para esse cliente (transbordo ativo), ignora
+    # Permite que o próprio cliente (ou você testando) religue o bot mandando o comando
+    if mensagem.strip().lower() in ["/voltar", "#voltar"]:
+        if telefone in clientes_pausados:
+            clientes_pausados.remove(telefone)
+            logger.info(f"[{telefone}] Bot REATIVADO pelo comando.")
+            enviar_whatsapp(telefone, "🤖 A assistente virtual foi reativada. Como posso ajudar?")
+            return {"status": "reativado"}
+
+    # Se o bot estiver pausado para esse cliente (transbordo ativo), ignora as outras mensagens
     if telefone in clientes_pausados:
         logger.info(f"[{telefone}] Mensagem ignorada (Bot pausado para atendimento humano)")
         return {"status": "ignorado", "motivo": "pausado_para_humano"}
