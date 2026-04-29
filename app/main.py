@@ -1,7 +1,16 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
 from fastapi import FastAPI, Request
+
+# Configuração de Log limpo
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%d/%m/%Y %H:%M:%S"
+)
+logger = logging.getLogger(__name__)
 from app.agent import processar_mensagem
 from app.whatsapp import enviar_whatsapp
 
@@ -52,8 +61,8 @@ async def webhook(request: Request):
     # Mantém apenas as últimas 6 mensagens (3 interações completas) para economizar tokens
     historico_conversas[telefone] = historico[-6:]
 
-    print(f"Mensagem recebida de {telefone}: {mensagem}")
-    print(f"Resposta gerada (IA Livre): {resposta}")
+    # Log limpo em uma única linha para auditoria
+    logger.info(f"[{telefone}] Cliente: '{mensagem}' -> IA: '{resposta}'")
 
     enviar_whatsapp(telefone, resposta)
 
