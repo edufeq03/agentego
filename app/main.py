@@ -16,8 +16,6 @@ from app.whatsapp import enviar_whatsapp
 
 # Memória temporária em RAM (Dicionário: Telefone -> Última Mensagem)
 historico_conversas = {}
-# Lista de clientes que estão sendo atendidos por humano
-clientes_pausados = set()
 
 app = FastAPI()
 
@@ -35,24 +33,12 @@ async def webhook(request: Request):
         
         # Pega o número do remetente
         remote_jid = event_data.get("key", {}).get("remoteJid", "")
-        telefone_origem = ""
         if "@s.whatsapp.net" in remote_jid:
-            telefone_origem = remote_jid.split("@")[0]
-            telefone = telefone_origem
+            telefone = remote_jid.split("@")[0]
             
         # Ignora mensagens enviadas por você mesmo (evita loop infinito)
         if event_data.get("key", {}).get("fromMe") == True:
-            msg_obj = event_data.get("message", {})
-            msg_texto = msg_obj.get("conversation") or msg_obj.get("extendedTextMessage", {}).get("text", "")
-            
-            # Se a recepcionista digitou /voltar, reativa o robô
-            if msg_texto.strip().lower() in ["/voltar", "#voltar"]:
-                if telefone_origem in clientes_pausados:
-                    clientes_pausados.remove(telefone_origem)
-                    logger.info(f"[{telefone_origem}] Bot REATIVADO pela recepcionista.")
-                return {"status": "reativado"}
-                
-            return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot_ou_humano"}
+            return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}
             
         # Pega o texto da mensagem
         msg_obj = event_data.get("message", {})
@@ -65,19 +51,6 @@ async def webhook(request: Request):
     if not mensagem:
         return {"status": "ignorado", "motivo": "sem_texto"}
 
-    # Permite que o próprio cliente (ou você testando) religue o bot mandando o comando
-    if mensagem.strip().lower() in ["/voltar", "#voltar"]:
-        if telefone in clientes_pausados:
-            clientes_pausados.remove(telefone)
-            logger.info(f"[{telefone}] Bot REATIVADO pelo comando.")
-            enviar_whatsapp(telefone, "🤖 A assistente virtual foi reativada. Como posso ajudar?")
-            return {"status": "reativado"}
-
-    # Se o bot estiver pausado para esse cliente (transbordo ativo), ignora as outras mensagens
-    if telefone in clientes_pausados:
-        logger.info(f"[{telefone}] Mensagem ignorada (Bot pausado para atendimento humano)")
-        return {"status": "ignorado", "motivo": "pausado_para_humano"}
-
     # Recupera o histórico completo desse número (ou cria uma lista vazia)
     historico = historico_conversas.get(telefone, [])
     
@@ -87,12 +60,6 @@ async def webhook(request: Request):
     
     # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo...")
     resposta = processar_mensagem(mensagem, historico=historico)
-    
-    # Verifica se a IA acionou o Transbordo
-    if "[TRANSBORDO]" in resposta:
-        clientes_pausados.add(telefone)
-        resposta = "Só um instante, vou chamar um dos nossos recepcionistas para continuar o seu atendimento! 🙋‍♀️"
-        logger.info(f"[{telefone}] TRANSBORDO ACIONADO. Bot pausado.")
     
     # Adiciona a pergunta do usuário e a resposta da IA no histórico
     historico.append({"role": "user", "content": mensagem})
