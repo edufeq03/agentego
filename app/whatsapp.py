@@ -6,10 +6,14 @@ logger = logging.getLogger(__name__)
 
 def enviar_whatsapp(numero, mensagem):
     url = os.getenv("EVOLUTION_URL")
+    
+    # Calcula um tempo de digitação natural (mínimo de 1s, mais 30ms por caractere da resposta, máximo de 4s)
+    tempo_digitando = min(1000 + (len(mensagem) * 30), 4000)
 
     payload = {
         "number": numero,
-        "text": mensagem
+        "text": mensagem,
+        "delay": tempo_digitando
     }
 
     headers = {
