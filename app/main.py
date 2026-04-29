@@ -51,7 +51,11 @@ async def webhook(request: Request):
     # Recupera o histórico completo desse número (ou cria uma lista vazia)
     historico = historico_conversas.get(telefone, [])
     
-    # Processa a nova mensagem passando o histórico
+    # Envia o status de "Escrevendo..." para a Evolution API
+    from app.whatsapp import simular_digitacao
+    simular_digitacao(telefone)
+    
+    # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo...")
     resposta = processar_mensagem(mensagem, historico=historico)
     
     # Adiciona a pergunta do usuário e a resposta da IA no histórico
