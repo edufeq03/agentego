@@ -92,6 +92,13 @@ Planos:
 - Básico: R$80/mês
 - VIP: R$150/mês (inclui aulas em grupo)
 
+Animais:
+- Não são permitidos animais na academia
+- Exceção apenas para animais de serviço/suporte (se o usuário mencionar que é PCD com animal-guia, acolha e oriente a confirmar com a recepção)
+
+Crianças:
+- A academia não conta com área kids para crianças pequenas
+
 Aulas (plano VIP): Spinning, Zumba, Funcional, Fitdance
 
 Aula experimental grátis:
