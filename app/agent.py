@@ -81,6 +81,7 @@ REGRAS CRÍTICAS:
 - NÃO invente informações
 - Se não souber, diga que não tem essa informação
 - Baseie-se APENAS nos dados fornecidos
+- Se o cliente pedir para falar com atendente/humano, ou estiver irritado, PARE TUDO e responda APENAS a palavra exata: [TRANSBORDO]
 
 ----------------------------------------
 
