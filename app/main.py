@@ -5,6 +5,9 @@ from fastapi import FastAPI, Request
 from app.agent import processar_mensagem
 from app.whatsapp import enviar_whatsapp
 
+# Memória temporária em RAM (Dicionário: Telefone -> Última Mensagem)
+historico_conversas = {}
+
 app = FastAPI()
 
 @app.post("/webhook")
@@ -36,12 +39,16 @@ async def webhook(request: Request):
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
             
     # Se ainda assim não tiver mensagem, retorna ignorado
-    if not mensagem:
-        return {"status": "ignorado", "motivo": "sem_texto"}
+    # Recupera a última mensagem que o bot enviou para esse número
+    ultima_msg = historico_conversas.get(telefone)
+    
+    # Processa a nova mensagem passando o contexto anterior
+    resposta = processar_mensagem(mensagem, ultima_mensagem=ultima_msg)
+    
+    # Salva a nova resposta na memória para a próxima iteração
+    historico_conversas[telefone] = resposta
 
-    resposta = processar_mensagem(mensagem)
-
-    print(f"Mensagem recebida: {mensagem}")
+    print(f"Mensagem recebida de {telefone}: {mensagem}")
     print(f"Resposta gerada (IA Livre): {resposta}")
 
     enviar_whatsapp(telefone, resposta)

@@ -44,6 +44,10 @@ REGRA IMPORTANTE:
 - Use emojis moderadamente para manter a conversa leve e simpática.
 """
 
-def processar_mensagem(mensagem_usuario):
-    # Passamos o contexto da academia (regras) e a mensagem do usuário direto para a OpenAI
-    return perguntar(mensagem_usuario, CONTEXTO_ACADEMIA)
+def processar_mensagem(mensagem_usuario, ultima_mensagem=None):
+    contexto_final = CONTEXTO_ACADEMIA
+    
+    if ultima_mensagem:
+        contexto_final += f"\n\n[MEMÓRIA DA CONVERSA]\nA sua última resposta para este cliente foi: '{ultima_mensagem}'. Use isso para dar contexto à sua próxima resposta."
+        
+    return perguntar(mensagem_usuario, contexto_final)
