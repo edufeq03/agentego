@@ -2,8 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, Request
-from app.intents import classificar_intencao
-from app.responses import gerar_resposta
+from app.agent import processar_mensagem
 from app.whatsapp import enviar_whatsapp
 
 app = FastAPI()
@@ -40,12 +39,10 @@ async def webhook(request: Request):
     if not mensagem:
         return {"status": "ignorado", "motivo": "sem_texto"}
 
-    intencao = classificar_intencao(mensagem)
-    resposta = gerar_resposta(intencao)
+    resposta = processar_mensagem(mensagem)
 
     print(f"Mensagem recebida: {mensagem}")
-    print(f"Intenção classificada: {intencao}")
-    print(f"Resposta gerada: {resposta}")
+    print(f"Resposta gerada (IA Livre): {resposta}")
 
     enviar_whatsapp(telefone, resposta)
 
