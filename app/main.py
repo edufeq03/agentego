@@ -19,6 +19,10 @@ historico_conversas = {}
 
 app = FastAPI()
 
+@app.get("/")
+def health_check():
+    return {"status": "online", "message": "Agente Academia está rodando!"}
+
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
