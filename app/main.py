@@ -116,7 +116,19 @@ async def webhook(request: Request):
     # Log limpo em uma única linha para auditoria
     logger.info(f"[{telefone}] Cliente: '{mensagem}' -> IA: '{resposta}'")
 
-    enviar_whatsapp(telefone, resposta)
+    import asyncio
+    # Quebra a resposta em parágrafos (remove espaços extras) e envia como mensagens separadas
+    paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
+    
+    for i, paragrafo in enumerate(paragrafos):
+        if i > 0:
+            # Reenvia o status de digitação para cada nova mensagem quebrada
+            simular_digitacao(telefone)
+            # Calcula um tempo de espera proporcional ao tamanho do texto (mínimo 1s, máximo 3s)
+            tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
+            await asyncio.sleep(tempo_espera)
+            
+        enviar_whatsapp(telefone, paragrafo)
 
     return {"status": "ok", "resposta": resposta}
 
