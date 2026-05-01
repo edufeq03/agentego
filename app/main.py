@@ -52,11 +52,7 @@ async def webhook(request: Request):
         if "@s.whatsapp.net" in remote_jid:
             telefone = remote_jid.split("@")[0]
             
-        # Ignora mensagens enviadas por você mesmo (evita loop infinito)
-        if event_data.get("key", {}).get("fromMe") == True:
-            return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}
-            
-        # Pega o texto ou áudio da mensagem
+        # Pega o texto ou áudio da mensagem primeiro para podermos ler comandos
         msg_obj = event_data.get("message", {})
         message_type = event_data.get("messageType", "")
 
@@ -64,6 +60,17 @@ async def webhook(request: Request):
             mensagem = msg_obj["conversation"]
         elif "extendedTextMessage" in msg_obj:
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
+
+        # Trata mensagens enviadas por você mesmo (evita loop infinito)
+        if event_data.get("key", {}).get("fromMe") == True:
+            # Se você (humano) digitar /reativar na conversa com o cliente, o robô volta
+            if mensagem and mensagem.strip().lower() == "/reativar":
+                limpar_transbordo(telefone)
+                enviar_whatsapp(telefone, "🤖 *Atendimento Automático Reativado*.")
+                logger.info(f"[{telefone}] Robô reativado pelo corretor via chat (/reativar).")
+                return {"status": "ok", "mensagem": "reativado_via_chat"}
+                
+            return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}
         elif message_type == "audioMessage" or "audioMessage" in msg_obj:
             cliente_enviou_audio = True
             # Em diferentes versões da Evolution, o base64 pode vir na raiz do data ou dentro de message
