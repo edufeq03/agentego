@@ -11,8 +11,19 @@ logging.basicConfig(
     datefmt="%d/%m/%Y %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
-from app.agent import processar_mensagem
+from app.agent import processar_mensagem, processar_confirmacao_transbordo
 from app.whatsapp import enviar_whatsapp
+from app.database import (
+    obter_conversa, salvar_mensagem, listar_conversas_com_mensagens,
+    obter_status_transbordo, marcar_aguardando_confirmacao,
+    marcar_pausado, limpar_transbordo
+)
+
+def limpar_tags(texto: str) -> str:
+    """Remove as tags internas antes de enviar para o cliente."""
+    for tag in ["[SUGERIR_TRANSBORDO]", "[CONFIRMAR_TRANSBORDO]", "[CANCELAR_TRANSBORDO]"]:
+        texto = texto.replace(tag, "").strip()
+    return texto
 
 # Memória temporária em RAM (Dicionário: Telefone -> Última Mensagem)
 historico_conversas = {}
@@ -89,7 +100,13 @@ async def webhook(request: Request):
     if not mensagem:
         return {"status": "ignorado", "motivo": "sem_texto"}
 
-    from app.database import obter_conversa, salvar_mensagem
+    # ── Verificar status de transbordo ────────────────────────────────────────
+    status_transbordo = obter_status_transbordo(telefone)
+
+    # Número completamente pausado — não responde nada
+    if status_transbordo == "pausado":
+        logger.info(f"[{telefone}] Número pausado (transbordo ativo). Mensagem ignorada.")
+        return {"status": "pausado", "motivo": "transbordo_ativo"}
     
     # Salvar a mensagem recebida no banco
     conversa_id = obter_conversa(telefone)
@@ -106,15 +123,34 @@ async def webhook(request: Request):
     else:
         simular_digitacao(telefone)
     
-    # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo/Gravando...")
-    resposta = processar_mensagem(mensagem, historico=historico)
+    # ── Número aguardando confirmação de transbordo ───────────────────────────
+    if status_transbordo == "aguardando":
+        resposta_raw = processar_confirmacao_transbordo(mensagem, historico=historico)
+        if "[CONFIRMAR_TRANSBORDO]" in resposta_raw:
+            marcar_pausado(telefone)
+            logger.info(f"[{telefone}] Transbordo CONFIRMADO. Robô pausado.")
+        elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
+            limpar_transbordo(telefone)
+            logger.info(f"[{telefone}] Transbordo CANCELADO. Robô retomando.")
+            historico.append({"role": "user", "content": mensagem})
+            historico.append({"role": "assistant", "content": limpar_tags(resposta_raw)})
+        else:
+            historico.append({"role": "user", "content": mensagem})
+            historico.append({"role": "assistant", "content": limpar_tags(resposta_raw)})
+    else:
+        # ── Atendimento normal ────────────────────────────────────────────────────
+        resposta_raw = processar_mensagem(mensagem, historico=historico)
+        if "[SUGERIR_TRANSBORDO]" in resposta_raw:
+            marcar_aguardando_confirmacao(telefone)
+            logger.info(f"[{telefone}] Transbordo SUGERIDO. Aguardando confirmação do cliente.")
+        
+        historico.append({"role": "user", "content": mensagem})
+        historico.append({"role": "assistant", "content": limpar_tags(resposta_raw)})
     
-    # Salvar a resposta gerada no banco
+    resposta = limpar_tags(resposta_raw)
+    
+    # Salvar a resposta final gerada no banco
     salvar_mensagem(conversa_id, "agente", resposta)
-    
-    # Adiciona a pergunta do usuário e a resposta da IA no histórico
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": resposta})
     
     # Mantém apenas as últimas 6 mensagens (3 interações completas) para economizar tokens
     historico_conversas[telefone] = historico[-6:]
@@ -160,5 +196,11 @@ async def webhook(request: Request):
 
 @app.get("/conversas")
 def listar_conversas():
-    from app.database import listar_conversas_com_mensagens
     return {"conversas": listar_conversas_com_mensagens()}
+
+@app.delete("/transbordo/{telefone}")
+def reativar_robo(telefone: str):
+    """Endpoint para a recepcionista reativar o robô manualmente (ex.: n8n, Postman)."""
+    limpar_transbordo(telefone)
+    logger.info(f"[{telefone}] Robô reativado manualmente via API.")
+    return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}

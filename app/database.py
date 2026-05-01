@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS mensagens (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS transbordo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telefone TEXT UNIQUE,
+    status TEXT DEFAULT 'aguardando',
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
 conn.commit()
 
 def salvar_mensagem(conversa_id, tipo, mensagem):
@@ -75,3 +84,32 @@ def listar_conversas_com_mensagens():
         })
         
     return resultado
+
+# ── Funções de transbordo ──────────────────────────────────────────────────────
+
+def obter_status_transbordo(telefone):
+    """Retorna o status de transbordo do número, ou None se não existir."""
+    cursor.execute("SELECT status FROM transbordo WHERE telefone = ?", (telefone,))
+    result = cursor.fetchone()
+    return result[0] if result else None
+
+def marcar_aguardando_confirmacao(telefone):
+    """Rosana acabou de sugerir transbordo — aguardando resposta do cliente."""
+    cursor.execute("""
+        INSERT INTO transbordo (telefone, status) VALUES (?, 'aguardando')
+        ON CONFLICT(telefone) DO UPDATE SET status = 'aguardando', criado_em = CURRENT_TIMESTAMP
+    """, (telefone,))
+    conn.commit()
+
+def marcar_pausado(telefone):
+    """Cliente confirmou — robô silenciado para este número."""
+    cursor.execute("""
+        INSERT INTO transbordo (telefone, status) VALUES (?, 'pausado')
+        ON CONFLICT(telefone) DO UPDATE SET status = 'pausado', criado_em = CURRENT_TIMESTAMP
+    """, (telefone,))
+    conn.commit()
+
+def limpar_transbordo(telefone):
+    """Remove o bloqueio — robô volta a responder normalmente (uso manual/admin)."""
+    cursor.execute("DELETE FROM transbordo WHERE telefone = ?", (telefone,))
+    conn.commit()
