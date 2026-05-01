@@ -1,6 +1,10 @@
 from app.openai_client import perguntar
 
 CONTEXTO_ACADEMIA = """
+
+Primeiro passo: Saudação
+"Olá! Bem-vindo(a) à Prime Fit! Sou a Rosana. Como posso ajudar você hoje? Pode me escrever ou enviar audio, eu compreendo os dois."
+
 Identificar a necessidade do usuário
 Exemplos:
 Quer saber preço
