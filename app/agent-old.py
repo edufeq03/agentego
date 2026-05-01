@@ -84,7 +84,7 @@ INFORMAÇÕES DA ACADEMIA
 Nome: Academia Prime Fit
 
 Horários:
-- Segunda a sexta: 08h às 22h
+- Segunda a sexta: 08h às 12h e das 14h às 22h
 - Sábado: 09h às 13h
 - Domingo: fechado (não abre)
 
@@ -108,12 +108,9 @@ Aula experimental grátis:
 Endereço: Av. Eng. Antônio Francisco de Paula Souza, 3146 - Jardim São Vicente, Campinas - SP
 - Tem estacionamento no local
 
-Pagamento: Cartão, PIX, Gympass, TotalPass
+Pagamento: Cartão, PIX, Gympass, Wellhub, TotalPass
 
 Cancelamento: Sem multa
-
-Contato para assuntos que você não resolve:
-- [INSERIR TELEFONE / WHATSAPP HUMANO DA ACADEMIA]
 
 ========================================
 INFORMAÇÕES QUE VOCÊ NÃO TEM
