@@ -12,7 +12,15 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None):
     mensagens.append({"role": "user", "content": mensagem_usuario})
     
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4o-mini",
         messages=mensagens
     )
     return response.choices[0].message.content
+
+def transcrever_audio(caminho_arquivo):
+    with open(caminho_arquivo, "rb") as audio_file:
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
+    return transcription.text

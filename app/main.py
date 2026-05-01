@@ -44,12 +44,38 @@ async def webhook(request: Request):
         if event_data.get("key", {}).get("fromMe") == True:
             return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}
             
-        # Pega o texto da mensagem
+        # Pega o texto ou áudio da mensagem
         msg_obj = event_data.get("message", {})
+        message_type = event_data.get("messageType", "")
+
         if "conversation" in msg_obj:
             mensagem = msg_obj["conversation"]
         elif "extendedTextMessage" in msg_obj:
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
+        elif message_type == "audioMessage" or "audioMessage" in msg_obj:
+            base64_audio = event_data.get("base64")
+            if base64_audio:
+                import base64
+                import tempfile
+                import os
+                from app.openai_client import transcrever_audio
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
+                    temp_audio.write(base64.b64decode(base64_audio))
+                    temp_path = temp_audio.name
+                
+                try:
+                    mensagem = transcrever_audio(temp_path)
+                    logger.info(f"[{telefone}] Áudio transcrito com sucesso: '{mensagem}'")
+                except Exception as e:
+                    logger.error(f"Erro ao transcrever áudio: {e}")
+                    return {"status": "erro", "motivo": "falha_transcricao"}
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+            else:
+                logger.warning(f"[{telefone}] Áudio recebido, mas opção 'base64' não está ativada no Webhook da Evolution.")
+                return {"status": "ignorado", "motivo": "audio_sem_base64"}
             
     # Se ainda assim não tiver mensagem, retorna ignorado
     if not mensagem:
