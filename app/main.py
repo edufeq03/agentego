@@ -30,6 +30,7 @@ async def webhook(request: Request):
     # Formato simples (Testes manuais)
     mensagem = data.get("message")
     telefone = data.get("phone")
+    cliente_enviou_audio = False
 
     # Formato real da Evolution API (Quando o WhatsApp manda a mensagem direto pra cá)
     if not mensagem and "data" in data:
@@ -53,6 +54,7 @@ async def webhook(request: Request):
         elif "extendedTextMessage" in msg_obj:
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
         elif message_type == "audioMessage" or "audioMessage" in msg_obj:
+            cliente_enviou_audio = True
             # Em diferentes versões da Evolution, o base64 pode vir na raiz do data ou dentro de message
             base64_audio = msg_obj.get("base64") or event_data.get("base64")
             
@@ -96,11 +98,15 @@ async def webhook(request: Request):
     # Recupera o histórico completo desse número (ou cria uma lista vazia)
     historico = historico_conversas.get(telefone, [])
     
-    # Envia o status de "Escrevendo..." para a Evolution API
-    from app.whatsapp import simular_digitacao
-    simular_digitacao(telefone)
+    # Envia o status para a Evolution API
+    from app.whatsapp import simular_digitacao, simular_gravacao_audio, enviar_audio_whatsapp
     
-    # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo...")
+    if cliente_enviou_audio:
+        simular_gravacao_audio(telefone)
+    else:
+        simular_digitacao(telefone)
+    
+    # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo/Gravando...")
     resposta = processar_mensagem(mensagem, historico=historico)
     
     # Salvar a resposta gerada no banco
@@ -117,18 +123,38 @@ async def webhook(request: Request):
     logger.info(f"[{telefone}] Cliente: '{mensagem}' -> IA: '{resposta}'")
 
     import asyncio
-    # Quebra a resposta em parágrafos (remove espaços extras) e envia como mensagens separadas
-    paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
     
-    for i, paragrafo in enumerate(paragrafos):
-        if i > 0:
-            # Reenvia o status de digitação para cada nova mensagem quebrada
-            simular_digitacao(telefone)
-            # Calcula um tempo de espera proporcional ao tamanho do texto (mínimo 1s, máximo 3s)
-            tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
-            await asyncio.sleep(tempo_espera)
+    if cliente_enviou_audio:
+        import os
+        import tempfile
+        from app.openai_client import gerar_audio
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
+            caminho_audio_resposta = temp_out.name
             
-        enviar_whatsapp(telefone, paragrafo)
+        try:
+            gerar_audio(resposta, caminho_audio_resposta)
+            enviar_audio_whatsapp(telefone, caminho_audio_resposta)
+        except Exception as e:
+            logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")
+            # Fallback de segurança: se a geração de áudio falhar, manda texto.
+            enviar_whatsapp(telefone, resposta) 
+        finally:
+            if os.path.exists(caminho_audio_resposta):
+                os.remove(caminho_audio_resposta)
+    else:
+        # Quebra a resposta em parágrafos (remove espaços extras) e envia como mensagens separadas
+        paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
+        
+        for i, paragrafo in enumerate(paragrafos):
+            if i > 0:
+                # Reenvia o status de digitação para cada nova mensagem quebrada
+                simular_digitacao(telefone)
+                # Calcula um tempo de espera proporcional ao tamanho do texto (mínimo 1s, máximo 3s)
+                tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
+                await asyncio.sleep(tempo_espera)
+                
+            enviar_whatsapp(telefone, paragrafo)
 
     return {"status": "ok", "resposta": resposta}
 
