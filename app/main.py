@@ -51,6 +51,12 @@ async def webhook(request: Request):
     if not mensagem:
         return {"status": "ignorado", "motivo": "sem_texto"}
 
+    from app.database import obter_conversa, salvar_mensagem
+    
+    # Salvar a mensagem recebida no banco
+    conversa_id = obter_conversa(telefone)
+    salvar_mensagem(conversa_id, "usuario", mensagem)
+
     # Recupera o histórico completo desse número (ou cria uma lista vazia)
     historico = historico_conversas.get(telefone, [])
     
@@ -60,6 +66,9 @@ async def webhook(request: Request):
     
     # Processa a nova mensagem passando o histórico (o tempo que a IA leva para pensar será o tempo de "Escrevendo...")
     resposta = processar_mensagem(mensagem, historico=historico)
+    
+    # Salvar a resposta gerada no banco
+    salvar_mensagem(conversa_id, "agente", resposta)
     
     # Adiciona a pergunta do usuário e a resposta da IA no histórico
     historico.append({"role": "user", "content": mensagem})
@@ -74,3 +83,8 @@ async def webhook(request: Request):
     enviar_whatsapp(telefone, resposta)
 
     return {"status": "ok", "resposta": resposta}
+
+@app.get("/conversas")
+def listar_conversas():
+    from app.database import listar_conversas_com_mensagens
+    return {"conversas": listar_conversas_com_mensagens()}
