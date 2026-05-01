@@ -28,7 +28,7 @@ def transcrever_audio(caminho_arquivo):
 def gerar_audio(texto, caminho_salvar):
     response = client.audio.speech.create(
         model="tts-1",
-        voice="nova",
+        voice="shimmer",
         input=texto
     )
     response.stream_to_file(caminho_salvar)
