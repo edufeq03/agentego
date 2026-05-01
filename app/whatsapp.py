@@ -73,11 +73,11 @@ def enviar_audio_whatsapp(numero, caminho_audio):
     with open(caminho_audio, "rb") as f:
         audio_base64 = base64.b64encode(f.read()).decode("utf-8")
         
-    base64_formatado = f"data:audio/mp3;base64,{audio_base64}"
-    
+    # IMPORTANTE: Não colocar o prefixo data:audio/mp3;base64, 
+    # A Evolution valida a string e rejeita se não for HTTP ou Base64 puro.
     payload = {
         "number": numero,
-        "audio": base64_formatado,
+        "audio": audio_base64,
         "delay": 1200,
         "encoding": True
     }
