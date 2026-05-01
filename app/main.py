@@ -53,12 +53,18 @@ async def webhook(request: Request):
         elif "extendedTextMessage" in msg_obj:
             mensagem = msg_obj["extendedTextMessage"].get("text", "")
         elif message_type == "audioMessage" or "audioMessage" in msg_obj:
-            base64_audio = event_data.get("base64")
+            # Em diferentes versões da Evolution, o base64 pode vir na raiz do data ou dentro de message
+            base64_audio = msg_obj.get("base64") or event_data.get("base64")
+            
             if base64_audio:
                 import base64
                 import tempfile
                 import os
                 from app.openai_client import transcrever_audio
+                
+                # Se o base64 vier com cabeçalho (ex: data:audio/ogg;base64,UklGR...), cortamos fora a primeira parte
+                if "," in base64_audio:
+                    base64_audio = base64_audio.split(",")[1]
                 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
                     temp_audio.write(base64.b64decode(base64_audio))
@@ -74,7 +80,7 @@ async def webhook(request: Request):
                     if os.path.exists(temp_path):
                         os.remove(temp_path)
             else:
-                logger.warning(f"[{telefone}] Áudio recebido, mas opção 'base64' não está ativada no Webhook da Evolution.")
+                logger.warning(f"[{telefone}] Áudio recebido, mas opção 'base64' não está ativada no Webhook da Evolution (ou estrutura JSON desconhecida).")
                 return {"status": "ignorado", "motivo": "audio_sem_base64"}
             
     # Se ainda assim não tiver mensagem, retorna ignorado
