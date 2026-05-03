@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
-import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle } from "lucide-react";
+import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle, ChevronLeft } from "lucide-react";
 
 interface ConversaData {
   id: string;
@@ -29,7 +29,15 @@ export default function Conversas() {
   const [mensagens, setMensagens] = useState<MensagemData[]>([]);
   const [loadingMensagens, setLoadingMensagens] = useState(false);
 
-  async function carregarConversas() {
+  // useRef para armazenar o valor atual do estado e evitar dependências no setInterval
+  const conversaAtivaRef = useRef(conversaAtiva);
+
+  useEffect(() => {
+    conversaAtivaRef.current = conversaAtiva;
+  }, [conversaAtiva]);
+
+  // Busca inicial (com spinner)
+  async function carregarConversasInicial() {
     try {
       const response = await api.get("/dashboard/conversas");
       setConversas(response.data);
@@ -40,8 +48,37 @@ export default function Conversas() {
     }
   }
 
+  // Busca de atualização (sem spinner)
+  async function atualizarConversas() {
+    try {
+      const response = await api.get("/dashboard/conversas");
+      setConversas(response.data);
+    } catch (error) {
+      console.error("Erro ao atualizar conversas:", error);
+    }
+  }
+
+  async function atualizarMensagens(telefone: string) {
+    try {
+      const response = await api.get(`/dashboard/conversas/${telefone}`);
+      setMensagens(response.data);
+    } catch (error) {
+      console.error("Erro ao atualizar mensagens:", error);
+    }
+  }
+
+  // Polling em tempo real
   useEffect(() => {
-    carregarConversas();
+    carregarConversasInicial();
+
+    const intervalId = setInterval(() => {
+      atualizarConversas();
+      if (conversaAtivaRef.current) {
+        atualizarMensagens(conversaAtivaRef.current.telefone);
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   async function abrirConversa(conversa: ConversaData) {
@@ -55,6 +92,10 @@ export default function Conversas() {
     } finally {
       setLoadingMensagens(false);
     }
+  }
+
+  function fecharConversaMobile() {
+    setConversaAtiva(null);
   }
 
   async function pausarRobo() {
@@ -89,16 +130,16 @@ export default function Conversas() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div>
+      <div className="hidden md:block">
         <h2 className="text-2xl font-bold text-white tracking-tight">Caixa de Entrada</h2>
         <p className="text-[var(--color-foreground-muted)] mt-1 mb-6">
           Visualize o histórico de atendimento e assuma o controle quando necessário.
         </p>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden">
+      <div className="flex-1 flex gap-0 md:gap-6 overflow-hidden">
         {/* Lista de Conversas (Esquerda) */}
-        <div className="w-1/3 flex flex-col glass-panel overflow-hidden">
+        <div className={`w-full md:w-1/3 flex flex-col glass-panel overflow-hidden transition-all ${conversaAtiva ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-[var(--color-border)]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-foreground-muted)]" size={18} />
@@ -120,7 +161,7 @@ export default function Conversas() {
                 <div 
                   key={conversa.id}
                   onClick={() => abrirConversa(conversa)}
-                  className={`p-4 border-b border-[var(--color-border)] cursor-pointer hover:bg-[var(--color-surface-hover)] transition-colors ${conversaAtiva?.id === conversa.id ? 'bg-[var(--color-surface-hover)]/80 border-l-4 border-l-[var(--color-brand-500)]' : 'border-l-4 border-l-transparent'}`}
+                  className={`p-4 border-b border-[var(--color-border)] cursor-pointer hover:bg-[var(--color-surface-hover)] transition-colors ${conversaAtiva?.id === conversa.id ? 'bg-[var(--color-surface-hover)]/80 md:border-l-4 md:border-l-[var(--color-brand-500)]' : 'md:border-l-4 md:border-l-transparent'}`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-semibold text-white truncate">{conversa.nome}</span>
@@ -136,12 +177,7 @@ export default function Conversas() {
                     </span>
                     {conversa.transbordo === 'pausado' && (
                       <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wide">
-                        Atendimento Humano
-                      </span>
-                    )}
-                    {conversa.transbordo === 'aguardando' && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 uppercase tracking-wide">
-                        Aguardando Confirmação
+                        Humano
                       </span>
                     )}
                   </div>
@@ -154,42 +190,52 @@ export default function Conversas() {
         </div>
 
         {/* Histórico da Conversa (Direita) */}
-        <div className="flex-1 flex flex-col glass-panel overflow-hidden">
+        <div className={`flex-1 flex-col glass-panel overflow-hidden ${conversaAtiva ? 'flex' : 'hidden md:flex'}`}>
           {conversaAtiva ? (
             <>
               {/* Header Conversa */}
-              <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface-hover)]/30">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{conversaAtiva.nome}</h3>
-                  <p className="text-sm text-[var(--color-foreground-muted)]">{conversaAtiva.telefone}</p>
+              <div className="p-4 border-b border-[var(--color-border)] flex flex-col md:flex-row md:justify-between md:items-center bg-[var(--color-surface-hover)]/30 gap-4">
+                <div className="flex items-center gap-3">
+                  <button 
+                    className="md:hidden text-[var(--color-foreground-muted)] hover:text-white"
+                    onClick={fecharConversaMobile}
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{conversaAtiva.nome}</h3>
+                    <p className="text-sm text-[var(--color-foreground-muted)]">{conversaAtiva.telefone}</p>
+                  </div>
                 </div>
                 
-                {conversaAtiva.transbordo === 'pausado' ? (
-                  <button 
-                    onClick={reativarRobo}
-                    className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-green-500/20"
-                  >
-                    <Power size={16} /> Reativar Robô
-                  </button>
-                ) : (
-                  <button 
-                    onClick={pausarRobo}
-                    className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                  >
-                    <Pause size={16} /> Assumir Atendimento (Pausar Robô)
-                  </button>
-                )}
+                <div className="flex w-full md:w-auto">
+                  {conversaAtiva.transbordo === 'pausado' ? (
+                    <button 
+                      onClick={reativarRobo}
+                      className="w-full md:w-auto flex justify-center items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-green-500/20"
+                    >
+                      <Power size={16} /> Reativar Robô
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={pausarRobo}
+                      className="w-full md:w-auto flex justify-center items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    >
+                      <Pause size={16} /> Pausar Robô
+                    </button>
+                  )}
+                </div>
               </div>
               
               {conversaAtiva.transbordo === 'pausado' && (
-                <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-3 flex items-center justify-center gap-2 text-red-400 text-sm font-medium">
-                  <AlertTriangle size={16} />
+                <div className="bg-red-500/10 border-b border-red-500/20 px-4 md:px-6 py-2 md:py-3 flex items-center justify-center gap-2 text-red-400 text-xs md:text-sm font-medium text-center">
+                  <AlertTriangle size={16} className="shrink-0" />
                   O robô está pausado. O atendimento agora é humano.
                 </div>
               )}
               
               {/* Mensagens */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
                 {loadingMensagens ? (
                   <div className="flex justify-center py-10">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand-500)]"></div>
@@ -199,18 +245,18 @@ export default function Conversas() {
                     const isUser = msg.tipo === 'usuario';
                     return (
                       <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`flex max-w-[70%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-[var(--color-surface-hover)]' : 'bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)]'}`}>
                             {isUser ? <User size={16} className="text-[var(--color-foreground-muted)]" /> : <Bot size={16} className="text-white" />}
                           </div>
                           
-                          <div className={`p-4 rounded-2xl ${
+                          <div className={`p-3 md:p-4 rounded-2xl ${
                             isUser 
                               ? 'bg-[var(--color-surface-hover)] text-white rounded-tr-none' 
                               : 'bg-[var(--color-brand-600)] text-white rounded-tl-none'
                           }`}>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.mensagem}</p>
-                            <span className={`text-[10px] mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
+                            <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">{msg.mensagem}</p>
+                            <span className={`text-[10px] mt-1 md:mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
                               {new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
                             </span>
                           </div>
@@ -222,7 +268,7 @@ export default function Conversas() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-foreground-muted)]">
+            <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-foreground-muted)] p-8 text-center">
               <MessageCircle size={48} className="mb-4 opacity-20" />
               <p>Selecione uma conversa para visualizar o histórico</p>
             </div>
