@@ -22,11 +22,23 @@ import os
 import tempfile
 import base64
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Para desenvolvimento. Em prod, restrinja ao domínio do dashboard
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+from app.dashboard_api import router as dashboard_router
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
 @app.get("/")
 def health_check():
