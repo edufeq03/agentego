@@ -25,7 +25,7 @@ export default function Login() {
       localStorage.setItem("atendia_token", access_token);
       
       // Redireciona para o dashboard
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("E-mail ou senha incorretos.");
@@ -40,69 +40,84 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] px-4">
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--color-brand-900)]/40 via-[var(--color-background)] to-[var(--color-background)] pointer-events-none"></div>
-
-      <div className="w-full max-w-md glass-panel p-8 md:p-10 z-10">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-[var(--color-brand-500)] p-3 rounded-2xl text-white shadow-lg shadow-[var(--color-brand-500)]/30 mb-4">
-            <Dumbbell size={32} />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 bg-[#0f172a]">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+      
+      <div className="w-full max-w-md z-10">
+        <div className="glass-panel p-8 md:p-10 border border-white/10 shadow-2xl">
+          <div className="flex flex-col items-center mb-10">
+            <div className="bg-blue-600 p-3.5 rounded-2xl text-white shadow-xl shadow-blue-600/30 mb-5 transform transition-transform hover:scale-110">
+              <Dumbbell size={32} strokeWidth={2.5} />
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">AtendIA</h1>
+            <p className="text-slate-400 mt-2 text-center font-medium">
+              Gestão Inteligente de Academias
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AtendIA</h1>
-          <p className="text-sm text-[var(--color-foreground-muted)] mt-1 text-center">
-            Faça login para acessar o painel do seu Agente Virtual.
-          </p>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl mb-6 text-center animate-shake">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 ml-1">
+                E-mail de Acesso
+              </label>
+              <div className="relative group">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={20} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder="seu@email.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300 ml-1">
+                Sua Senha
+              </label>
+              <div className="relative group">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={20} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/25 disabled:opacity-70 disabled:cursor-not-allowed mt-4 active:scale-[0.98]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>Autenticando...</span>
+                </>
+              ) : (
+                "Entrar no Painel"
+              )}
+            </button>
+          </form>
         </div>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-6 text-center">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-foreground-muted)] mb-1.5">
-              E-mail
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-foreground-muted)]" size={18} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-[var(--color-brand-500)] focus:ring-1 focus:ring-[var(--color-brand-500)] transition-all"
-                placeholder="seu@email.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-foreground-muted)] mb-1.5">
-              Senha
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-foreground-muted)]" size={18} />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-[var(--color-brand-500)] focus:ring-1 focus:ring-[var(--color-brand-500)] transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--color-brand-600)] to-[var(--color-brand-400)] hover:from-[var(--color-brand-500)] hover:to-[var(--color-brand-300)] text-white font-medium py-2.5 rounded-lg transition-all shadow-lg shadow-[var(--color-brand-500)]/20 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : "Entrar no Painel"}
-          </button>
-        </form>
+        
+        <p className="text-center mt-8 text-slate-500 text-sm">
+          &copy; 2026 AtendIA — Sistema Exclusivo para Academias
+        </p>
       </div>
     </div>
   );

@@ -7,11 +7,11 @@ import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, 
 import api from "@/lib/api";
 
 const navigation = [
-  { name: "Visão Geral", href: "/", icon: LayoutDashboard },
-  { name: "Funil de Vendas", href: "/funil", icon: Filter },
-  { name: "Insights", href: "/insights", icon: Lightbulb },
-  { name: "Conversas", href: "/conversas", icon: MessageCircle },
-  { name: "Configurações", href: "/configuracoes", icon: Settings },
+  { name: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Funil de Vendas", href: "/dashboard/funil", icon: Filter },
+  { name: "Insights", href: "/dashboard/insights", icon: Lightbulb },
+  { name: "Conversas", href: "/dashboard/conversas", icon: MessageCircle },
+  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,8 +27,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Checa autenticação
   useEffect(() => {
-    if (pathname === '/login') return;
-    
     const token = localStorage.getItem('atendia_token');
     if (!token) {
       window.location.href = '/login';
@@ -39,7 +37,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Polling para checar se há conversas pausadas
   useEffect(() => {
-    if (!isAuthenticated || pathname === '/login') return;
+    if (!isAuthenticated) return;
 
     async function checkPausadas() {
       try {
@@ -60,10 +58,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   function handleLogout() {
     localStorage.removeItem('atendia_token');
     window.location.href = '/login';
-  }
-
-  if (pathname === '/login') {
-    return <>{children}</>;
   }
 
   if (!isAuthenticated) {
