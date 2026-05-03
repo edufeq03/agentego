@@ -29,10 +29,6 @@ export default function Conversas() {
   const [mensagens, setMensagens] = useState<MensagemData[]>([]);
   const [loadingMensagens, setLoadingMensagens] = useState(false);
 
-  useEffect(() => {
-    carregarConversas();
-  }, []);
-
   async function carregarConversas() {
     try {
       const response = await api.get("/dashboard/conversas");
@@ -43,6 +39,10 @@ export default function Conversas() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    carregarConversas();
+  }, []);
 
   async function abrirConversa(conversa: ConversaData) {
     setConversaAtiva(conversa);

@@ -20,7 +20,7 @@ ARG NEXT_PUBLIC_TOKEN
 ENV NEXT_PUBLIC_TOKEN=${NEXT_PUBLIC_TOKEN}
 
 # Desabilita telemetria
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Compila o projeto (Standalone mode ativado automaticamente via next.config.mjs ou TS)
 RUN npm run build
@@ -29,8 +29,8 @@ RUN npm run build
 FROM node:18-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -47,7 +47,7 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["npm", "start"]
