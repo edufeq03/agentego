@@ -11,19 +11,28 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from app.agent import processar_mensagem
+from app.database import get_db, Empresa, init_db
+from app.pipeline import processar_webhook
 
 def iniciar_chat():
     print("======================================================")
-    print("🤖 CHAT DE TESTE - AGENTE ACADEMIA (SEM WHATSAPP)")
+    print("🤖 CHAT DE TESTE MULTI-TENANT - AGENTE ACADEMIA")
     print("======================================================")
+    print("Iniciando banco de dados...")
+    init_db()
+
+    db = get_db()
+    empresa = db.query(Empresa).filter(Empresa.nome == "Prime Fit").first()
+    db.close()
+
+    if not empresa:
+        print("Erro: Empresa 'Prime Fit' não encontrada. Rode o seed.py primeiro.")
+        return
+
+    print(f"Empresa selecionada: {empresa.nome}")
     print("Digite 'sair' para encerrar.\n")
     
-    historico = []
-    
-    from app.database import obter_conversa, salvar_mensagem
-    telefone_teste = "TERMINAL_TEST"
-    conversa_id = obter_conversa(telefone_teste)
+    telefone_teste = "5511999999999" # Mesmo número usado no seed.py para manter contexto
     
     while True:
         try:
@@ -34,22 +43,22 @@ def iniciar_chat():
                 
             if not mensagem.strip():
                 continue
-                
-            salvar_mensagem(conversa_id, "usuario", mensagem)
             
-            print("Rosana (digitando...)...\r", end="")
-            resposta = processar_mensagem(mensagem, historico)
+            print(f"{empresa.configuracoes.config.get('nome_agente', 'Agente')} (processando...)...\r", end="")
             
-            salvar_mensagem(conversa_id, "agente", resposta)
+            # Usar o pipeline central passando a entidade da empresa simulada
+            db = get_db()
+            empresa = db.query(Empresa).filter(Empresa.id == empresa.id).first()
+            resultado = processar_webhook(empresa, telefone_teste, mensagem)
+            db.close()
             
-            # Atualiza o histórico localmente, igual no main.py
-            historico.append({"role": "user", "content": mensagem})
-            historico.append({"role": "assistant", "content": resposta})
+            if resultado["status"] == "ok":
+                resposta = resultado["resposta"]
+            else:
+                resposta = f"[O bot está pausado. Status: {resultado['status']}]"
             
-            # Mantém apenas as últimas 6 mensagens (3 interações completas)
-            historico = historico[-6:]
-            
-            print(f"Rosana: {resposta}" + " " * 20 + "\n") # Espaços extras para limpar o "digitando..."
+            nome_bot = empresa.configuracoes.config.get('nome_agente', 'Agente')
+            print(f"{nome_bot}: {resposta}" + " " * 20 + "\n")
             
         except KeyboardInterrupt:
             print("\nEncerrando chat de teste...")

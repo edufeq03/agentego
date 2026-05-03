@@ -1,5 +1,7 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey
+import uuid
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 from dotenv import load_dotenv
@@ -14,37 +16,76 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class Conversa(Base):
-    __tablename__ = "conversas"
-    id = Column(Integer, primary_key=True, index=True)
-    telefone = Column(String, unique=True, index=True)
+class Empresa(Base):
+    __tablename__ = "empresas"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nome = Column(String, nullable=False)
+    telefone_whatsapp = Column(String, unique=True, nullable=False)
+    webhook_token = Column(String, unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
-    mensagens = relationship("Mensagem", back_populates="conversa")
+    
+    configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False)
+    leads = relationship("Lead", back_populates="empresa")
+
+class Configuracao(Base):
+    __tablename__ = "configuracoes"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    config = Column(JSONB, nullable=False, default=dict)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="configuracoes")
+
+class Lead(Base):
+    __tablename__ = "leads"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    telefone = Column(String, nullable=False)
+    nome = Column(String, nullable=True)
+    stage = Column(String, default='novo') # novo, curioso, interessado, quente, agendado, perdido
+    visit_offer_made = Column(Boolean, default=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="leads")
+    mensagens = relationship("Mensagem", back_populates="lead")
 
 class Mensagem(Base):
     __tablename__ = "mensagens"
-    id = Column(Integer, primary_key=True, index=True)
-    conversa_id = Column(Integer, ForeignKey("conversas.id"))
-    tipo = Column(String) # 'usuario' ou 'agente'
-    mensagem = Column(Text)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
+    tipo = Column(String, nullable=False) # 'usuario' ou 'agente'
+    mensagem = Column(Text, nullable=False)
+    intencao = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    conversa = relationship("Conversa", back_populates="mensagens")
+    
+    lead = relationship("Lead", back_populates="mensagens")
+
+class Evento(Base):
+    __tablename__ = "eventos"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=True)
+    tipo = Column(String, nullable=False)
+    metadata_ = Column("metadata", JSONB, default=dict) # 'metadata' é reservado em sqlalchemy
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
 class Transbordo(Base):
     __tablename__ = "transbordo"
-    id = Column(Integer, primary_key=True, index=True)
-    telefone = Column(String, unique=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    telefone = Column(String, nullable=False)
     status = Column(String, default="aguardando") # aguardando, pausado
     criado_em = Column(DateTime, default=datetime.utcnow)
 
 def init_db():
     try:
-        # Criar as tabelas no banco de dados
         Base.metadata.create_all(bind=engine)
-        print("Conexão com banco de dados estabelecida e tabelas verificadas.")
+        print("Conexão com banco de dados estabelecida e tabelas do SaaS verificadas.")
     except Exception as e:
         print(f"AVISO: Não foi possível conectar ao banco de dados: {e}")
-        print("Verifique se a variável DATABASE_URL está configurada e se o banco está rodando.")
 
 def get_db():
     db = SessionLocal()
@@ -52,73 +93,3 @@ def get_db():
         return db
     finally:
         db.close()
-
-def salvar_mensagem(conversa_id, tipo, mensagem_texto):
-    db = get_db()
-    nova_mensagem = Mensagem(conversa_id=conversa_id, tipo=tipo, mensagem=mensagem_texto)
-    db.add(nova_mensagem)
-    db.commit()
-
-def obter_conversa(telefone):
-    db = get_db()
-    conversa = db.query(Conversa).filter(Conversa.telefone == telefone).first()
-    if conversa:
-        return conversa.id
-    
-    nova_conversa = Conversa(telefone=telefone)
-    db.add(nova_conversa)
-    db.commit()
-    db.refresh(nova_conversa)
-    return nova_conversa.id
-
-def listar_conversas_com_mensagens():
-    db = get_db()
-    conversas = db.query(Conversa).order_by(Conversa.criado_em.desc()).all()
-    resultado = []
-    for conv in conversas:
-        resultado.append({
-            "id": conv.id,
-            "telefone": conv.telefone,
-            "criado_em": conv.criado_em,
-            "mensagens": [
-                {"tipo": m.tipo, "mensagem": m.mensagem, "timestamp": m.timestamp}
-                for m in conv.mensagens
-            ]
-        })
-    return resultado
-
-# ── Funções de transbordo ──────────────────────────────────────────────────────
-
-def obter_status_transbordo(telefone):
-    db = get_db()
-    transbordo = db.query(Transbordo).filter(Transbordo.telefone == telefone).first()
-    return transbordo.status if transbordo else None
-
-def marcar_aguardando_confirmacao(telefone):
-    db = get_db()
-    transbordo = db.query(Transbordo).filter(Transbordo.telefone == telefone).first()
-    if transbordo:
-        transbordo.status = "aguardando"
-        transbordo.criado_em = datetime.utcnow()
-    else:
-        novo = Transbordo(telefone=telefone, status="aguardando")
-        db.add(novo)
-    db.commit()
-
-def marcar_pausado(telefone):
-    db = get_db()
-    transbordo = db.query(Transbordo).filter(Transbordo.telefone == telefone).first()
-    if transbordo:
-        transbordo.status = "pausado"
-        transbordo.criado_em = datetime.utcnow()
-    else:
-        novo = Transbordo(telefone=telefone, status="pausado")
-        db.add(novo)
-    db.commit()
-
-def limpar_transbordo(telefone):
-    db = get_db()
-    transbordo = db.query(Transbordo).filter(Transbordo.telefone == telefone).first()
-    if transbordo:
-        db.delete(transbordo)
-        db.commit()
