@@ -27,6 +27,17 @@ class Empresa(Base):
     
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False)
     leads = relationship("Lead", back_populates="empresa")
+    usuarios = relationship("Usuario", back_populates="empresa")
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    senha_hash = Column(String, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="usuarios")
 
 class Configuracao(Base):
     __tablename__ = "configuracoes"

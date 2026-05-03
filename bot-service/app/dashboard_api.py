@@ -4,21 +4,45 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 import pytz
 from typing import List, Dict, Any
+from pydantic import BaseModel
 
-from app.database import get_db, Empresa, Lead, Mensagem, Evento, Configuracao
+from app.database import get_db, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario
+from app.auth import verify_password, create_access_token, decode_access_token
 
 router = APIRouter()
 
-# Autenticação simples baseada no webhook_token para o MVP
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+@router.post("/login")
+def login(req: LoginRequest, db: Session = Depends(get_db)):
+    usuario = db.query(Usuario).filter(Usuario.email == req.email).first()
+    if not usuario or not verify_password(req.password, usuario.senha_hash):
+        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+    
+    # Verifica se a empresa está ativa
+    if not usuario.empresa.ativo:
+        raise HTTPException(status_code=403, detail="Empresa inativa")
+        
+    access_token = create_access_token(data={"sub": str(usuario.empresa_id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 def obter_empresa(authorization: str = Header(None), db: Session = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token não fornecido ou inválido")
     
     token = authorization.split(" ")[1]
-    empresa = db.query(Empresa).filter(Empresa.webhook_token == token, Empresa.ativo == True).first()
+    payload = decode_access_token(token)
+    
+    if not payload or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+        
+    empresa_id = payload.get("sub")
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id, Empresa.ativo == True).first()
     
     if not empresa:
-        raise HTTPException(status_code=401, detail="Token inválido ou empresa inativa")
+        raise HTTPException(status_code=401, detail="Empresa não encontrada ou inativa")
     
     return empresa
 
@@ -57,12 +81,42 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
     
     grafico_conversas = [{"dia": str(row.dia), "mensagens": row.quantidade} for row in mensagens_query]
     
+    # Cálculo Horário Comercial (Seg a Sex, 08h-18h)
+    mensagens_recentes = db.query(Mensagem.timestamp).filter(
+        Mensagem.empresa_id == empresa.id,
+        Mensagem.tipo == "usuario",
+        Mensagem.timestamp >= limite_data
+    ).all()
+    
+    comercial = 0
+    fora_comercial = 0
+    tz = pytz.timezone('America/Sao_Paulo')
+    
+    for (ts,) in mensagens_recentes:
+        # Converter para o fuso local
+        if ts.tzinfo is None:
+            ts = pytz.utc.localize(ts)
+        local_ts = ts.astimezone(tz)
+        
+        # 0 = Seg, 4 = Sex
+        if local_ts.weekday() <= 4 and 8 <= local_ts.hour < 18:
+            comercial += 1
+        else:
+            fora_comercial += 1
+            
+    total_msgs = comercial + fora_comercial
+    pct_comercial = (comercial / total_msgs * 100) if total_msgs > 0 else 0
+    pct_fora = (fora_comercial / total_msgs * 100) if total_msgs > 0 else 0
+    
     return {
         "cards": {
             "total_leads": total_leads,
             "leads_recentes": leads_recentes,
             "leads_interessados": leads_interessados,
-            "visitas": visitas
+            "visitas": visitas,
+            "horario_comercial_pct": round(pct_comercial, 1),
+            "fora_horario_pct": round(pct_fora, 1),
+            "total_mensagens_analisadas": total_msgs
         },
         "grafico_conversas": grafico_conversas
     }

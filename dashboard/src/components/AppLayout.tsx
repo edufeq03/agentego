@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut } from "lucide-react";
 import api from "@/lib/api";
 
 const navigation = [
@@ -18,14 +18,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [temConversaPausada, setTemConversaPausada] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Fecha o menu ao mudar de rota no mobile
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
+  // Checa autenticação
+  useEffect(() => {
+    if (pathname === '/login') return;
+    
+    const token = localStorage.getItem('atendia_token');
+    if (!token) {
+      window.location.href = '/login';
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [pathname]);
+
   // Polling para checar se há conversas pausadas
   useEffect(() => {
+    if (!isAuthenticated || pathname === '/login') return;
+
     async function checkPausadas() {
       try {
         const response = await api.get("/dashboard/conversas");
@@ -40,7 +55,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     checkPausadas();
     const interval = setInterval(checkPausadas, 10000); // Check a cada 10s
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, pathname]);
+
+  function handleLogout() {
+    localStorage.removeItem('atendia_token');
+    window.location.href = '/login';
+  }
+
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
+  if (!isAuthenticated) {
+    return <div className="h-screen bg-[var(--color-background)] flex items-center justify-center text-white">Carregando...</div>;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
@@ -108,14 +136,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="p-4 border-t border-[var(--color-border)]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white font-bold">
-                PF
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white font-bold">
+                  S
+                </div>
+                <div className="truncate">
+                  <p className="text-sm font-medium text-white truncate">SaaS</p>
+                  <p className="text-xs text-[var(--color-foreground-muted)] truncate">Plano Pro</p>
+                </div>
               </div>
-              <div className="truncate">
-                <p className="text-sm font-medium text-white truncate">Prime Fit</p>
-                <p className="text-xs text-[var(--color-foreground-muted)] truncate">Plano Pro</p>
-              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                title="Sair"
+              >
+                <LogOut size={18} />
+              </button>
             </div>
           </div>
         </div>
