@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from app.database import get_db, Empresa, init_db
+from app.database import get_db, SessionLocal, Empresa, init_db
 from app.pipeline import processar_webhook
 from app.whatsapp import enviar_whatsapp, simular_digitacao, simular_gravacao_audio, enviar_audio_whatsapp
 from app.openai_client import transcrever_audio, gerar_audio
@@ -48,7 +48,7 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
     """
     Callback disparada pelo buffer de mensagens após o tempo de debounce.
     """
-    db = get_db()
+    db = SessionLocal()
     try:
         # Recupera a empresa com a sessão atual
         empresa = db.query(Empresa).filter(Empresa.id == empresa_simplificada.id).first()
@@ -101,7 +101,7 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 
 @app.post("/webhook/{token}")
 async def webhook(token: str, request: Request):
-    db = get_db()
+    db = SessionLocal()
     try:
         # 1. Identificar Empresa pelo token
         empresa = db.query(Empresa).filter(Empresa.webhook_token == token, Empresa.ativo == True).first()
@@ -183,7 +183,7 @@ async def webhook(token: str, request: Request):
 
 @app.delete("/transbordo/{token}/{telefone}")
 def reativar_robo(token: str, telefone: str):
-    db = get_db()
+    db = SessionLocal()
     try:
         empresa = db.query(Empresa).filter(Empresa.webhook_token == token).first()
         if not empresa:
