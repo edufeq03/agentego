@@ -144,6 +144,18 @@ def historico_conversa(telefone: str, empresa: Empresa = Depends(obter_empresa),
     
     return [{"tipo": m.tipo, "mensagem": m.mensagem, "timestamp": str(m.timestamp)} for m in mensagens]
 
+@router.post("/conversas/{telefone}/pausar")
+def pausar_robo(telefone: str, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.pipeline import atualizar_status_transbordo
+    atualizar_status_transbordo(db, empresa.id, telefone, "pausado")
+    return {"status": "ok", "mensagem": f"Robô pausado para {telefone}"}
+
+@router.post("/conversas/{telefone}/reativar")
+def reativar_robo_dashboard(telefone: str, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.pipeline import atualizar_status_transbordo
+    atualizar_status_transbordo(db, empresa.id, telefone, None)
+    return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}
+
 @router.get("/config")
 def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
     if not empresa.configuracoes:

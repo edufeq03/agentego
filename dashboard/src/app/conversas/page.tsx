@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { MessageCircle, Bot, User, Power, Search } from "lucide-react";
+import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle } from "lucide-react";
 
 interface ConversaData {
   id: string;
@@ -57,14 +57,24 @@ export default function Conversas() {
     }
   }
 
+  async function pausarRobo() {
+    if (!conversaAtiva) return;
+    try {
+      await api.post(`/dashboard/conversas/${conversaAtiva.telefone}/pausar`);
+      setConversaAtiva({ ...conversaAtiva, transbordo: 'pausado' });
+      setConversas(conversas.map(c => c.id === conversaAtiva.id ? { ...c, transbordo: 'pausado' } : c));
+    } catch (error) {
+      console.error("Erro ao pausar robô:", error);
+      alert("Erro ao pausar robô.");
+    }
+  }
+
   async function reativarRobo() {
     if (!conversaAtiva) return;
     try {
-      await api.delete(`/transbordo/${conversaAtiva.telefone}`);
-      // Atualizar status localmente
+      await api.post(`/dashboard/conversas/${conversaAtiva.telefone}/reativar`);
       setConversaAtiva({ ...conversaAtiva, transbordo: null });
       setConversas(conversas.map(c => c.id === conversaAtiva.id ? { ...c, transbordo: null } : c));
-      alert("Robô reativado com sucesso!");
     } catch (error) {
       console.error("Erro ao reativar robô:", error);
       alert("Erro ao reativar robô.");
@@ -154,15 +164,29 @@ export default function Conversas() {
                   <p className="text-sm text-[var(--color-foreground-muted)]">{conversaAtiva.telefone}</p>
                 </div>
                 
-                {conversaAtiva.transbordo === 'pausado' && (
+                {conversaAtiva.transbordo === 'pausado' ? (
                   <button 
                     onClick={reativarRobo}
                     className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-green-500/20"
                   >
                     <Power size={16} /> Reativar Robô
                   </button>
+                ) : (
+                  <button 
+                    onClick={pausarRobo}
+                    className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                  >
+                    <Pause size={16} /> Assumir Atendimento (Pausar Robô)
+                  </button>
                 )}
               </div>
+              
+              {conversaAtiva.transbordo === 'pausado' && (
+                <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-3 flex items-center justify-center gap-2 text-red-400 text-sm font-medium">
+                  <AlertTriangle size={16} />
+                  O robô está pausado. O atendimento agora é humano.
+                </div>
+              )}
               
               {/* Mensagens */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
