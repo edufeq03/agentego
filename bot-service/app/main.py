@@ -17,6 +17,7 @@ from app.database import get_db, Empresa, init_db
 from app.pipeline import processar_webhook
 from app.whatsapp import enviar_whatsapp, simular_digitacao, simular_gravacao_audio, enviar_audio_whatsapp
 from app.openai_client import transcrever_audio, gerar_audio
+from app.buffer import adicionar_mensagem
 import os
 import tempfile
 import base64
@@ -30,6 +31,61 @@ def on_startup():
 @app.get("/")
 def health_check():
     return {"status": "online", "message": "AtendIA (SaaS) está rodando!"}
+
+async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto_combinado: str, cliente_enviou_audio: bool = False):
+    """
+    Callback disparada pelo buffer de mensagens após o tempo de debounce.
+    """
+    db = get_db()
+    try:
+        # Recupera a empresa com a sessão atual
+        empresa = db.query(Empresa).filter(Empresa.id == empresa_simplificada.id).first()
+        if not empresa:
+            return
+
+        # Simular status de "digitando" ou "gravando" na Evolution
+        if cliente_enviou_audio:
+            simular_gravacao_audio(telefone)
+        else:
+            simular_digitacao(telefone)
+
+        # Processar no Pipeline Central
+        resultado = processar_webhook(empresa, telefone, texto_combinado)
+        
+        if resultado["status"] == "pausado":
+            logger.info(f"[{telefone}] Número pausado (transbordo ativo). Mensagem ignorada.")
+            return
+
+        resposta = resultado["resposta"]
+        logger.info(f"[{telefone}] Cliente: '{texto_combinado}' -> IA: '{resposta}'")
+
+        # Enviar Resposta via Evolution API
+        if cliente_enviou_audio:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
+                caminho_audio_resposta = temp_out.name
+            try:
+                gerar_audio(resposta, caminho_audio_resposta)
+                enviar_audio_whatsapp(telefone, caminho_audio_resposta)
+            except Exception as e:
+                logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")
+                enviar_whatsapp(telefone, resposta) 
+            finally:
+                if os.path.exists(caminho_audio_resposta):
+                    os.remove(caminho_audio_resposta)
+        else:
+            paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
+            for i, paragrafo in enumerate(paragrafos):
+                if i > 0:
+                    simular_digitacao(telefone)
+                    tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
+                    await asyncio.sleep(tempo_espera)
+                enviar_whatsapp(telefone, paragrafo)
+
+    except Exception as e:
+        logger.error(f"Erro no processamento do pipeline em background: {e}")
+    finally:
+        db.close()
+
 
 @app.post("/webhook/{token}")
 async def webhook(token: str, request: Request):
@@ -100,45 +156,16 @@ async def webhook(token: str, request: Request):
         if not mensagem:
             return {"status": "ignorado", "motivo": "sem_texto"}
 
-        # Simular status de "digitando" ou "gravando" na Evolution
-        if cliente_enviou_audio:
-            simular_gravacao_audio(telefone)
-        else:
-            simular_digitacao(telefone)
-
-        # 3. Processar no Pipeline Central
-        resultado = processar_webhook(empresa, telefone, mensagem)
+        # 3. Adicionar mensagem ao Buffer (Debounce)
+        # O cliente pode ter enviado áudio, e depois texto.
+        # Vamos passar o cliente_enviou_audio via callback criando um wrapper (closure) ou partial
+        import functools
+        callback = functools.partial(processar_pipeline_callback, cliente_enviou_audio=cliente_enviou_audio)
         
-        if resultado["status"] == "pausado":
-            logger.info(f"[{telefone}] Número pausado (transbordo ativo). Mensagem ignorada.")
-            return resultado
-
-        resposta = resultado["resposta"]
-        logger.info(f"[{telefone}] Cliente: '{mensagem}' -> IA: '{resposta}'")
-
-        # 4. Enviar Resposta via Evolution API
-        if cliente_enviou_audio:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
-                caminho_audio_resposta = temp_out.name
-            try:
-                gerar_audio(resposta, caminho_audio_resposta)
-                enviar_audio_whatsapp(telefone, caminho_audio_resposta)
-            except Exception as e:
-                logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")
-                enviar_whatsapp(telefone, resposta) 
-            finally:
-                if os.path.exists(caminho_audio_resposta):
-                    os.remove(caminho_audio_resposta)
-        else:
-            paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
-            for i, paragrafo in enumerate(paragrafos):
-                if i > 0:
-                    simular_digitacao(telefone)
-                    tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
-                    await asyncio.sleep(tempo_espera)
-                enviar_whatsapp(telefone, paragrafo)
-
-        return {"status": "ok", "resposta": resposta}
+        adicionar_mensagem(empresa, telefone, mensagem, callback)
+        
+        # Retorna IMEDIATAMENTE para a Evolution API
+        return {"status": "ok", "mensagem": "adicionada_ao_buffer"}
     finally:
         db.close()
 
