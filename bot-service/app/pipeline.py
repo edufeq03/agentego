@@ -1,6 +1,6 @@
 from datetime import datetime
 import pytz
-from app.database import get_db, Empresa, Lead, Mensagem, Evento, Transbordo, Configuracao
+from app.database import SessionLocal, Empresa, Lead, Mensagem, Evento, Transbordo, Configuracao
 from app.classifier import classificar_intencao, calcular_stage
 from app.agent import processar_mensagem_dinamica, processar_confirmacao_transbordo
 
@@ -42,7 +42,7 @@ def atualizar_status_transbordo(db, empresa_id, telefone, novo_status):
     db.commit()
 
 def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
-    db = get_db()
+    db = SessionLocal()
     
     status_transbordo = obter_status_transbordo(db, empresa.id, telefone)
     

@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from app.database import get_db, Empresa, init_db
+from app.database import SessionLocal, Empresa, init_db
 from app.pipeline import processar_webhook
 
 def iniciar_chat():
@@ -21,7 +21,7 @@ def iniciar_chat():
     print("Iniciando banco de dados...")
     init_db()
 
-    db = get_db()
+    db = SessionLocal()
     empresa = db.query(Empresa).filter(Empresa.nome == "Prime Fit").first()
     db.close()
 
@@ -47,7 +47,7 @@ def iniciar_chat():
             print(f"{empresa.configuracoes.config.get('nome_agente', 'Agente')} (processando...)...\r", end="")
             
             # Usar o pipeline central passando a entidade da empresa simulada
-            db = get_db()
+            db = SessionLocal()
             empresa = db.query(Empresa).filter(Empresa.id == empresa.id).first()
             resultado = processar_webhook(empresa, telefone_teste, mensagem)
             db.close()
