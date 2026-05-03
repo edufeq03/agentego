@@ -2,15 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependências
-COPY requirements.txt .
+# Instalar dependências do sistema necessárias para compilar pacotes como psycopg2
+RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+
+# Copia os requirements da pasta bot-service
+COPY bot-service/requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar o restante do código
-COPY . .
+# Copia todo o código da pasta bot-service
+COPY bot-service/ .
 
-# Expor a porta que a aplicação vai rodar
 EXPOSE 8000
 
-# Comando para iniciar a aplicação
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
