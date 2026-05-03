@@ -35,8 +35,14 @@ class Transbordo(Base):
     status = Column(String, default="aguardando") # aguardando, pausado
     criado_em = Column(DateTime, default=datetime.utcnow)
 
-# Criar as tabelas no banco de dados
-Base.metadata.create_all(bind=engine)
+def init_db():
+    try:
+        # Criar as tabelas no banco de dados
+        Base.metadata.create_all(bind=engine)
+        print("Conexão com banco de dados estabelecida e tabelas verificadas.")
+    except Exception as e:
+        print(f"AVISO: Não foi possível conectar ao banco de dados: {e}")
+        print("Verifique se a variável DATABASE_URL está configurada e se o banco está rodando.")
 
 def get_db():
     db = SessionLocal()

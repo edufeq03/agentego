@@ -30,6 +30,11 @@ historico_conversas = {}
 
 app = FastAPI()
 
+@app.on_event("startup")
+def on_startup():
+    from app.database import init_db
+    init_db()
+
 @app.get("/")
 def health_check():
     return {"status": "online", "message": "Agente Academia está rodando!"}
