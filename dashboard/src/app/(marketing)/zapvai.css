@@ -47,7 +47,7 @@
 
 /* ───── HEADER ───── */
 .zapvai-container header {
-  position: sticky; top: 0; z-index: 500;
+  position: fixed; top: 0; left: 0; width: 100%; z-index: 500;
   background: rgba(7,13,26,0.85);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);

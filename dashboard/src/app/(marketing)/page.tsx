@@ -48,7 +48,6 @@ export default function ZapvaiLanding() {
               <a href="#how">Como funciona</a>
               <a href="#faq">Dúvidas</a>
               <Link href="/login" className="nav-cta" style={{ marginLeft: '8px' }}>Painel do Cliente</Link>
-              <a href="https://wa.me/5519996737713?text=Olá! Quero saber mais sobre o Zapvai." className="nav-cta">Começar agora</a>
             </nav>
 
             <button className="hamburger" id="hamburger" aria-label="Menu">
