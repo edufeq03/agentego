@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: atendia-db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: atendimento
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  bot:
+    build: ./bot-service
+    container_name: atendia-bot
+    restart: always
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/atendimento
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - ./bot-service:/app
+
+volumes:
+  postgres_data:
