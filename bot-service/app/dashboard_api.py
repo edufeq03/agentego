@@ -210,11 +210,19 @@ def reativar_robo_dashboard(telefone: str, empresa: Empresa = Depends(obter_empr
     atualizar_status_transbordo(db, empresa.id, telefone, None)
     return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}
 
+import os
+
 @router.get("/config")
 def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
-    if not empresa.configuracoes:
-        return {}
-    return empresa.configuracoes.config
+    config_data = {}
+    if empresa.configuracoes:
+        config_data = empresa.configuracoes.config
+    
+    return {
+        "config": config_data,
+        "webhook_token": empresa.webhook_token,
+        "base_url": os.getenv("BASE_URL", "http://localhost:8000")
+    }
 
 @router.put("/config")
 def update_config(config_data: dict, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):

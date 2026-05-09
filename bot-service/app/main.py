@@ -136,6 +136,16 @@ async def webhook(token: str, request: Request):
         telefone = data.get("phone")
         cliente_enviou_audio = False
 
+        # Se a mensagem vier como objeto (Evolution v2 ou simulação)
+        if isinstance(mensagem, dict):
+            msg_obj = mensagem
+            if "conversation" in msg_obj:
+                mensagem = msg_obj["conversation"]
+            elif "extendedTextMessage" in msg_obj:
+                mensagem = msg_obj["extendedTextMessage"].get("text", "")
+            else:
+                mensagem = None
+
         if not mensagem and "data" in data:
             event_data = data["data"]
             

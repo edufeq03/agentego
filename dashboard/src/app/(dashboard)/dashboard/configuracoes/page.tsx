@@ -50,25 +50,31 @@ export default function Configuracoes() {
   
   const [pagamentosStr, setPagamentosStr] = useState("");
   const [aulasVipStr, setAulasVipStr] = useState("");
+  const [webhookToken, setWebhookToken] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const response = await api.get("/dashboard/config");
-        const data = response.data;
-        if (data && Object.keys(data).length > 0) {
+        const { config: configData, webhook_token, base_url } = response.data;
+        
+        if (configData && Object.keys(configData).length > 0) {
           setConfig({
-            ...data,
-            professores: data.professores || [],
-            instalacoes: data.instalacoes || [],
-            detalhes_aulas: data.detalhes_aulas || []
+            ...configData,
+            professores: configData.professores || [],
+            instalacoes: configData.instalacoes || [],
+            detalhes_aulas: configData.detalhes_aulas || []
           });
-          setPagamentosStr(data.pagamentos ? data.pagamentos.join(", ") : "");
-          setAulasVipStr(data.aulas_vip ? data.aulas_vip.join(", ") : "");
+          setPagamentosStr(configData.pagamentos ? configData.pagamentos.join(", ") : "");
+          setAulasVipStr(configData.aulas_vip ? configData.aulas_vip.join(", ") : "");
         }
+        setWebhookToken(webhook_token || "");
+        setBaseUrl(base_url || "");
       } catch (error) {
         console.error("Erro ao buscar configurações:", error);
       } finally {
@@ -77,6 +83,13 @@ export default function Configuracoes() {
     }
     fetchData();
   }, []);
+
+  const copyWebhook = () => {
+    const url = `${baseUrl}/webhook/${webhookToken}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,9 +184,9 @@ export default function Configuracoes() {
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Gym Builder</h2>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Agent Builder</h2>
           <p className="text-[var(--color-foreground-muted)] mt-1">
-            Modele o cérebro do seu agente com as informações reais da sua academia.
+            Modele o cérebro do seu agente e configure as integrações.
           </p>
         </div>
         
@@ -436,6 +449,36 @@ export default function Configuracoes() {
                   />
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* Configuração de Integração (Webhook) */}
+          <section className="glass-panel p-6 space-y-6">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <Plus className="text-brand-400 rotate-45" size={20} />
+              Integração Técnica
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Webhook URL (Evolution API)</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={`${baseUrl}/webhook/${webhookToken}`}
+                    className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs text-[var(--color-foreground-muted)] focus:outline-none"
+                  />
+                  <button 
+                    onClick={copyWebhook}
+                    className="bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)] border border-[var(--color-border)] rounded-lg px-3 text-xs text-white transition-colors min-w-[80px]"
+                  >
+                    {copied ? "Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--color-foreground-muted)] leading-relaxed">
+                  Cole esta URL na configuração de Webhook da sua instância na Evolution API para habilitar o robô.
+                </p>
+              </div>
             </div>
           </section>
 

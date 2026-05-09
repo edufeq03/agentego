@@ -16,79 +16,81 @@ def run_seed():
     # Cria as tabelas se não existirem
     Base.metadata.create_all(bind=engine)
 
-    # 1. Definição do Template Estruturado de Academia
-    config_data = {
-        "nome_agente": "Rosana",
-        "nome_empresa": "Prime Fit",
-        "planos": { "basico": 80, "vip": 150 },
-        "horarios": { "semana": "06:00 as 22:00", "sabado": "08:00 as 14:00" },
-        "endereco": "Av. Eng. Antônio Francisco de Paula Souza, 123 - Campinas",
-        "pagamentos": ["Pix", "Cartão de Crédito", "Dinheiro", "Gympass"],
-        "aulas_vip": ["Spinning", "Zumba", "Yoga", "Crossfit"],
-        "professores": [
-            {"nome": "Marcos Silva", "especialidade": "Musculação e Hipertrofia", "bio": "Especialista com 10 anos de experiência em treinos de alta performance."},
-            {"nome": "Ana Beatriz", "especialidade": "Yoga e Pilates", "bio": "Focada em flexibilidade, postura e bem-estar mental."}
-        ],
-        "instalacoes": [
-            {"nome": "Piscina Aquecida", "descricao": "Piscina semiolímpica com aquecimento solar para aulas de natação."},
-            {"nome": "Estacionamento Grátis", "descricao": "Amplo estacionamento coberto para nossos alunos durante o treino."}
-        ],
-        "detalhes_aulas": [
-            {"nome": "Crossfit", "descricao": "Treino de alta intensidade focado em força e condicionamento físico.", "horario": "Segundas e Quartas às 19:00"},
-            {"nome": "Zumba", "descricao": "Aula de dança aeróbica super divertida para queimar calorias.", "horario": "Terças e Quintas às 18:00"}
+    # 1. Definição do Template Estruturado de Academia (Novo Formato)
+    config_academia = {
+        "identidade": {
+            "nome": "Rosana",
+            "cargo": "Personal Trainer Virtual",
+            "empresa": "Prime Fit",
+            "missao": "Motivar e guiar alunos na jornada fitness, esclarecendo dúvidas sobre planos e treinos.",
+            "tom_voz": "Entusiasta, motivador e empático."
+        },
+        "conhecimento": {
+            "planos": [
+                {"nome": "Básico", "valor": "R$ 80/mês", "beneficios": "Acesso à musculação"},
+                {"nome": "VIP", "valor": "R$ 150/mês", "beneficios": "Musculação + Aulas (Zumba, Yoga, Crossfit)"}
+            ],
+            "horarios": "Seg-Sex: 06h às 22h | Sáb: 08h às 14h",
+            "professores": [
+                {"nome": "Marcos Silva", "especialidade": "Hipertrofia"},
+                {"nome": "Ana Beatriz", "especialidade": "Yoga e Pilates"}
+            ],
+            "endereco": "Av. Eng. Antônio Francisco de Paula Souza, 123 - Campinas"
+        }
+    }
+
+    # 2. Definição de uma Imobiliária (Novo Nicho)
+    config_imobiliaria = {
+        "identidade": {
+            "nome": "Roberto",
+            "cargo": "Consultor Imobiliário",
+            "empresa": "Viver Bem Imóveis",
+            "missao": "Ajudar clientes a encontrarem o imóvel ideal com segurança e transparência.",
+            "tom_voz": "Profissional, sério e muito atencioso aos detalhes."
+        },
+        "conhecimento": {
+            "oportunidades": [
+                {"tipo": "Apartamento", "bairro": "Cambuí", "valor": "R$ 750.000"},
+                {"tipo": "Casa", "bairro": "Taquaral", "valor": "R$ 1.200.000"}
+            ],
+            "servicos": ["Venda", "Locação", "Avaliação de Imóveis"],
+            "horarios": "Segunda a Sexta das 09:00 às 18:00",
+            "documentacao": "Trabalhamos com toda a assessoria para financiamento bancário."
+        },
+        "regras": [
+            "Sempre pergunte qual o objetivo do cliente (comprar ou alugar).",
+            "Pergunte a faixa de preço que o cliente está buscando.",
+            "Convide para uma visita ao showroom."
         ]
     }
 
-    telefone_empresa = "5511999990000"
-    empresa_existente = db.query(Empresa).filter(Empresa.telefone_whatsapp == telefone_empresa).first()
-
-    if not empresa_existente:
-        print("Criando Empresa 'Prime Fit'...")
-        nova_empresa = Empresa(
-            nome="Prime Fit",
-            telefone_whatsapp=telefone_empresa,
-            webhook_token="primefit-token-123" 
-        )
-        db.add(nova_empresa)
+    # --- Criando Empresa 1 (Academia) ---
+    tel_academia = "5511999990000"
+    emp_academia = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_academia).first()
+    if not emp_academia:
+        emp_academia = Empresa(nome="Prime Fit", telefone_whatsapp=tel_academia, webhook_token="primefit-token-123")
+        db.add(emp_academia)
         db.commit()
-        db.refresh(nova_empresa)
+        db.refresh(emp_academia)
+    
+    db.merge(Configuracao(empresa_id=emp_academia.id, config=config_academia))
+    db.commit()
 
-        print("Adicionando Configuração da Empresa...")
-        nova_config = Configuracao(empresa_id=nova_empresa.id, config=config_data)
-        db.add(nova_config)
+    # --- Criando Empresa 2 (Imobiliária) ---
+    tel_imobiliaria = "5511988880000"
+    emp_imob = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_imobiliaria).first()
+    if not emp_imob:
+        emp_imob = Empresa(nome="Viver Bem Imóveis", telefone_whatsapp=tel_imobiliaria, webhook_token="viverbem-token-456")
+        db.add(emp_imob)
         db.commit()
+        db.refresh(emp_imob)
+    
+    db.merge(Configuracao(empresa_id=emp_imob.id, config=config_imobiliaria))
+    db.commit()
 
-        print("Criando Lead de teste...")
-        novo_lead = Lead(empresa_id=nova_empresa.id, telefone="5511999999999", stage="curioso")
-        db.add(novo_lead)
-        db.commit()
-        db.refresh(novo_lead)
-
-        print("Adicionando histórico de mensagens de teste...")
-        m1 = Mensagem(empresa_id=nova_empresa.id, lead_id=novo_lead.id, tipo="usuario", mensagem="Olá, gostaria de saber os preços", intencao="preco")
-        m2 = Mensagem(empresa_id=nova_empresa.id, lead_id=novo_lead.id, tipo="agente", mensagem="Olá! Nossos planos começam em R$ 80,00 mensais no básico.")
-        db.add_all([m1, m2])
-        db.commit()
-
-        print("Adicionando evento de teste...")
-        e1 = Evento(empresa_id=nova_empresa.id, lead_id=novo_lead.id, tipo="perguntou_preco")
-        db.add(e1)
-        db.commit()
-
-        print(f"Seed concluído com sucesso!")
-        print(f"Webhook URL para testes: http://localhost:8000/webhook/{nova_empresa.webhook_token}")
-    else:
-        print("Dados da Prime Fit já existem. Atualizando configurações estruturadas...")
-        config_entry = db.query(Configuracao).filter(Configuracao.empresa_id == empresa_existente.id).first()
-        if config_entry:
-            config_entry.config = config_data
-        else:
-            nova_config = Configuracao(empresa_id=empresa_existente.id, config=config_data)
-            db.add(nova_config)
-        
-        db.commit()
-        print("Configurações atualizadas com sucesso!")
-        print(f"Webhook URL para testes: http://localhost:8000/webhook/{empresa_existente.webhook_token}")
+    print(f"Seed concluído! Temos 2 empresas de nichos diferentes.")
+    print(f"Webhook Academia: http://localhost:8000/webhook/{emp_academia.webhook_token}")
+    print(f"Webhook Imobiliária: http://localhost:8000/webhook/{emp_imob.webhook_token}")
 
     db.close()
 
