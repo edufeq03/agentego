@@ -226,3 +226,11 @@ def update_config(config_data: dict, empresa: Empresa = Depends(obter_empresa), 
     
     db.commit()
     return {"status": "ok", "mensagem": "Configurações atualizadas com sucesso"}
+@router.post("/relatorio-semanal/enviar-agora")
+async def disparar_relatorio_manual(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.reports import enviar_relatorio_semanal_empresa
+    sucesso = await enviar_relatorio_semanal_empresa(db, empresa)
+    if sucesso:
+        return {"status": "ok", "mensagem": f"Relatório enviado com sucesso para {empresa.telefone_proprietario}"}
+    else:
+        raise HTTPException(status_code=500, detail="Falha ao enviar relatório. Verifique se o telefone do proprietário está configurado.")

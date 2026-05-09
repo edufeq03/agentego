@@ -33,14 +33,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
 from app.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.reports import enviar_relatorio_semanal_empresa
+from pytz import timezone
+
+scheduler = AsyncIOScheduler(timezone=timezone('America/Sao_Paulo'))
+
+async def tarefa_relatorio_semanal():
+    logger.info("Iniciando disparo automático de relatórios semanais...")
+    db = SessionLocal()
+    try:
+        empresas = db.query(Empresa).filter(Empresa.ativo == True, Empresa.telefone_proprietario.isnot(None)).all()
+        for empresa in empresas:
+            await enviar_relatorio_semanal_empresa(db, empresa)
+    finally:
+        db.close()
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+    # Agenda para toda Segunda-feira às 09:00 AM
+    scheduler.add_job(tarefa_relatorio_semanal, 'cron', day_of_week='mon', hour=9, minute=0)
+    scheduler.start()
+    logger.info("Scheduler iniciado: Relatórios semanais agendados para Segundas às 09:00.")
+
 @app.get("/")
+
 def health_check():
     return {"status": "online", "message": "AtendIA (SaaS) está rodando!"}
 

@@ -16,6 +16,29 @@ def run_seed():
     # Cria as tabelas se não existirem
     Base.metadata.create_all(bind=engine)
 
+    # 1. Definição do Template Estruturado de Academia
+    config_data = {
+        "nome_agente": "Rosana",
+        "nome_empresa": "Prime Fit",
+        "planos": { "basico": 80, "vip": 150 },
+        "horarios": { "semana": "06:00 as 22:00", "sabado": "08:00 as 14:00" },
+        "endereco": "Av. Eng. Antônio Francisco de Paula Souza, 123 - Campinas",
+        "pagamentos": ["Pix", "Cartão de Crédito", "Dinheiro", "Gympass"],
+        "aulas_vip": ["Spinning", "Zumba", "Yoga", "Crossfit"],
+        "professores": [
+            {"nome": "Marcos Silva", "especialidade": "Musculação e Hipertrofia", "bio": "Especialista com 10 anos de experiência em treinos de alta performance."},
+            {"nome": "Ana Beatriz", "especialidade": "Yoga e Pilates", "bio": "Focada em flexibilidade, postura e bem-estar mental."}
+        ],
+        "instalacoes": [
+            {"nome": "Piscina Aquecida", "descricao": "Piscina semiolímpica com aquecimento solar para aulas de natação."},
+            {"nome": "Estacionamento Grátis", "descricao": "Amplo estacionamento coberto para nossos alunos durante o treino."}
+        ],
+        "detalhes_aulas": [
+            {"nome": "Crossfit", "descricao": "Treino de alta intensidade focado em força e condicionamento físico.", "horario": "Segundas e Quartas às 19:00"},
+            {"nome": "Zumba", "descricao": "Aula de dança aeróbica super divertida para queimar calorias.", "horario": "Terças e Quintas às 18:00"}
+        ]
+    }
+
     telefone_empresa = "5511999990000"
     empresa_existente = db.query(Empresa).filter(Empresa.telefone_whatsapp == telefone_empresa).first()
 
@@ -24,22 +47,13 @@ def run_seed():
         nova_empresa = Empresa(
             nome="Prime Fit",
             telefone_whatsapp=telefone_empresa,
-            webhook_token="primefit-token-123" # Token estático para facilitar testes
+            webhook_token="primefit-token-123" 
         )
         db.add(nova_empresa)
         db.commit()
         db.refresh(nova_empresa)
 
         print("Adicionando Configuração da Empresa...")
-        config_data = {
-            "nome_agente": "Rosana",
-            "nome_empresa": "Prime Fit",
-            "planos": { "basico": 80, "vip": 150 },
-            "horarios": { "semana": "08:00 as 22:00", "sabado": "09:00 as 13:00" },
-            "endereco": "Av. Eng. Antônio Francisco de Paula Souza, 123 - Campinas",
-            "pagamentos": ["Pix", "Cartão de Crédito", "Dinheiro"],
-            "aulas_vip": ["Spinning", "Zumba", "Funcional", "Fitdance"]
-        }
         nova_config = Configuracao(empresa_id=nova_empresa.id, config=config_data)
         db.add(nova_config)
         db.commit()
@@ -64,7 +78,16 @@ def run_seed():
         print(f"Seed concluído com sucesso!")
         print(f"Webhook URL para testes: http://localhost:8000/webhook/{nova_empresa.webhook_token}")
     else:
-        print("Dados da Prime Fit já existem. Nenhuma ação necessária.")
+        print("Dados da Prime Fit já existem. Atualizando configurações estruturadas...")
+        config_entry = db.query(Configuracao).filter(Configuracao.empresa_id == empresa_existente.id).first()
+        if config_entry:
+            config_entry.config = config_data
+        else:
+            nova_config = Configuracao(empresa_id=empresa_existente.id, config=config_data)
+            db.add(nova_config)
+        
+        db.commit()
+        print("Configurações atualizadas com sucesso!")
         print(f"Webhook URL para testes: http://localhost:8000/webhook/{empresa_existente.webhook_token}")
 
     db.close()

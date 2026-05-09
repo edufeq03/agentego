@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full antialiased dark">
-      <body className={`${inter.className} min-h-full`}>
+      <body className={`${inter.className} min-h-full`} suppressHydrationWarning>
         {children}
       </body>
     </html>

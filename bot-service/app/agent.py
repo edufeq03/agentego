@@ -16,6 +16,24 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str) 
     pagamentos = config.get('pagamentos', [])
     aulas_vip = config.get('aulas_vip', [])
     
+    # Novos Campos Estruturados
+    professores = config.get('professores', [])
+    instalacoes = config.get('instalacoes', [])
+    detalhes_aulas = config.get('detalhes_aulas', [])
+    
+    # Formatação das seções dinâmicas
+    secao_professores = ""
+    if professores:
+        secao_professores = "\nNOSSO TIME DE PROFESSORES:\n" + "\n".join([f"- {p['nome']}: {p['especialidade']} ({p['bio']})" for p in professores])
+        
+    secao_instalacoes = ""
+    if instalacoes:
+        secao_instalacoes = "\nNOSSAS INSTALAÇÕES:\n" + "\n".join([f"- {i['nome']}: {i['descricao']}" for i in instalacoes])
+        
+    secao_detalhes_aulas = ""
+    if detalhes_aulas:
+        secao_detalhes_aulas = "\nDETALHES DAS AULAS:\n" + "\n".join([f"- {a['nome']}: {a['descricao']} ({a['horario']})" for a in detalhes_aulas])
+
     return f"""
 Você é {nome_agente}, assistente virtual da {nome_empresa}.
 
@@ -36,6 +54,10 @@ Horários:
 
 Endereço: {endereco}
 Pagamentos: {', '.join(pagamentos)}
+{secao_professores}
+{secao_instalacoes}
+{secao_detalhes_aulas}
+
 
 === REGRAS DE ATENDIMENTO ===
 1. Primeiro passo: Saudação amigável se for o primeiro contato.
