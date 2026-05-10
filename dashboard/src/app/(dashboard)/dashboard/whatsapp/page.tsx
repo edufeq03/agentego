@@ -61,8 +61,9 @@ export default function WhatsAppConnection() {
       await api.post("/dashboard/whatsapp/sync");
       alert("Configurações sincronizadas com a Evolution API!");
       await checkStatus();
-    } catch (err) {
-      alert("Erro ao sincronizar configurações.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Erro ao sincronizar configurações.";
+      alert(msg);
     } finally {
       setLoading(false);
     }
