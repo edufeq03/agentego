@@ -1,15 +1,9 @@
-from datetime import datetime
 import pytz
-from app.database import SessionLocal, Empresa, Lead, Mensagem, Evento, Transbordo, Configuracao
+from app.database import SessionLocal, Empresa, Lead, Mensagem, Transbordo, Configuracao
 from app.classifier import classificar_intencao, calcular_stage
 from app.agent import processar_mensagem_dinamica, processar_confirmacao_transbordo
-
-def gerar_contexto_tempo():
-    agora = datetime.now(pytz.timezone('America/Sao_Paulo'))
-    dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
-    dia_str = dias_semana[agora.weekday()]
-    hora_str = agora.strftime("%H:%M")
-    return f"Hoje é {dia_str}, e a hora atual é {hora_str}."
+from app.context import gerar_contexto_tempo
+from app.events import registrar_evento
 
 def limpar_tags(texto: str) -> str:
     for tag in ["[SUGERIR_TRANSBORDO]", "[CONFIRMAR_TRANSBORDO]", "[CANCELAR_TRANSBORDO]"]:
@@ -23,22 +17,31 @@ def carregar_lead(db, empresa_id, telefone):
         db.add(lead)
         db.commit()
         db.refresh(lead)
+        # Evento: iniciou_conversa
+        registrar_evento(db, empresa_id, lead.id, "iniciou_conversa")
     return lead
 
 def obter_status_transbordo(db, empresa_id, telefone):
     transbordo = db.query(Transbordo).filter(Transbordo.empresa_id == empresa_id, Transbordo.telefone == telefone).first()
     return transbordo.status if transbordo else None
 
-def atualizar_status_transbordo(db, empresa_id, telefone, novo_status):
+def atualizar_status_transbordo(db, empresa_id, telefone, novo_status, lead_id=None):
     transbordo = db.query(Transbordo).filter(Transbordo.empresa_id == empresa_id, Transbordo.telefone == telefone).first()
     if transbordo:
         if novo_status is None:
             db.delete(transbordo)
+            if lead_id: registrar_evento(db, empresa_id, lead_id, "transbordo_cancelado")
         else:
             transbordo.status = novo_status
+            if lead_id: 
+                tipo = "transbordo_confirmado" if novo_status == "pausado" else "transbordo_sugerido"
+                registrar_evento(db, empresa_id, lead_id, tipo)
     elif novo_status is not None:
         novo = Transbordo(empresa_id=empresa_id, telefone=telefone, status=novo_status)
         db.add(novo)
+        if lead_id:
+            tipo = "transbordo_confirmado" if novo_status == "pausado" else "transbordo_sugerido"
+            registrar_evento(db, empresa_id, lead_id, tipo)
     db.commit()
 
 def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
@@ -64,10 +67,8 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         lead.stage = novo_stage
         db.commit()
         
-    # Registra o evento
-    evento = Evento(empresa_id=empresa.id, lead_id=lead.id, tipo=f"intencao_{intencao}")
-    db.add(evento)
-    db.commit()
+    # Registra o evento de intenção
+    registrar_evento(db, empresa.id, lead.id, f"perguntou_{intencao}" if intencao != "duvida" else "fez_pergunta")
 
     # Recuperar histórico recente (limitado a 6)
     historico_db = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.desc()).limit(6).all()
@@ -78,19 +79,19 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         if m.id != msg_user.id:
             historico.append({"role": role, "content": m.mensagem})
 
-    contexto_tempo = gerar_contexto_tempo()
     configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
+    contexto_tempo = gerar_contexto_tempo(configuracao)
 
     if status_transbordo == "aguardando":
         resposta_raw = processar_confirmacao_transbordo(mensagem_texto, historico=historico)
         if "[CONFIRMAR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, "pausado")
+            atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
         elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, None)
+            atualizar_status_transbordo(db, empresa.id, telefone, None, lead_id=lead.id)
     else:
         resposta_raw = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico)
         if "[SUGERIR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, "aguardando")
+            atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
 
     resposta_limpa = limpar_tags(resposta_raw)
 
@@ -100,3 +101,4 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     db.close()
 
     return {"status": "ok", "resposta": resposta_limpa}
+
