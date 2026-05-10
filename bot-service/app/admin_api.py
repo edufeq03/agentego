@@ -148,3 +148,23 @@ def excluir_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
     db.delete(empresa)
     db.commit()
     return {"status": "ok", "message": "Empresa excluída com sucesso"}
+
+@router.post("/empresas/{empresa_id}/impersonate", dependencies=[Depends(verify_admin)])
+def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # Busca o primeiro usuário da empresa para gerar o token
+    usuario = db.query(Usuario).filter(Usuario.empresa_id == empresa_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Esta empresa não possui usuários cadastrados")
+    
+    from app.auth import create_access_token
+    access_token = create_access_token(data={"sub": usuario.email, "empresa_id": str(empresa.id)})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "slug": empresa.slug
+    }

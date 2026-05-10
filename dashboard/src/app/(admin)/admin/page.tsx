@@ -13,7 +13,8 @@ import {
   Tag, 
   ArrowRight,
   ShieldCheck,
-  Trash2
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 
 interface Empresa {
@@ -141,6 +142,25 @@ export default function AdminPage() {
     }
   }
 
+  async function handleImpersonate(id: string) {
+    try {
+      const response = await api.post(`admin/empresas/${id}/impersonate`, {}, {
+        headers: { "X-Admin-Token": adminToken }
+      });
+      
+      const { access_token, slug } = response.data;
+      
+      // Abre em uma nova aba com o token injetado no localStorage
+      const url = `/${slug}`;
+      localStorage.setItem("atendia_token", access_token);
+      localStorage.setItem("atendia_slug", slug);
+      
+      window.open(url, "_blank");
+    } catch (err) {
+      alert("Erro ao acessar dashboard do cliente.");
+    }
+  }
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center p-6 text-white">
@@ -262,6 +282,13 @@ export default function AdminPage() {
                     </td>
                     <td className="p-6 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleImpersonate(emp.id)}
+                          className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20"
+                          title="Acessar Dashboard como Cliente"
+                        >
+                          <ExternalLink size={18} />
+                        </button>
                         <button 
                           onClick={() => toggleStatus(emp.id)}
                           className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}
