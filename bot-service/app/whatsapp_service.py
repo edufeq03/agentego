@@ -86,7 +86,7 @@ def get_qrcode(instance_name: str) -> Optional[str]:
         logger.error(f"Erro ao buscar QR Code para {instance_name}: {e}")
         return None
 
-def set_webhook(instance_name: str, webhook_url: str) -> bool:
+def set_webhook(instance_name: str, webhook_url: str):
     """Configura o webhook para a instância."""
     base_url = get_evolution_base_url()
     url = f"{base_url}/webhook/set/{instance_name}"
@@ -109,12 +109,11 @@ def set_webhook(instance_name: str, webhook_url: str) -> bool:
     try:
         response = requests.post(url, json=payload, headers=get_headers(), timeout=10)
         if response.status_code in [200, 201]:
-            return True
-        print(f"ERRO EVOLUTION WEBHOOK ({response.status_code}): {response.text}")
-        return False
+            return True, None
+        return False, f"Evolution Status {response.status_code}: {response.text}"
     except Exception as e:
         logger.error(f"Erro ao configurar webhook para {instance_name}: {e}")
-        return False
+        return False, str(e)
 
 def logout_instance(instance_name: str) -> bool:
     """Desconecta o WhatsApp da instância."""
@@ -127,7 +126,7 @@ def logout_instance(instance_name: str) -> bool:
     except Exception:
         return False
 
-def update_settings(instance_name: str) -> bool:
+def update_settings(instance_name: str):
     """Configura opções de Rejeitar Chamadas, Ignorar Grupos e Sempre Online."""
     base_url = get_evolution_base_url()
     url = f"{base_url}/settings/set/{instance_name}"
@@ -144,9 +143,8 @@ def update_settings(instance_name: str) -> bool:
     try:
         response = requests.post(url, json=payload, headers=get_headers(), timeout=10)
         if response.status_code in [200, 201]:
-            return True
-        print(f"ERRO EVOLUTION SETTINGS ({response.status_code}): {response.text}")
-        return False
+            return True, None
+        return False, f"Evolution Status {response.status_code}: {response.text}"
     except Exception as e:
         logger.error(f"Erro ao configurar settings para {instance_name}: {e}")
-        return False
+        return False, str(e)

@@ -307,14 +307,14 @@ def sync_whatsapp_config(empresa: Empresa = Depends(obter_empresa), db: Session 
         webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
         
         # 1. Sincroniza Webhook
-        w_sucesso = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        w_sucesso, w_erro = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
         if not w_sucesso:
-            raise Exception("Erro ao configurar Webhook na Evolution")
+            raise Exception(f"Erro Webhook: {w_erro}")
         
         # 2. Sincroniza Comportamento (Rejeitar chamadas, etc)
-        s_sucesso = whatsapp_service.update_settings(empresa.evolution_instance)
+        s_sucesso, s_erro = whatsapp_service.update_settings(empresa.evolution_instance)
         if not s_sucesso:
-            raise Exception("Erro ao configurar Opções (Grupos/Chamadas) na Evolution")
+            raise Exception(f"Erro Configurações: {s_erro}")
         
         return {"status": "ok", "mensagem": "Configurações e comportamento sincronizados com sucesso!"}
             
