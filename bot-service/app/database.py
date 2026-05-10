@@ -32,6 +32,7 @@ class Empresa(Base):
     data_expiracao_teste = Column(DateTime, nullable=True)
     cupom_vendedor = Column(String, nullable=True)
     data_criacao = Column(DateTime, server_default=func.now())
+    etapas_funil = Column(JSONB, default=["novo", "curioso", "interessado", "agendado"])
     
     # Relacionamentos
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False, cascade="all, delete-orphan")
@@ -46,6 +47,7 @@ class PromptTemplate(Base):
     tom_voz = Column(Text, nullable=True)
     missao = Column(Text, nullable=True)
     objetivo = Column(Text, nullable=True)
+    etapas_funil = Column(JSONB, default=["novo", "curioso", "interessado", "agendado"])
     criado_em = Column(DateTime, default=datetime.utcnow)
 
 class Usuario(Base):

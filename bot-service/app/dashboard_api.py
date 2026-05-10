@@ -127,29 +127,25 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
 
 @router.get("/funil")
 def funil(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    # Usa as etapas dinâmicas da empresa
+    etapas = empresa.etapas_funil or ["novo", "curioso", "interessado", "agendado"]
+    
     # Contagem de leads por stage
     counts = db.query(Lead.stage, func.count(Lead.id)).filter(Lead.empresa_id == empresa.id).group_by(Lead.stage).all()
+    counts_dict = {stage: count for stage, count in counts}
     
-    # Inicializa com 0
-    funil_data = {
-        "novo": 0,
-        "curioso": 0,
-        "interessado": 0,
-        "agendado": 0
-    }
+    grafico_funil = []
+    colors = ["#8884d8", "#83a6ed", "#8dd1e1", "#82ca9d", "#a4de6c", "#d0ed57", "#ffc658"]
     
-    for stage, count in counts:
-        if stage in funil_data:
-            funil_data[stage] = count
+    for i, etapa in enumerate(etapas):
+        # Para cada etapa, somamos ela e todas as seguintes (valor acumulado para o funil)
+        valor = sum(counts_dict.get(e, 0) for e in etapas[i:])
+        grafico_funil.append({
+            "name": etapa.capitalize(),
+            "value": valor,
+            "fill": colors[i % len(colors)]
+        })
             
-    # Formata para o Recharts
-    grafico_funil = [
-        {"name": "Total Contatos", "value": sum(funil_data.values()), "fill": "#8884d8"},
-        {"name": "Curiosos", "value": funil_data["curioso"] + funil_data["interessado"] + funil_data["agendado"], "fill": "#83a6ed"},
-        {"name": "Interessados", "value": funil_data["interessado"] + funil_data["agendado"], "fill": "#8dd1e1"},
-        {"name": "Visitas Agendadas", "value": funil_data["agendado"], "fill": "#82ca9d"}
-    ]
-    
     return grafico_funil
 
 @router.get("/intencoes")

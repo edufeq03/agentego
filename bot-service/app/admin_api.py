@@ -30,6 +30,7 @@ class TemplateCreate(BaseModel):
     tom_voz: Optional[str] = None
     missao: Optional[str] = None
     objetivo: Optional[str] = None
+    etapas_funil: Optional[List[str]] = None
 
 class EmpresaCreate(BaseModel):
     nome: str
@@ -42,6 +43,7 @@ class EmpresaCreate(BaseModel):
     dias_teste: Optional[int] = 30
     cupom_vendedor: Optional[str] = None
     template_id: Optional[uuid.UUID] = None
+    etapas_funil: Optional[List[str]] = None
 
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
@@ -99,6 +101,16 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
         data_expiracao_teste=expiracao,
         cupom_vendedor=data.cupom_vendedor
     )
+
+    # Se forneceu etapas diretamente
+    if data.etapas_funil:
+        nova_empresa.etapas_funil = data.etapas_funil
+    
+    # Se escolheu um template, herda as etapas dele (se o template tiver)
+    if data.template_id:
+        template = db.query(PromptTemplate).filter(PromptTemplate.id == data.template_id).first()
+        if template and template.etapas_funil:
+            nova_empresa.etapas_funil = template.etapas_funil
     
     db.add(nova_empresa)
     db.commit()

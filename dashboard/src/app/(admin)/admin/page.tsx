@@ -65,7 +65,8 @@ export default function AdminPage() {
     prompt_sistema: "",
     tom_voz: "",
     missao: "",
-    objetivo: ""
+    objetivo: "",
+    etapas_funil: "novo, curioso, interessado, agendado"
   });
 
   async function fetchData() {
@@ -103,7 +104,11 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("admin/templates", templateData, {
+      const payload = {
+        ...templateData,
+        etapas_funil: templateData.etapas_funil.split(",").map(s => s.trim().toLowerCase())
+      };
+      await api.post("admin/templates", payload, {
         headers: { "X-Admin-Token": adminToken }
       });
       alert("Template criado com sucesso!");
@@ -456,6 +461,13 @@ export default function AdminPage() {
                   <input placeholder="Ex: Agendar avaliação" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2 outline-none focus:border-purple-500"
                     value={templateData.objetivo} onChange={(e) => setTemplateData({...templateData, objetivo: e.target.value})} />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Etapas do Funil (Separadas por vírgula)</label>
+                <input required placeholder="Ex: Lead, Qualificado, Visita, Proposta, Venda" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
+                  value={templateData.etapas_funil} onChange={(e) => setTemplateData({...templateData, etapas_funil: e.target.value})} />
+                <p className="text-[10px] text-slate-500 italic">Essas serão as fases que aparecerão no gráfico do cliente.</p>
               </div>
 
               <button type="submit" disabled={loading} className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
