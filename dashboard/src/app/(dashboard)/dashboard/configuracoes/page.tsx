@@ -357,24 +357,24 @@ export default function Configuracoes() {
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <Dumbbell className="text-orange-400" size={20} />
-              Mensalidades
+              Mensalidades / Preços
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Plano Básico (R$)</label>
                 <input 
                   type="number" 
-                  value={config.planos.basico}
-                  onChange={e => setConfig({...config, planos: {...config.planos, basico: Number(e.target.value)}})}
+                  value={config.planos?.basico || 0}
+                  onChange={e => setConfig({...config, planos: {...(config.planos || {}), basico: Number(e.target.value)}})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Plano VIP (R$)</label>
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Plano VIP / Premium (R$)</label>
                 <input 
                   type="number" 
-                  value={config.planos.vip}
-                  onChange={e => setConfig({...config, planos: {...config.planos, vip: Number(e.target.value)}})}
+                  value={config.planos?.vip || 0}
+                  onChange={e => setConfig({...config, planos: {...(config.planos || {}), vip: Number(e.target.value)}})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                 />
               </div>
@@ -392,20 +392,20 @@ export default function Configuracoes() {
                 <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Segunda a Sexta</label>
                 <input 
                   type="text" 
-                  value={config.horarios.semana}
-                  onChange={e => setConfig({...config, horarios: {...config.horarios, semana: e.target.value}})}
+                  value={config.horarios?.semana || ""}
+                  onChange={e => setConfig({...config, horarios: {...(config.horarios || {}), semana: e.target.value}})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  placeholder="06:00 as 23:00"
+                  placeholder="Ex: 08:00 as 18:00"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Sábados</label>
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Sábados / Feriados</label>
                 <input 
                   type="text" 
-                  value={config.horarios.sabado}
-                  onChange={e => setConfig({...config, horarios: {...config.horarios, sabado: e.target.value}})}
+                  value={config.horarios?.sabado || ""}
+                  onChange={e => setConfig({...config, horarios: {...(config.horarios || {}), sabado: e.target.value}})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  placeholder="08:00 as 14:00"
+                  placeholder="Ex: 08:00 as 14:00"
                 />
               </div>
             </div>
