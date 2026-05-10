@@ -103,7 +103,8 @@ def set_webhook(instance_name: str, webhook_url: str):
                 "MESSAGES_DELETE",
                 "SEND_MESSAGE",
                 "CONNECTION_UPDATE",
-                "TYPEING_START"
+                "CALL",
+                "PRESENCE_UPDATE"
             ]
         }
     }
