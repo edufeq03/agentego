@@ -262,7 +262,7 @@ def sync_task_background(empresa_id: int):
         if not empresa or not empresa.evolution_instance:
             return
             
-        base_url = os.getenv("BASE_URL", "http://localhost:8000")
+        base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
         webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
         
         # Sincroniza Webhook e Configurações de Comportamento
