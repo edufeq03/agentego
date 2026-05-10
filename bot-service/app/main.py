@@ -36,6 +36,9 @@ app.add_middleware(
 from app.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
+from app.admin_api import router as admin_router
+app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.reports import enviar_relatorio_semanal_empresa
 from pytz import timezone

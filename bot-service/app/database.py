@@ -1,6 +1,6 @@
 import os
 import uuid
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean, Float, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
@@ -20,12 +20,18 @@ class Empresa(Base):
     __tablename__ = "empresas"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nome = Column(String, nullable=False)
+    slug = Column(String, unique=True, nullable=False)
     telefone_whatsapp = Column(String, unique=True, nullable=False)
     telefone_proprietario = Column(String, nullable=True)
     webhook_token = Column(String, unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     evolution_instance = Column(String, unique=True, nullable=True)
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    valor_mensalidade = Column(Float, default=0.0)
+    data_expiracao_teste = Column(DateTime, nullable=True)
+    cupom_vendedor = Column(String, nullable=True)
+    data_criacao = Column(DateTime, server_default=func.now())
     
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False)
     leads = relationship("Lead", back_populates="empresa")
