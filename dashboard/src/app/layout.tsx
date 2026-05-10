@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AtendIA Dashboard",
-  description: "Dashboard para gestão do Agente Virtual",
+  title: "AtendIA - Gestão Inteligente",
+  description: "O cérebro por trás do seu atendimento via IA",
 };
 
 export default function RootLayout({
