@@ -108,7 +108,10 @@ def set_webhook(instance_name: str, webhook_url: str) -> bool:
     
     try:
         response = requests.post(url, json=payload, headers=get_headers(), timeout=10)
-        return response.status_code in [200, 201]
+        if response.status_code in [200, 201]:
+            return True
+        print(f"ERRO EVOLUTION WEBHOOK ({response.status_code}): {response.text}")
+        return False
     except Exception as e:
         logger.error(f"Erro ao configurar webhook para {instance_name}: {e}")
         return False
@@ -140,7 +143,10 @@ def update_settings(instance_name: str) -> bool:
     
     try:
         response = requests.post(url, json=payload, headers=get_headers(), timeout=10)
-        return response.status_code in [200, 201]
+        if response.status_code in [200, 201]:
+            return True
+        print(f"ERRO EVOLUTION SETTINGS ({response.status_code}): {response.text}")
+        return False
     except Exception as e:
         logger.error(f"Erro ao configurar settings para {instance_name}: {e}")
         return False

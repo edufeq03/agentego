@@ -308,17 +308,16 @@ def sync_whatsapp_config(empresa: Empresa = Depends(obter_empresa), db: Session 
         
         # 1. Sincroniza Webhook
         w_sucesso = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        if not w_sucesso:
+            raise Exception("Erro ao configurar Webhook na Evolution")
         
         # 2. Sincroniza Comportamento (Rejeitar chamadas, etc)
         s_sucesso = whatsapp_service.update_settings(empresa.evolution_instance)
+        if not s_sucesso:
+            raise Exception("Erro ao configurar Opções (Grupos/Chamadas) na Evolution")
         
-        if w_sucesso and s_sucesso:
-            return {"status": "ok", "mensagem": "Configurações e comportamento sincronizados com sucesso!"}
-        elif w_sucesso:
-             return {"status": "ok", "mensagem": "Webhook sincronizado, mas houve erro no comportamento."}
-        else:
-            raise Exception("Falha na comunicação com a Evolution API")
+        return {"status": "ok", "mensagem": "Configurações e comportamento sincronizados com sucesso!"}
             
     except Exception as e:
         print(f"ERRO NA SINCRONIZAÇÃO: {e}")
-        raise HTTPException(status_code=400, detail=f"Erro ao sincronizar: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
