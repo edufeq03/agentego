@@ -43,7 +43,7 @@ class Usuario(Base):
 class Configuracao(Base):
     __tablename__ = "configuracoes"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False, unique=True)
     config = Column(JSONB, nullable=False, default=dict)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

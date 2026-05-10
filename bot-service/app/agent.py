@@ -9,6 +9,9 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str) 
     missao = identidade.get('missao', 'Auxiliar clientes com clareza, empatia e eficiência, representando a empresa com excelência.')
     tom_voz = identidade.get('tom_voz', 'Amigável, profissional e prestativo.')
     
+    # DEBUG: Log para verificar o que está sendo lido do banco
+    print(f"DEBUG PROMPT -> Nome: {nome_agente} | Empresa: {nome_empresa} | Cargo: {cargo}")
+    
     # 2. Base de Conhecimento (Dinâmica)
     secoes_conhecimento = ""
     conhecimento = config.get('conhecimento', {})
