@@ -33,9 +33,20 @@ class Empresa(Base):
     cupom_vendedor = Column(String, nullable=True)
     data_criacao = Column(DateTime, server_default=func.now())
     
+    # Relacionamentos
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False)
     leads = relationship("Lead", back_populates="empresa")
     usuarios = relationship("Usuario", back_populates="empresa")
+
+class PromptTemplate(Base):
+    __tablename__ = "prompt_templates"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nome_nicho = Column(String, unique=True, nullable=False)
+    prompt_sistema = Column(Text, nullable=False)
+    tom_voz = Column(Text, nullable=True)
+    missao = Column(Text, nullable=True)
+    objetivo = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
 
 class Usuario(Base):
     __tablename__ = "usuarios"

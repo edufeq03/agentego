@@ -26,11 +26,23 @@ interface Empresa {
   data_criacao: string;
 }
 
+interface Template {
+  id: string;
+  nome_nicho: string;
+  prompt_sistema: string;
+  tom_voz: string;
+  missao: string;
+  objetivo: string;
+}
+
 export default function AdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [activeTab, setActiveTab] = useState<"empresas" | "templates">("empresas");
   const [adminToken, setAdminToken] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -41,15 +53,26 @@ export default function AdminPage() {
     telefone_proprietario: "",
     valor_mensalidade: 197.00,
     dias_teste: 30,
-    cupom_vendedor: ""
+    cupom_vendedor: "",
+    template_id: ""
   });
 
-  async function fetchEmpresas() {
+  const [templateData, setTemplateData] = useState({
+    nome_nicho: "",
+    prompt_sistema: "",
+    tom_voz: "",
+    missao: "",
+    objetivo: ""
+  });
+
+  async function fetchData() {
     try {
-      const response = await api.get("admin/empresas", {
-        headers: { "X-Admin-Token": adminToken }
-      });
-      setEmpresas(response.data);
+      const [resEmpresas, resTemplates] = await Promise.all([
+        api.get("admin/empresas", { headers: { "X-Admin-Token": adminToken } }),
+        api.get("admin/templates", { headers: { "X-Admin-Token": adminToken } })
+      ]);
+      setEmpresas(resEmpresas.data);
+      setTemplates(resTemplates.data);
       setIsAuthorized(true);
     } catch (err) {
       alert("Token de Admin inválido ou erro na busca.");
@@ -63,11 +86,28 @@ export default function AdminPage() {
       await api.post("admin/empresas", formData, {
         headers: { "X-Admin-Token": adminToken }
       });
-      alert("Academia cadastrada com sucesso!");
+      alert("Empresa cadastrada com sucesso!");
       setShowModal(false);
-      fetchEmpresas();
+      fetchData();
     } catch (err: any) {
       alert(err.response?.data?.detail || "Erro ao cadastrar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateTemplate(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post("admin/templates", templateData, {
+        headers: { "X-Admin-Token": adminToken }
+      });
+      alert("Template criado com sucesso!");
+      setShowTemplateModal(false);
+      fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Erro ao criar template.");
     } finally {
       setLoading(false);
     }
@@ -119,7 +159,7 @@ export default function AdminPage() {
               onChange={(e) => setAdminToken(e.target.value)}
             />
             <button 
-              onClick={fetchEmpresas}
+              onClick={fetchData}
               className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all"
             >
               Entrar na Central
@@ -140,195 +180,243 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Central do Franqueador</h1>
-              <p className="text-slate-400">Gerencie o onboarding e o faturamento das suas empresas.</p>
+              <p className="text-slate-400">Gerencie o onboarding, faturamento e templates de nicho.</p>
             </div>
           </div>
-          <button 
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20"
-          >
-            <Plus size={20} />
-            Novo Cliente
-          </button>
+          <div className="flex gap-3">
+            {activeTab === "empresas" ? (
+              <button 
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20"
+              >
+                <Plus size={20} />
+                Novo Cliente
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowTemplateModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold transition-all shadow-lg shadow-purple-600/20"
+              >
+                <Plus size={20} />
+                Novo Template
+              </button>
+            )}
+          </div>
         </header>
 
-        {/* Tabela de Empresas */}
-        <div className="glass-panel overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
-                <th className="p-6 text-sm font-semibold text-slate-400">Empresa / Cliente</th>
-                <th className="p-6 text-sm font-semibold text-slate-400">URL / Slug</th>
-                <th className="p-6 text-sm font-semibold text-slate-400">Mensalidade</th>
-                <th className="p-6 text-sm font-semibold text-slate-400">Expiração Teste</th>
-                <th className="p-6 text-sm font-semibold text-slate-400">Status</th>
-                <th className="p-6 text-sm font-semibold text-slate-400 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {empresas.map((emp) => (
-                <tr key={emp.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="p-6">
-                    <span className="font-bold text-lg">{emp.nome}</span>
-                  </td>
-                  <td className="p-6 text-blue-400 font-mono text-sm">
-                    /{emp.slug}
-                  </td>
-                  <td className="p-6">
-                    <div className="flex items-center gap-2">
-                      <DollarSign size={16} className="text-green-400" />
-                      <span>R$ {emp.valor_mensalidade.toFixed(2)}</span>
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <Calendar size={16} />
-                      <span>{emp.data_expiracao_teste ? new Date(emp.data_expiracao_teste).toLocaleDateString() : "Ilimitado"}</span>
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    {emp.ativo ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">
-                        <CheckCircle2 size={12} /> ATIVO
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20">
-                        <XCircle size={12} /> INATIVO
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => toggleStatus(emp.id)}
-                        className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}
-                        title={emp.ativo ? "Suspender Acesso" : "Reativar Acesso"}
-                      >
-                        {emp.ativo ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
-                      </button>
-                      
-                      <button 
-                        onClick={() => alert(`Em breve: Editar configurações de ${emp.nome}`)}
-                        className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-all"
-                        title="Gerenciar Empresa"
-                      >
-                        <Settings size={18} />
-                      </button>
-
-                      <button 
-                        onClick={() => handleDeleteEmpresa(emp.id, emp.nome)}
-                        className="p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all"
-                        title="EXCLUIR PERMANENTEMENTE"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Tabs */}
+        <div className="flex gap-4 border-b border-[var(--color-border)]">
+          <button 
+            onClick={() => setActiveTab("empresas")}
+            className={`pb-4 px-2 font-bold transition-all border-b-2 ${activeTab === "empresas" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-white"}`}
+          >
+            Empresas ({empresas.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab("templates")}
+            className={`pb-4 px-2 font-bold transition-all border-b-2 ${activeTab === "templates" ? "border-purple-500 text-purple-400" : "border-transparent text-slate-400 hover:text-white"}`}
+          >
+            Templates de Nicho ({templates.length})
+          </button>
         </div>
+
+        {activeTab === "empresas" ? (
+          <div className="glass-panel overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+                  <th className="p-6 text-sm font-semibold text-slate-400">Empresa / Cliente</th>
+                  <th className="p-6 text-sm font-semibold text-slate-400">URL / Slug</th>
+                  <th className="p-6 text-sm font-semibold text-slate-400">Mensalidade</th>
+                  <th className="p-6 text-sm font-semibold text-slate-400">Status</th>
+                  <th className="p-6 text-sm font-semibold text-slate-400 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {empresas.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6">
+                      <span className="font-bold text-lg">{emp.nome}</span>
+                    </td>
+                    <td className="p-6 text-blue-400 font-mono text-sm">
+                      /{emp.slug}
+                    </td>
+                    <td className="p-6">
+                      <div className="flex items-center gap-2">
+                        <DollarSign size={16} className="text-green-400" />
+                        <span>R$ {emp.valor_mensalidade.toFixed(2)}</span>
+                      </div>
+                    </td>
+                    <td className="p-6">
+                      {emp.ativo ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">
+                          <CheckCircle2 size={12} /> ATIVO
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20">
+                          <XCircle size={12} /> INATIVO
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => toggleStatus(emp.id)}
+                          className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}
+                        >
+                          {emp.ativo ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteEmpresa(emp.id, emp.nome)}
+                          className="p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((t) => (
+              <div key={t.id} className="glass-panel p-6 space-y-4 relative group">
+                <div className="flex justify-between items-start">
+                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <span className="text-xs font-bold bg-purple-500/20 px-2 py-1 rounded uppercase tracking-wider">Template</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">{t.nome_nicho}</h3>
+                  <p className="text-slate-400 text-sm line-clamp-2 mt-1">{t.prompt_sistema}</p>
+                </div>
+                <div className="pt-4 flex gap-2">
+                  <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-slate-500">TOM: {t.tom_voz || "Neutro"}</span>
+                  <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-slate-500">OBJ: {t.objetivo?.slice(0, 10)}...</span>
+                </div>
+              </div>
+            ))}
+            {templates.length === 0 && (
+              <div className="col-span-full py-12 text-center text-slate-500 glass-panel">
+                Nenhum template cadastrado ainda. Comece criando o seu primeiro nicho!
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Modal de Onboarding */}
+      {/* Modal Novo Cliente */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-2xl overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="glass-panel w-full max-w-2xl my-auto">
             <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-blue-600/10">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Plus className="text-blue-400" />
                 Novo Cliente
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">Feche</button>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">Fechar</button>
             </div>
             
             <form onSubmit={handleCreateEmpresa} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="col-span-full space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Template de Nicho (Inteligência)</label>
+                <select 
+                  required
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.template_id}
+                  onChange={(e) => setFormData({...formData, template_id: e.target.value})}
+                >
+                  <option value="">Selecione um Nicho...</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.nome_nicho}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500">A IA deste cliente será inicializada com as regras deste template.</p>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nome da Empresa</label>
-                <input 
-                  required
-                  placeholder="Ex: Prime Fit Studio"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                />
+                <input required placeholder="Ex: Clínica Sorriso" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Slug (URL)</label>
-                <input 
-                  required
-                  placeholder="Ex: primefit"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({...formData, slug: e.target.value.toLowerCase().replace(/ /g, "-")})}
-                />
+                <input required placeholder="Ex: clinica-sorriso" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.slug} onChange={(e) => setFormData({...formData, slug: e.target.value.toLowerCase().replace(/ /g, "-")})} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">WhatsApp da Unidade</label>
-                <input 
-                  required
-                  placeholder="Ex: 5511999999999"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.telefone_whatsapp}
-                  onChange={(e) => setFormData({...formData, telefone_whatsapp: e.target.value})}
-                />
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">WhatsApp Unidade</label>
+                <input required placeholder="5511999999999" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.telefone_whatsapp} onChange={(e) => setFormData({...formData, telefone_whatsapp: e.target.value})} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">WhatsApp do Proprietário</label>
-                <input 
-                  placeholder="Ex: 5511888888888"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.telefone_proprietario}
-                  onChange={(e) => setFormData({...formData, telefone_proprietario: e.target.value})}
-                />
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Mensalidade (R$)</label>
+                <input type="number" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.valor_mensalidade} onChange={(e) => setFormData({...formData, valor_mensalidade: parseFloat(e.target.value)})} />
+              </div>
+
+              <button type="submit" disabled={loading} className="col-span-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+                {loading ? "Processando..." : "Ativar Empresa e Iniciar SaaS"}
+                <ArrowRight size={20} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo Template */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="glass-panel w-full max-w-2xl my-auto">
+            <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-purple-600/10">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ShieldCheck className="text-purple-400" />
+                Novo Template de Nicho
+              </h2>
+              <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-white">Fechar</button>
+            </div>
+            
+            <form onSubmit={handleCreateTemplate} className="p-8 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nome do Nicho</label>
+                <input required placeholder="Ex: Imobiliária, Clínica de Estética..." className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
+                  value={templateData.nome_nicho} onChange={(e) => setTemplateData({...templateData, nome_nicho: e.target.value})} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Valor Mensal (R$)</label>
-                <input 
-                  type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.valor_mensalidade}
-                  onChange={(e) => setFormData({...formData, valor_mensalidade: parseFloat(e.target.value)})}
-                />
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Prompt de Sistema (O Cérebro)</label>
+                <textarea required rows={4} placeholder="Você é um assistente especializado em..." className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
+                  value={templateData.prompt_sistema} onChange={(e) => setTemplateData({...templateData, prompt_sistema: e.target.value})} />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Dias de Teste Grátis</label>
-                <input 
-                  type="number"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.dias_teste}
-                  onChange={(e) => setFormData({...formData, dias_teste: parseInt(e.target.value)})}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider text-xs">Tom de Voz</label>
+                  <input placeholder="Ex: Amigável" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2 outline-none focus:border-purple-500"
+                    value={templateData.tom_voz} onChange={(e) => setTemplateData({...templateData, tom_voz: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider text-xs">Missão</label>
+                  <input placeholder="Ex: Vender pacotes" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2 outline-none focus:border-purple-500"
+                    value={templateData.missao} onChange={(e) => setTemplateData({...templateData, missao: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider text-xs">Objetivo</label>
+                  <input placeholder="Ex: Agendar avaliação" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2 outline-none focus:border-purple-500"
+                    value={templateData.objetivo} onChange={(e) => setTemplateData({...templateData, objetivo: e.target.value})} />
+                </div>
               </div>
 
-              <div className="col-span-full space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Tag size={14} /> Cupom de Vendedor
-                </label>
-                <input 
-                  placeholder="Ex: VENDEDOR_JOAO"
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.cupom_vendedor}
-                  onChange={(e) => setFormData({...formData, cupom_vendedor: e.target.value})}
-                />
-              </div>
-
-              <div className="col-span-full pt-4">
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {loading ? "Processando..." : "Ativar Empresa e Iniciar SaaS"}
-                  <ArrowRight size={20} />
-                </button>
-              </div>
+              <button type="submit" disabled={loading} className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+                {loading ? "Criando..." : "Salvar Template Mestre"}
+                <CheckCircle2 size={20} />
+              </button>
             </form>
           </div>
         </div>

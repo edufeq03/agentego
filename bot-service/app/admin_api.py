@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from app.database import get_db, Empresa, init_db
+from app.database import get_db, Empresa, PromptTemplate, Configuracao, init_db
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -23,6 +23,13 @@ def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
         logger.warning(f"Acesso Negado! Esperado: {ADMIN_TOKEN} | Recebido: {x_admin_token}")
         raise HTTPException(status_code=401, detail="Não autorizado: Token de Admin inválido")
 
+class TemplateCreate(BaseModel):
+    nome_nicho: str
+    prompt_sistema: str
+    tom_voz: Optional[str] = None
+    missao: Optional[str] = None
+    objetivo: Optional[str] = None
+
 class EmpresaCreate(BaseModel):
     nome: str
     slug: str
@@ -31,6 +38,7 @@ class EmpresaCreate(BaseModel):
     valor_mensalidade: Optional[float] = 0.0
     dias_teste: Optional[int] = 30
     cupom_vendedor: Optional[str] = None
+    template_id: Optional[uuid.UUID] = None
 
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
@@ -43,6 +51,18 @@ class EmpresaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+@router.get("/templates", dependencies=[Depends(verify_admin)])
+def listar_templates(db: Session = Depends(get_db)):
+    return db.query(PromptTemplate).all()
+
+@router.post("/templates", dependencies=[Depends(verify_admin)])
+def criar_template(data: TemplateCreate, db: Session = Depends(get_db)):
+    novo = PromptTemplate(**data.dict())
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return novo
 
 @router.get("/empresas", response_model=List[EmpresaResponse], dependencies=[Depends(verify_admin)])
 def listar_empresas(db: Session = Depends(get_db)):
@@ -74,6 +94,27 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
     db.add(nova_empresa)
     db.commit()
     db.refresh(nova_empresa)
+
+    # Aplica o Template se fornecido
+    config_data = {}
+    if data.template_id:
+        template = db.query(PromptTemplate).filter(PromptTemplate.id == data.template_id).first()
+        if template:
+            config_data = {
+                "prompt_sistema": template.prompt_sistema,
+                "tom_voz": template.tom_voz,
+                "missao": template.missao,
+                "objetivo": template.objetivo
+            }
+    
+    # Cria a configuração inicial
+    nova_config = Configuracao(
+        empresa_id=nova_empresa.id,
+        config=config_data
+    )
+    db.add(nova_config)
+    db.commit()
+
     return nova_empresa
 
 @router.patch("/empresas/{empresa_id}/status", dependencies=[Depends(verify_admin)])
