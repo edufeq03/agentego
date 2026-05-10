@@ -65,6 +65,9 @@ def run_seed():
     }
 
     # --- Criando Empresa 1 (Academia) ---
+    from app.auth import get_password_hash
+    from app.database import Usuario
+
     tel_academia = "5511999990000"
     emp_academia = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_academia).first()
     if not emp_academia:
@@ -74,6 +77,12 @@ def run_seed():
         db.refresh(emp_academia)
     
     db.merge(Configuracao(empresa_id=emp_academia.id, config=config_academia))
+    
+    # Usuário Academia
+    user_academia = db.query(Usuario).filter(Usuario.email == "academia@teste.com").first()
+    if not user_academia:
+        db.add(Usuario(empresa_id=emp_academia.id, email="academia@teste.com", senha_hash=get_password_hash("senha123")))
+    
     db.commit()
 
     # --- Criando Empresa 2 (Imobiliária) ---
@@ -86,6 +95,12 @@ def run_seed():
         db.refresh(emp_imob)
     
     db.merge(Configuracao(empresa_id=emp_imob.id, config=config_imobiliaria))
+
+    # Usuário Imobiliária
+    user_imob = db.query(Usuario).filter(Usuario.email == "imoveis@teste.com").first()
+    if not user_imob:
+        db.add(Usuario(empresa_id=emp_imob.id, email="imoveis@teste.com", senha_hash=get_password_hash("senha123")))
+    
     db.commit()
 
     print(f"Seed concluído! Temos 2 empresas de nichos diferentes.")
