@@ -85,3 +85,13 @@ def alternar_status_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)
     empresa.ativo = not empresa.ativo
     db.commit()
     return {"status": "ok", "novo_status": empresa.ativo}
+
+@router.delete("/empresas/{empresa_id}", dependencies=[Depends(verify_admin)])
+def excluir_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    db.delete(empresa)
+    db.commit()
+    return {"status": "ok", "message": "Empresa excluída com sucesso"}

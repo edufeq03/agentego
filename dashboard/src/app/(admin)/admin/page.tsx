@@ -12,7 +12,8 @@ import {
   DollarSign, 
   Tag, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Trash2
 } from "lucide-react";
 
 interface Empresa {
@@ -80,6 +81,21 @@ export default function AdminPage() {
       fetchEmpresas();
     } catch (err) {
       alert("Erro ao alterar status.");
+    }
+  }
+
+  async function handleDeleteEmpresa(id: string, nome: string) {
+    if (!confirm(`TEM CERTEZA? Isso apagará permanentemente a empresa "${nome}" e todos os seus dados.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`admin/empresas/${id}`, {
+        headers: { "X-Admin-Token": adminToken }
+      });
+      fetchEmpresas();
+    } catch (err) {
+      alert("Erro ao excluir empresa.");
     }
   }
 
@@ -197,6 +213,14 @@ export default function AdminPage() {
                         title="Gerenciar Empresa"
                       >
                         <Settings size={18} />
+                      </button>
+
+                      <button 
+                        onClick={() => handleDeleteEmpresa(emp.id, emp.nome)}
+                        className="p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all"
+                        title="EXCLUIR PERMANENTEMENTE"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
