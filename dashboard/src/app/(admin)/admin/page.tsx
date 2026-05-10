@@ -54,7 +54,9 @@ export default function AdminPage() {
     valor_mensalidade: 197.00,
     dias_teste: 30,
     cupom_vendedor: "",
-    template_id: ""
+    template_id: "",
+    email_admin: "",
+    senha_admin: ""
   });
 
   const [templateData, setTemplateData] = useState({
@@ -359,6 +361,22 @@ export default function AdminPage() {
                 <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Mensalidade (R$)</label>
                 <input type="number" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
                   value={formData.valor_mensalidade} onChange={(e) => setFormData({...formData, valor_mensalidade: parseFloat(e.target.value)})} />
+              </div>
+
+              <div className="col-span-full border-t border-white/5 pt-4">
+                <h3 className="text-xs font-bold text-blue-400 uppercase tracking-[2px] mb-4">Credenciais de Acesso</h3>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">E-mail do Cliente</label>
+                <input type="email" required placeholder="cliente@email.com" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.email_admin} onChange={(e) => setFormData({...formData, email_admin: e.target.value})} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Senha Inicial</label>
+                <input type="password" required placeholder="••••••••" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.senha_admin} onChange={(e) => setFormData({...formData, senha_admin: e.target.value})} />
               </div>
 
               <button type="submit" disabled={loading} className="col-span-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from app.database import get_db, Empresa, PromptTemplate, Configuracao, init_db
+from app.database import get_db, Empresa, PromptTemplate, Configuracao, Usuario, init_db
+from app.auth import pwd_context
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -34,6 +35,8 @@ class EmpresaCreate(BaseModel):
     nome: str
     slug: str
     telefone_whatsapp: str
+    email_admin: str
+    senha_admin: str
     telefone_proprietario: Optional[str] = None
     valor_mensalidade: Optional[float] = 0.0
     dias_teste: Optional[int] = 30
@@ -113,6 +116,15 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
         config=config_data
     )
     db.add(nova_config)
+    db.commit()
+
+    # Cria o usuário admin da empresa
+    novo_usuario = Usuario(
+        email=data.email_admin,
+        senha_hash=pwd_context.hash(data.senha_admin),
+        empresa_id=nova_empresa.id
+    )
+    db.add(novo_usuario)
     db.commit()
 
     return nova_empresa
