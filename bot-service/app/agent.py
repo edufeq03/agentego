@@ -8,6 +8,7 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
     nome_empresa = config.get('nome_empresa') or identidade.get('empresa') or 'Empresa'
     missao = config.get('missao') or identidade.get('missao') or 'Auxiliar clientes com clareza e eficiência.'
     tom_voz = config.get('tom_voz') or identidade.get('tom_voz') or 'Amigável e profissional.'
+    instrucoes_adicionais = config.get('prompt_sistema') or config.get('instrucoes') or ''
     
     # DEBUG: Log para verificar o que está sendo lido do banco
     print(f"DEBUG PROMPT -> Nome: {nome_agente} | Empresa: {nome_empresa} | Cargo: {cargo}")
@@ -66,6 +67,9 @@ Você é {nome_agente}, {cargo} da {nome_empresa}.
 
 === SEU TOM DE VOZ ===
 {tom_voz}
+
+=== INSTRUÇÕES ADICIONAIS ===
+{instrucoes_adicionais}
 
 === CONTEXTO ATUAL ===
 {contexto_tempo}
