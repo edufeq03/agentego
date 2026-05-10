@@ -287,16 +287,10 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
     instance_name = empresa.evolution_instance
     status = whatsapp_service.get_connection_status(instance_name)
     
-    if status == "not_found":
-        whatsapp_service.create_instance(instance_name)
-        status = "disconnected"
-
     qrcode = None
-    if status != "connected":
+    if status != "connected" and status != "not_found":
         qrcode = whatsapp_service.get_qrcode(instance_name)
-    else:
-        # Se conectou, agenda a sincronização para rodar em background
-        # (Isso evita travar o polling do frontend)
+    elif status == "connected":
         background_tasks.add_task(sync_task_background, empresa.id)
         
     return {
@@ -304,6 +298,26 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
         "qrcode": qrcode,
         "instance": instance_name
     }
+
+@router.post("/whatsapp/connect")
+def connect_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    if not empresa.evolution_instance:
+        safe_name = "".join(filter(str.isalnum, empresa.nome.lower()))
+        instance_name = f"inst-{safe_name}-{str(empresa.id)[:4]}"
+        empresa.evolution_instance = instance_name
+        db.commit()
+        db.refresh(empresa)
+
+    instance_name = empresa.evolution_instance
+    status = whatsapp_service.get_connection_status(instance_name)
+    
+    if status == "not_found":
+        success = whatsapp_service.create_instance(instance_name)
+        if not success:
+            raise HTTPException(status_code=500, detail="Erro ao criar instância")
+        return {"status": "created", "message": "Instância criada com sucesso."}
+    
+    return {"status": status, "message": "Instância já existente."}
 
 @router.post("/whatsapp/logout")
 def logout_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):

@@ -55,6 +55,19 @@ export default function WhatsAppConnection() {
     }
   }
 
+  async function handleConnect() {
+    setLoading(true);
+    try {
+      await api.post("dashboard/whatsapp/connect");
+      // Aguarda um pouco para a Evolution processar a criação
+      setTimeout(() => checkStatus(), 2000);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Erro ao conectar WhatsApp.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -115,10 +128,10 @@ export default function WhatsAppConnection() {
 
         {/* Card do QR Code / Instruções */}
         <div className="lg:col-span-2 glass-panel p-8 border border-white/10 flex flex-col items-center justify-center min-h-[400px]">
-          {loading && status === "loading" ? (
+          {loading && (status === "loading" || status === "not_found") ? (
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="text-blue-500 animate-spin" size={48} />
-              <p className="text-slate-400 animate-pulse">Carregando...</p>
+              <p className="text-slate-400 animate-pulse">Iniciando conexão...</p>
             </div>
           ) : status === "connected" ? (
             <div className="text-center space-y-6">
@@ -138,6 +151,22 @@ export default function WhatsAppConnection() {
                   Atualizar Status
                 </button>
               </div>
+            </div>
+          ) : status === "not_found" ? (
+            <div className="text-center space-y-6">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-blue-500/10 text-blue-500 mb-2">
+                <Smartphone size={48} />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Pronto para Conectar</h2>
+              <p className="text-slate-400 max-w-sm mx-auto">
+                Sua instância ainda não foi criada na Evolution API. Clique no botão abaixo para iniciar o processo.
+              </p>
+              <button 
+                onClick={handleConnect}
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
+              >
+                Criar Instância e Gerar QR Code
+              </button>
             </div>
           ) : (
             <div className="flex flex-col md:flex-row items-center gap-12 w-full max-w-2xl">
@@ -163,7 +192,7 @@ export default function WhatsAppConnection() {
                   O QR Code atualiza automaticamente a cada 30 segundos se não for utilizado.
                 </p>
               </div>
-
+ 
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                 <div className="relative bg-white p-4 rounded-xl overflow-hidden shadow-2xl">
