@@ -245,3 +245,54 @@ async def disparar_relatorio_manual(empresa: Empresa = Depends(obter_empresa), d
         return {"status": "ok", "mensagem": f"Relatório enviado com sucesso para {empresa.telefone_proprietario}"}
     else:
         raise HTTPException(status_code=500, detail="Falha ao enviar relatório. Verifique se o telefone do proprietário está configurado.")
+
+# --- NOVOS ENDPOINTS: GESTÃO DE WHATSAPP (EVOLUTION API) ---
+from app import whatsapp_service
+
+@router.get("/whatsapp/status")
+def get_whatsapp_status(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    # 1. Garante que a empresa tenha um nome de instância vinculado
+    if not empresa.evolution_instance:
+        # Gera um nome de instância único baseado no nome da empresa ou ID
+        safe_name = "".join(filter(str.isalnum, empresa.nome.lower()))
+        instance_name = f"inst-{safe_name}-{str(empresa.id)[:4]}"
+        empresa.evolution_instance = instance_name
+        db.commit()
+        db.refresh(empresa)
+
+    instance_name = empresa.evolution_instance
+    
+    # 2. Verifica o status na Evolution
+    status = whatsapp_service.get_connection_status(instance_name)
+    
+    # 3. Se a instância não existir na Evolution, cria agora
+    if status == "not_found":
+        whatsapp_service.create_instance(instance_name)
+        status = "disconnected"
+        
+        # Configura o Webhook automaticamente
+        base_url = os.getenv("BASE_URL", "http://localhost:8000")
+        webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
+        whatsapp_service.set_webhook(instance_name, webhook_url)
+
+    # 4. Busca o QR Code se estiver desconectado
+    qrcode = None
+    if status != "connected":
+        qrcode = whatsapp_service.get_qrcode(instance_name)
+        
+    return {
+        "instance": instance_name,
+        "status": status,
+        "qrcode": qrcode
+    }
+
+@router.post("/whatsapp/logout")
+def logout_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    if not empresa.evolution_instance:
+        raise HTTPException(status_code=404, detail="Nenhuma instância vinculada")
+        
+    sucesso = whatsapp_service.logout_instance(empresa.evolution_instance)
+    if sucesso:
+        return {"status": "ok", "mensagem": "WhatsApp desconectado com sucesso"}
+    else:
+        raise HTTPException(status_code=500, detail="Falha ao desconectar WhatsApp")

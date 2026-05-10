@@ -23,6 +23,7 @@ class Empresa(Base):
     telefone_whatsapp = Column(String, unique=True, nullable=False)
     telefone_proprietario = Column(String, nullable=True)
     webhook_token = Column(String, unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    evolution_instance = Column(String, unique=True, nullable=True)
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     

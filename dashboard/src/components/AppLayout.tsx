@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone } from "lucide-react";
 import api from "@/lib/api";
 
 const navigation = [
   { name: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Conectar WhatsApp", href: "/dashboard/whatsapp", icon: Smartphone },
   { name: "Funil de Vendas", href: "/dashboard/funil", icon: Filter },
   { name: "Insights", href: "/dashboard/insights", icon: Lightbulb },
   { name: "Conversas", href: "/dashboard/conversas", icon: MessageCircle },
