@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import logging
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 import asyncio
 
 from app.logger import setup_logging
