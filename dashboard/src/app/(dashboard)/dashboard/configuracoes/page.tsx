@@ -63,9 +63,22 @@ export default function Configuracoes() {
         const response = await api.get("/dashboard/config");
         const { config: configData, webhook_token, base_url } = response.data;
         
+        console.log("DADOS RECEBIDOS DA API:", configData);
+
         if (configData && Object.keys(configData).length > 0) {
           setConfig({
             ...configData,
+            nome_agente: configData.nome_agente || "",
+            nome_empresa: configData.nome_empresa || "",
+            endereco: configData.endereco || "",
+            planos: {
+              basico: configData.planos?.basico || 0,
+              vip: configData.planos?.vip || 0
+            },
+            horarios: {
+              semana: configData.horarios?.semana || "",
+              sabado: configData.horarios?.sabado || ""
+            },
             professores: configData.professores || [],
             instalacoes: configData.instalacoes || [],
             detalhes_aulas: configData.detalhes_aulas || []
