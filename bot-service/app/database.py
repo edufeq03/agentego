@@ -34,9 +34,9 @@ class Empresa(Base):
     data_criacao = Column(DateTime, server_default=func.now())
     
     # Relacionamentos
-    configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False)
-    leads = relationship("Lead", back_populates="empresa")
-    usuarios = relationship("Usuario", back_populates="empresa")
+    configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False, cascade="all, delete-orphan")
+    leads = relationship("Lead", back_populates="empresa", cascade="all, delete-orphan")
+    usuarios = relationship("Usuario", back_populates="empresa", cascade="all, delete-orphan")
 
 class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
