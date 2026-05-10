@@ -51,7 +51,13 @@ def get_connection_status(instance_name: str) -> str:
     try:
         response = requests.get(url, headers=get_headers(), timeout=5)
         if response.status_code == 200:
-            return response.json().get("instance", {}).get("state", "disconnected")
+            state = response.json().get("instance", {}).get("state", "disconnected")
+            # Mapeia 'open' (Evolution v2) para 'connected' (Nosso Dashboard)
+            if state == "open":
+                return "connected"
+            if state == "close":
+                return "disconnected"
+            return state
         if response.status_code == 404:
             return "not_found"
         return "disconnected"
