@@ -124,7 +124,7 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Central do Franqueador</h1>
-              <p className="text-slate-400">Gerencie o onboarding e o faturamento das suas academias.</p>
+              <p className="text-slate-400">Gerencie o onboarding e o faturamento das suas empresas.</p>
             </div>
           </div>
           <button 
@@ -141,7 +141,7 @@ export default function AdminPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
-                <th className="p-6 text-sm font-semibold text-slate-400">Academia</th>
+                <th className="p-6 text-sm font-semibold text-slate-400">Empresa / Cliente</th>
                 <th className="p-6 text-sm font-semibold text-slate-400">URL / Slug</th>
                 <th className="p-6 text-sm font-semibold text-slate-400">Mensalidade</th>
                 <th className="p-6 text-sm font-semibold text-slate-400">Expiração Teste</th>
@@ -194,7 +194,7 @@ export default function AdminPage() {
                       <button 
                         onClick={() => alert(`Em breve: Editar configurações de ${emp.nome}`)}
                         className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-all"
-                        title="Gerenciar Academia"
+                        title="Gerenciar Empresa"
                       >
                         <Settings size={18} />
                       </button>
@@ -214,14 +214,14 @@ export default function AdminPage() {
             <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-blue-600/10">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Plus className="text-blue-400" />
-                Cadastrar Novo Cliente
+                Novo Cliente
               </h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">Feche</button>
             </div>
             
             <form onSubmit={handleCreateEmpresa} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nome da Academia</label>
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nome da Empresa</label>
                 <input 
                   required
                   placeholder="Ex: Prime Fit Studio"
@@ -301,7 +301,7 @@ export default function AdminPage() {
                   disabled={loading}
                   className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {loading ? "Processando..." : "Criar Academia e Ativar SaaS"}
+                  {loading ? "Processando..." : "Ativar Empresa e Iniciar SaaS"}
                   <ArrowRight size={20} />
                 </button>
               </div>
