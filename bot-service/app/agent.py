@@ -1,6 +1,6 @@
 from app.openai_client import perguntar
 
-def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str) -> str:
+def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, sentimento: str = "neutro") -> str:
     # 1. Identidade do Agente (Dinâmica - Prioriza campos planos do Dashboard)
     identidade = config.get('identidade', {})
     nome_agente = config.get('nome_agente') or identidade.get('nome') or 'Rosana'
@@ -71,6 +71,8 @@ Você é {nome_agente}, {cargo} da {nome_empresa}.
 {contexto_tempo}
 INTENÇÃO DETECTADA: {intencao}
 ESTÁGIO DO LEAD NO FUNIL: {stage}
+SENTIMENTO DO CLIENTE: {sentimento.upper()}
+{ "[ALERTA: O usuário parece frustrado ou irritado. Seja extra empático, calmo e prestativo.]" if sentimento == "negativo" else "" }
 
 === BASE DE CONHECIMENTO ===
 {secoes_conhecimento}
@@ -106,8 +108,8 @@ Analise a mensagem do cliente:
 Importante: sempre inclua uma das duas tags ([CONFIRMAR_TRANSBORDO] ou [CANCELAR_TRANSBORDO])
 """
 
-def processar_mensagem_dinamica(mensagem_usuario: str, config: dict, intencao: str, stage: str, contexto_tempo: str, historico=None):
-    prompt_dinamico = montar_prompt(config, intencao, stage, contexto_tempo)
+def processar_mensagem_dinamica(mensagem_usuario: str, config: dict, intencao: str, stage: str, contexto_tempo: str, historico=None, sentimento: str = "neutro"):
+    prompt_dinamico = montar_prompt(config, intencao, stage, contexto_tempo, sentimento)
     return perguntar(mensagem_usuario, prompt_dinamico, historico)
 
 def processar_confirmacao_transbordo(mensagem_usuario: str, historico=None):

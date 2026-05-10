@@ -63,6 +63,15 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     db.add(msg_user)
     db.commit()
 
+    # Analisa sentimento (Heurística básica)
+    sentimento = "neutro"
+    palavras_negativas = ["ruim", "péssimo", "horrível", "droga", "atraso", "demora", "não funciona", "absurdo", "lixo"]
+    if any(p in mensagem_texto.lower() for p in palavras_negativas):
+        sentimento = "negativo"
+        registrar_evento(db, empresa.id, lead.id, "sentimento_negativo", {"mensagem": mensagem_texto})
+    elif any(p in mensagem_texto.lower() for p in ["bom", "ótimo", "excelente", "obrigado", "valeu", "show"]):
+        sentimento = "positivo"
+
     # Atualiza o funil de vendas (stage)
     novo_stage = calcular_stage(lead.stage, intencao)
     if novo_stage != lead.stage:
@@ -91,7 +100,7 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
             atualizar_status_transbordo(db, empresa.id, telefone, None, lead_id=lead.id)
     else:
-        resposta_raw = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico)
+        resposta_raw = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico, sentimento=sentimento)
         if "[SUGERIR_TRANSBORDO]" in resposta_raw:
             atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
 
