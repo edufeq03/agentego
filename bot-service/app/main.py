@@ -78,9 +78,9 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 
         # Simular status de "digitando" ou "gravando" na Evolution
         if cliente_enviou_audio:
-            simular_gravacao_audio(telefone)
+            simular_gravacao_audio(telefone, empresa.evolution_instance)
         else:
-            simular_digitacao(telefone)
+            simular_digitacao(telefone, empresa.evolution_instance)
 
         # Processar no Pipeline Central
         resultado = processar_webhook(empresa, telefone, texto_combinado)
@@ -98,10 +98,10 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
                 caminho_audio_resposta = temp_out.name
             try:
                 gerar_audio(resposta, caminho_audio_resposta)
-                enviar_audio_whatsapp(telefone, caminho_audio_resposta)
+                enviar_audio_whatsapp(telefone, caminho_audio_resposta, empresa.evolution_instance)
             except Exception as e:
                 logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")
-                enviar_whatsapp(telefone, resposta) 
+                enviar_whatsapp(telefone, resposta, empresa.evolution_instance) 
             finally:
                 if os.path.exists(caminho_audio_resposta):
                     os.remove(caminho_audio_resposta)
@@ -109,10 +109,10 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
             paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
             for i, paragrafo in enumerate(paragrafos):
                 if i > 0:
-                    simular_digitacao(telefone)
+                    simular_digitacao(telefone, empresa.evolution_instance)
                     tempo_espera = max(1.0, min(3.0, len(paragrafo) / 40.0))
                     await asyncio.sleep(tempo_espera)
-                enviar_whatsapp(telefone, paragrafo)
+                enviar_whatsapp(telefone, paragrafo, empresa.evolution_instance)
 
     except Exception as e:
         logger.error(f"Erro no processamento do pipeline em background: {e}")
@@ -170,7 +170,7 @@ async def webhook(token: str, request: Request):
                 if mensagem and mensagem.strip().lower() == "/reativar":
                     from app.pipeline import atualizar_status_transbordo
                     atualizar_status_transbordo(db, empresa.id, telefone, None)
-                    enviar_whatsapp(telefone, "🤖 *Atendimento Automático Reativado*.")
+                    enviar_whatsapp(telefone, "🤖 *Atendimento Automático Reativado*.", empresa.evolution_instance)
                     logger.info(f"[{telefone}] Robô reativado pelo corretor via chat (/reativar).")
                     return {"status": "ok", "mensagem": "reativado_via_chat"}
                 return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}

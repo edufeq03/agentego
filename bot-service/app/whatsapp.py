@@ -4,8 +4,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def enviar_whatsapp(numero, mensagem):
-    url = os.getenv("EVOLUTION_URL")
+from app import whatsapp_service
+
+def enviar_whatsapp(numero, mensagem, instance_name):
+    base_url = whatsapp_service.get_evolution_base_url()
+    url = f"{base_url}/message/sendText/{instance_name}"
     
     payload = {
         "number": numero,
@@ -19,19 +22,17 @@ def enviar_whatsapp(numero, mensagem):
     response = requests.post(url, json=payload, headers=headers)
     
     if response.status_code in [200, 201]:
-        logger.info(f"[{numero}] Mensagem despachada para o WhatsApp com sucesso.")
+        logger.info(f"[{numero}] Mensagem despachada para o WhatsApp com sucesso (Instância: {instance_name}).")
     else:
         logger.error(f"[{numero}] FALHA NO ENVIO (Status {response.status_code}): {response.text}")
 
-def simular_digitacao(numero):
-    url = os.getenv("EVOLUTION_URL")
-    if not url: return
-    
-    url_presence = url.replace("message/sendText", "chat/sendPresence")
+def simular_digitacao(numero, instance_name):
+    base_url = whatsapp_service.get_evolution_base_url()
+    url = f"{base_url}/chat/sendPresence/{instance_name}"
     
     payload = {
         "number": numero,
-        "delay": 6000,
+        "delay": 3000,
         "presence": "composing"
     }
     
@@ -40,20 +41,17 @@ def simular_digitacao(numero):
     }
     
     try:
-        # Usamos timeout baixo para não travar a aplicação caso a Evolution demore
-        requests.post(url_presence, json=payload, headers=headers, timeout=2)
+        requests.post(url, json=payload, headers=headers, timeout=2)
     except Exception as e:
         logger.error(f"Erro ao simular digitação: {e}")
 
-def simular_gravacao_audio(numero):
-    url = os.getenv("EVOLUTION_URL")
-    if not url: return
-    
-    url_presence = url.replace("message/sendText", "chat/sendPresence")
+def simular_gravacao_audio(numero, instance_name):
+    base_url = whatsapp_service.get_evolution_base_url()
+    url = f"{base_url}/chat/sendPresence/{instance_name}"
     
     payload = {
         "number": numero,
-        "delay": 10000,
+        "delay": 5000,
         "presence": "recording"
     }
     
@@ -62,22 +60,21 @@ def simular_gravacao_audio(numero):
     }
     
     try:
-        requests.post(url_presence, json=payload, headers=headers, timeout=2)
+        requests.post(url, json=payload, headers=headers, timeout=2)
     except Exception as e:
         logger.error(f"Erro ao simular gravacao de audio: {e}")
 
-def enviar_audio_whatsapp(numero, caminho_audio):
-    url = os.getenv("EVOLUTION_URL").replace("message/sendText", "message/sendWhatsAppAudio")
+def enviar_audio_whatsapp(numero, caminho_audio, instance_name):
+    base_url = whatsapp_service.get_evolution_base_url()
+    url = f"{base_url}/message/sendWhatsAppAudio/{instance_name}"
     
     import base64
     with open(caminho_audio, "rb") as f:
         audio_base64 = base64.b64encode(f.read()).decode("utf-8")
         
-    # IMPORTANTE: Não colocar o prefixo data:audio/mp3;base64, 
-    # A Evolution valida a string e rejeita se não for HTTP ou Base64 puro.
     payload = {
         "number": numero,
-        "audio": audio_base64,
+        "audio": audio_audio_base64 if 'audio_audio_base64' in locals() else audio_base64,
         "delay": 1200,
         "encoding": True
     }
@@ -89,6 +86,6 @@ def enviar_audio_whatsapp(numero, caminho_audio):
     response = requests.post(url, json=payload, headers=headers)
     
     if response.status_code in [200, 201]:
-        logger.info(f"[{numero}] Áudio de voz despachado para o WhatsApp com sucesso.")
+        logger.info(f"[{numero}] Áudio despachado para o WhatsApp com sucesso (Instância: {instance_name}).")
     else:
-        logger.error(f"[{numero}] FALHA NO ENVIO DO ÁUDIO (Status {response.status_code}): {response.text}")
+        logger.error(f"[{numero}] FALHA NO ENVIO DO ÁUDIO (Status {response.status_code}): {response.text}")
