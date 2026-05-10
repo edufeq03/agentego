@@ -118,7 +118,7 @@ export default function AdminPage() {
       await api.patch(`admin/empresas/${id}/status`, {}, {
         headers: { "X-Admin-Token": adminToken }
       });
-      fetchEmpresas();
+      fetchData();
     } catch (err) {
       alert("Erro ao alterar status.");
     }
@@ -133,7 +133,7 @@ export default function AdminPage() {
       await api.delete(`admin/empresas/${id}`, {
         headers: { "X-Admin-Token": adminToken }
       });
-      fetchEmpresas();
+      fetchData();
     } catch (err) {
       alert("Erro ao excluir empresa.");
     }
