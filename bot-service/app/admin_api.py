@@ -69,7 +69,13 @@ def criar_template(data: TemplateCreate, db: Session = Depends(get_db)):
 
 @router.get("/empresas", response_model=List[EmpresaResponse], dependencies=[Depends(verify_admin)])
 def listar_empresas(db: Session = Depends(get_db)):
-    return db.query(Empresa).all()
+    empresas = db.query(Empresa).all()
+    import re
+    for emp in empresas:
+        if not emp.slug:
+            emp.slug = re.sub(r'[^a-z0-9]+', '-', emp.nome.lower()).strip('-')
+    db.commit()
+    return empresas
 
 @router.post("/empresas", response_model=EmpresaResponse, dependencies=[Depends(verify_admin)])
 def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
@@ -160,11 +166,19 @@ def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
     if not usuario:
         raise HTTPException(status_code=404, detail="Esta empresa não possui usuários cadastrados")
     
+    import re
+    slug = empresa.slug
+    if not slug:
+        # Gera um slug temporário/permanente baseado no nome
+        slug = re.sub(r'[^a-z0-9]+', '-', empresa.nome.lower()).strip('-')
+        empresa.slug = slug
+        db.commit()
+
     from app.auth import create_access_token
     access_token = create_access_token(data={"sub": usuario.email, "empresa_id": str(empresa.id)})
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "slug": empresa.slug
+        "slug": slug
     }
