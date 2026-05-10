@@ -266,8 +266,12 @@ def sync_task_background(empresa_id: int):
         webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
         
         # Sincroniza Webhook e Configurações de Comportamento
+        logger.info(f"[{empresa.evolution_instance}] Sincronizando Webhook: {webhook_url}")
         whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        
+        logger.info(f"[{empresa.evolution_instance}] Sincronizando Configurações (RejectCall/GroupsIgnore)")
         whatsapp_service.update_settings(empresa.evolution_instance)
+        
         logger.info(f"[{empresa.evolution_instance}] Auto-sincronização de background concluída.")
     except Exception as e:
         logger.error(f"Erro na sincronização de background: {e}")
@@ -291,6 +295,7 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
     if status != "connected" and status != "not_found":
         qrcode = whatsapp_service.get_qrcode(instance_name)
     elif status == "connected":
+        # Chama a sincronização imediatamente em background
         background_tasks.add_task(sync_task_background, empresa.id)
         
     return {

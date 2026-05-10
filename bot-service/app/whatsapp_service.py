@@ -104,7 +104,7 @@ def set_webhook(instance_name: str, webhook_url: str):
                 "SEND_MESSAGE",
                 "CONNECTION_UPDATE",
                 "CALL",
-                "PRESENCE_UPDATE"
+                "TYPE_BOT"
             ]
         }
     }
