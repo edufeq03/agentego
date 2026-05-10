@@ -115,9 +115,17 @@ class Transbordo(Base):
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
-        print("Conexão com banco de dados estabelecida e tabelas do SaaS verificadas.")
+        
+        # Migração manual para adicionar colunas novas em tabelas existentes
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
+            conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
+            conn.commit()
+            
+        print("Conexão com banco de dados estabelecida e migrações do SaaS concluídas.")
     except Exception as e:
-        print(f"AVISO: Não foi possível conectar ao banco de dados: {e}")
+        print(f"AVISO: Erro ao inicializar banco de dados: {e}")
 
 def get_db():
     db = SessionLocal()
