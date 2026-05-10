@@ -39,7 +39,7 @@ export default function Conversas() {
   // Busca inicial (com spinner)
   async function carregarConversasInicial() {
     try {
-      const response = await api.get("/dashboard/conversas");
+      const response = await api.get("dashboard/conversas");
       setConversas(response.data);
     } catch (error) {
       console.error("Erro ao buscar conversas:", error);
@@ -51,7 +51,7 @@ export default function Conversas() {
   // Busca de atualização (sem spinner)
   async function atualizarConversas() {
     try {
-      const response = await api.get("/dashboard/conversas");
+      const response = await api.get("dashboard/conversas");
       setConversas(response.data);
     } catch (error) {
       console.error("Erro ao atualizar conversas:", error);

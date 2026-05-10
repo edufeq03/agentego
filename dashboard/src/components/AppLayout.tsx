@@ -2,39 +2,46 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone } from "lucide-react";
 import api from "@/lib/api";
 
-const navigation = [
-  { name: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Conectar WhatsApp", href: "/dashboard/whatsapp", icon: Smartphone },
-  { name: "Funil de Vendas", href: "/dashboard/funil", icon: Filter },
-  { name: "Insights", href: "/dashboard/insights", icon: Lightbulb },
-  { name: "Conversas", href: "/dashboard/conversas", icon: MessageCircle },
-  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
-];
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const params = useParams();
+  const slug = params?.slug as string;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [temConversaPausada, setTemConversaPausada] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const navigation = [
+    { name: "Visão Geral", href: `/${slug}`, icon: LayoutDashboard },
+    { name: "Conectar WhatsApp", href: `/${slug}/whatsapp`, icon: Smartphone },
+    { name: "Funil de Vendas", href: `/${slug}/funil`, icon: Filter },
+    { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
+    { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
+    { name: "Configurações", href: `/${slug}/configuracoes`, icon: Settings },
+  ];
 
   // Fecha o menu ao mudar de rota no mobile
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  // Checa autenticação
+  // Checa autenticação e valida Slug
   useEffect(() => {
     const token = localStorage.getItem('atendia_token');
+    const storedSlug = localStorage.getItem('atendia_slug');
+    
     if (!token) {
       window.location.href = '/login';
+    } else if (slug && storedSlug && slug !== storedSlug) {
+      // Se o usuário tentar acessar outro slug, manda pro dele
+      window.location.href = `/${storedSlug}`;
     } else {
       setIsAuthenticated(true);
     }
-  }, [pathname]);
+  }, [pathname, slug]);
 
   // Polling para checar se há conversas pausadas
   useEffect(() => {
@@ -42,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     async function checkPausadas() {
       try {
-        const response = await api.get("/dashboard/conversas");
+        const response = await api.get("dashboard/conversas");
         const conversas = response.data;
         const temPausada = conversas.some((c: any) => c.transbordo === 'pausado');
         setTemConversaPausada(temPausada);
@@ -58,6 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   function handleLogout() {
     localStorage.removeItem('atendia_token');
+    localStorage.removeItem('atendia_slug');
     window.location.href = '/login';
   }
 

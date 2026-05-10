@@ -60,7 +60,7 @@ export default function Configuracoes() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await api.get("/dashboard/config");
+        const response = await api.get("dashboard/config");
         const { config: configData, webhook_token, base_url } = response.data;
         
         console.log("DADOS RECEBIDOS DA API:", configData);
@@ -116,7 +116,7 @@ export default function Configuracoes() {
         aulas_vip: aulasVipStr.split(",").map(s => s.trim()).filter(s => s)
       };
       
-      await api.put("/dashboard/config", configToSave);
+      await api.put("dashboard/config", configToSave);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {

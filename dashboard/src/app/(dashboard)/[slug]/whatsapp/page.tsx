@@ -13,7 +13,7 @@ export default function WhatsAppConnection() {
 
   async function checkStatus() {
     try {
-      const response = await api.get("/dashboard/whatsapp/status");
+      const response = await api.get("dashboard/whatsapp/status");
       const data = response.data;
       
       setStatus(data.status);
@@ -46,7 +46,7 @@ export default function WhatsAppConnection() {
     
     setLoading(true);
     try {
-      await api.post("/dashboard/whatsapp/logout");
+      await api.post("dashboard/whatsapp/logout");
       await checkStatus();
     } catch (err) {
       alert("Erro ao desconectar WhatsApp.");

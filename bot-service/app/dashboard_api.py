@@ -26,7 +26,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Empresa inativa")
         
     access_token = create_access_token(data={"sub": str(usuario.empresa_id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "slug": usuario.empresa.slug
+    }
 
 def obter_empresa(authorization: str = Header(None), db: Session = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):

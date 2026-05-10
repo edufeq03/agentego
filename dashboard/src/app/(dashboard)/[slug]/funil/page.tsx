@@ -17,7 +17,7 @@ export default function Funil() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await api.get("/dashboard/funil");
+        const response = await api.get("dashboard/funil");
         setData(response.data);
       } catch (error) {
         console.error("Erro ao buscar dados do funil:", error);

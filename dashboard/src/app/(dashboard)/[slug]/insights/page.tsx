@@ -19,7 +19,7 @@ export default function Insights() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await api.get("/dashboard/intencoes");
+        const response = await api.get("dashboard/intencoes");
         setData(response.data);
       } catch (error) {
         console.error("Erro ao buscar dados de intenções:", error);

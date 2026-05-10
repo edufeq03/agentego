@@ -18,14 +18,15 @@ export default function Login() {
     setError("");
 
     try {
-      const response = await api.post("/dashboard/login", { email, password });
-      const { access_token } = response.data;
+      const response = await api.post("dashboard/login", { email, password });
+      const { access_token, slug } = response.data;
       
-      // Salva o token no localStorage
+      // Salva o token e o slug no localStorage
       localStorage.setItem("atendia_token", access_token);
+      localStorage.setItem("atendia_slug", slug);
       
-      // Redireciona para o dashboard
-      router.push("/dashboard");
+      // Redireciona para o dashboard específico da empresa
+      router.push(`/${slug}`);
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("E-mail ou senha incorretos.");
