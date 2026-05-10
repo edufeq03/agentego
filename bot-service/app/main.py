@@ -124,12 +124,16 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 async def webhook(token: str, request: Request):
     db = SessionLocal()
     try:
+        logger.info(f"--- WEBHOOK RECEBIDO (Token: {token}) ---")
+        data = await request.json()
+        import json
+        logger.info(f"RAW DATA: {json.dumps(data)}")
+
         # 1. Identificar Empresa pelo token
         empresa = db.query(Empresa).filter(Empresa.webhook_token == token, Empresa.ativo == True).first()
         if not empresa:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada ou inativa")
-            
-        data = await request.json()
+            logger.warning(f"Webhook recebido com token INVÁLIDO ou empresa inativa: {token}")
+            return {"status": "erro", "motivo": "token_invalido"}
 
         # 2. Extrair dados da Evolution API
         mensagem = data.get("message")
