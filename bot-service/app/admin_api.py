@@ -175,7 +175,7 @@ def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
         db.commit()
 
     from app.auth import create_access_token
-    access_token = create_access_token(data={"sub": usuario.email, "empresa_id": str(empresa.id)})
+    access_token = create_access_token(data={"sub": str(empresa.id)})
     
     return {
         "access_token": access_token,
