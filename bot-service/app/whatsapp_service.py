@@ -140,7 +140,8 @@ def update_settings(instance_name: str):
         "groupsIgnore": True,
         "alwaysOnline": True,
         "readMessages": False,
-        "readStatus": False
+        "readStatus": False,
+        "syncFullHistory": False
     }
     
     try:
