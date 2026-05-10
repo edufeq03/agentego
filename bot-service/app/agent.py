@@ -29,7 +29,7 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str) 
         secoes_conhecimento += f"Horários: {horarios}\n"
         if aulas_vip: secoes_conhecimento += f"Aulas VIP: {', '.join(aulas_vip)}\n"
         if professores:
-            secoes_conhecimento += "\nPROFESSORES:\n" + "\n".join([f"- {p['nome']}: {p['especialidade']}" for p in professores])
+            secoes_conhecimento += "\nPROFESSORES:\n" + "\n".join([f"- {p.get('nome', 'N/A')}: {p.get('especialidade', 'N/A')}" for p in professores if isinstance(p, dict)])
     else:
         # Novo formato flexível
         for titulo, conteudo in conhecimento.items():

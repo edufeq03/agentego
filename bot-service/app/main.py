@@ -5,13 +5,8 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 import asyncio
 
-# Configuração de Log limpo
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%d/%m/%Y %H:%M:%S"
-)
-logger = logging.getLogger(__name__)
+from app.logger import setup_logging
+logger = setup_logging()
 
 from app.database import get_db, SessionLocal, Empresa, init_db
 from app.pipeline import processar_webhook
@@ -43,6 +38,29 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"]
 
 from app.admin_api import router as admin_router
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    import time
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = (time.time() - start_time) * 1000
+    formatted_process_time = "{0:.2f}ms".format(process_time)
+    
+    logger.info(
+        f"Request: {request.method} {request.url.path}",
+        extra={
+            "tipo": "request",
+            "method": request.method,
+            "path": request.url.path,
+            "process_time": formatted_process_time,
+            "status_code": response.status_code
+        }
+    )
+    
+    return response
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.reports import enviar_relatorio_semanal_empresa

@@ -1,4 +1,6 @@
 import pytz
+import logging
+logger = logging.getLogger(__name__)
 from app.database import SessionLocal, Empresa, Lead, Mensagem, Transbordo, Configuracao
 from app.classifier import classificar_intencao, calcular_stage
 from app.agent import processar_mensagem_dinamica, processar_confirmacao_transbordo
@@ -94,6 +96,7 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
             atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
 
     resposta_limpa = limpar_tags(resposta_raw)
+    logger.info(f"Resposta gerada para {telefone}", extra={"empresa_id": str(empresa.id), "lead_id": str(lead.id), "tipo": "ia_response"})
 
     msg_bot = Mensagem(empresa_id=empresa.id, lead_id=lead.id, tipo="agente", mensagem=resposta_limpa)
     db.add(msg_bot)

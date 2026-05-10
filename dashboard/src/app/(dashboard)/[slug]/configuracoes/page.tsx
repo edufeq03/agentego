@@ -32,6 +32,7 @@ interface ConfigData {
   professores: Professor[];
   instalacoes: Instalacao[];
   detalhes_aulas: AulaDetalhe[];
+  timezone: string;
 }
 
 export default function Configuracoes() {
@@ -45,7 +46,8 @@ export default function Configuracoes() {
     aulas_vip: [],
     professores: [],
     instalacoes: [],
-    detalhes_aulas: []
+    detalhes_aulas: [],
+    timezone: "America/Sao_Paulo"
   });
   
   const [pagamentosStr, setPagamentosStr] = useState("");
@@ -81,7 +83,8 @@ export default function Configuracoes() {
             },
             professores: configData.professores || [],
             instalacoes: configData.instalacoes || [],
-            detalhes_aulas: configData.detalhes_aulas || []
+            detalhes_aulas: configData.detalhes_aulas || [],
+            timezone: configData.timezone || "America/Sao_Paulo"
           });
           setPagamentosStr(configData.pagamentos ? configData.pagamentos.join(", ") : "");
           setAulasVipStr(configData.aulas_vip ? configData.aulas_vip.join(", ") : "");
@@ -420,6 +423,19 @@ export default function Configuracoes() {
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                   placeholder="Ex: 08:00 as 14:00"
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Fuso Horário (Timezone)</label>
+                <select 
+                  value={config.timezone}
+                  onChange={e => setConfig({...config, timezone: e.target.value})}
+                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                >
+                  <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
+                  <option value="America/Manaus">Manaus (GMT-4)</option>
+                  <option value="America/New_York">New York (GMT-5)</option>
+                  <option value="Europe/London">London (GMT+0)</option>
+                </select>
               </div>
             </div>
           </section>

@@ -66,10 +66,10 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
         Lead.stage.in_(["interessado", "quente", "agendado"])
     ).count()
     
-    # Visitas aceitas (eventos)
+    # Visitas (eventos relacionados a visita)
     visitas = db.query(Evento).filter(
         Evento.empresa_id == empresa.id,
-        Evento.tipo == "visita_aceita",
+        Evento.tipo.in_(["visita_aceita", "perguntou_visita"]),
         Evento.timestamp >= limite_data
     ).count()
     
