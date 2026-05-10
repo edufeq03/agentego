@@ -55,20 +55,6 @@ export default function WhatsAppConnection() {
     }
   }
 
-  async function handleSync() {
-    setLoading(true);
-    try {
-      await api.post("/dashboard/whatsapp/sync");
-      alert("Configurações sincronizadas com a Evolution API!");
-      await checkStatus();
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || "Erro ao sincronizar configurações.";
-      alert(msg);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -132,7 +118,7 @@ export default function WhatsAppConnection() {
           {loading && status === "loading" ? (
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="text-blue-500 animate-spin" size={48} />
-              <p className="text-slate-400 animate-pulse">Sincronizando com Evolution API...</p>
+              <p className="text-slate-400 animate-pulse">Carregando...</p>
             </div>
           ) : status === "connected" ? (
             <div className="text-center space-y-6">
@@ -150,13 +136,6 @@ export default function WhatsAppConnection() {
                 >
                   <RefreshCw size={18} />
                   Atualizar Status
-                </button>
-                <button 
-                  onClick={handleSync}
-                  className="flex items-center gap-2 px-6 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-xl transition-all"
-                >
-                  <RefreshCw size={18} />
-                  Sincronizar Configurações
                 </button>
               </div>
             </div>

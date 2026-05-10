@@ -279,11 +279,21 @@ def get_whatsapp_status(empresa: Empresa = Depends(obter_empresa), db: Session =
     qrcode = None
     if status != "connected":
         qrcode = whatsapp_service.get_qrcode(instance_name)
+    else:
+        # Sincronização Automática: Garante que o robô esteja configurado assim que conectar
+        try:
+            base_url = os.getenv("BASE_URL", "http://localhost:8000")
+            webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
+            whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+            whatsapp_service.update_settings(empresa.evolution_instance)
+            logger.info(f"[{instance_name}] Sincronização automática realizada com sucesso.")
+        except Exception as e:
+            logger.error(f"Erro na sincronização automática: {e}")
         
     return {
-        "instance": instance_name,
         "status": status,
-        "qrcode": qrcode
+        "qrcode": qrcode,
+        "instance": instance_name
     }
 
 @router.post("/whatsapp/logout")
