@@ -9,4 +9,4 @@ httpx
 pytz
 pyjwt
 bcrypt
-apscheduler
+apschedulerredis
