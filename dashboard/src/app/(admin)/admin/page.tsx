@@ -182,13 +182,23 @@ export default function AdminPage() {
                     )}
                   </td>
                   <td className="p-6 text-right">
-                    <button 
-                      onClick={() => toggleStatus(emp.id)}
-                      className="p-2 hover:bg-white/10 rounded-lg text-slate-400 transition-colors"
-                      title={emp.ativo ? "Desativar" : "Ativar"}
-                    >
-                      <Settings size={20} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => toggleStatus(emp.id)}
+                        className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}
+                        title={emp.ativo ? "Suspender Acesso" : "Reativar Acesso"}
+                      >
+                        {emp.ativo ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+                      </button>
+                      
+                      <button 
+                        onClick={() => alert(`Em breve: Editar configurações de ${emp.nome}`)}
+                        className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-all"
+                        title="Gerenciar Academia"
+                      >
+                        <Settings size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
