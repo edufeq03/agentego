@@ -214,9 +214,12 @@ import os
 
 @router.get("/config")
 def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
-    config_data = {}
-    if empresa.configuracoes:
-        config_data = empresa.configuracoes.config
+    # Busca a configuração de forma explícita para evitar cache de relacionamento
+    config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+    config_data = config_obj.config if config_obj else {}
+    
+    # DEBUG: Para vermos o que está saindo para o Dashboard
+    print(f"DEBUG API -> Enviando config para {empresa.nome}: {config_data}")
     
     return {
         "config": config_data,
