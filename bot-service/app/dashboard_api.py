@@ -267,14 +267,19 @@ def sync_task_background(empresa_id: int):
         
         # Sincroniza Webhook e Configurações de Comportamento
         logger.info(f"[{empresa.evolution_instance}] Sincronizando Webhook: {webhook_url}")
-        whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        sucesso_wh, erro_wh = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        if not sucesso_wh:
+            logger.error(f"[{empresa.evolution_instance}] Falha ao sincronizar Webhook: {erro_wh}")
         
         logger.info(f"[{empresa.evolution_instance}] Sincronizando Configurações (RejectCall/GroupsIgnore)")
-        whatsapp_service.update_settings(empresa.evolution_instance)
+        sucesso_st, erro_st = whatsapp_service.update_settings(empresa.evolution_instance)
+        if not sucesso_st:
+            logger.error(f"[{empresa.evolution_instance}] Falha ao sincronizar Configurações: {erro_st}")
         
-        logger.info(f"[{empresa.evolution_instance}] Auto-sincronização de background concluída.")
+        if sucesso_wh and sucesso_st:
+            logger.info(f"[{empresa.evolution_instance}] Auto-sincronização de background concluída com SUCESSO.")
     except Exception as e:
-        logger.error(f"Erro na sincronização de background: {e}")
+        logger.error(f"Erro crítico na sincronização de background: {e}")
     finally:
         db.close()
 
