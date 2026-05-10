@@ -76,7 +76,12 @@ def run_seed():
         db.commit()
         db.refresh(emp_academia)
     
-    db.merge(Configuracao(empresa_id=emp_academia.id, config=config_academia))
+    # Configuração Academia (Update ou Create)
+    conf_academia = db.query(Configuracao).filter(Configuracao.empresa_id == emp_academia.id).first()
+    if conf_academia:
+        conf_academia.config = config_academia
+    else:
+        db.add(Configuracao(empresa_id=emp_academia.id, config=config_academia))
     
     # Usuário Academia
     user_academia = db.query(Usuario).filter(Usuario.email == "academia@teste.com").first()
@@ -94,7 +99,12 @@ def run_seed():
         db.commit()
         db.refresh(emp_imob)
     
-    db.merge(Configuracao(empresa_id=emp_imob.id, config=config_imobiliaria))
+    # Configuração Imobiliária (Update ou Create)
+    conf_imob = db.query(Configuracao).filter(Configuracao.empresa_id == emp_imob.id).first()
+    if conf_imob:
+        conf_imob.config = config_imobiliaria
+    else:
+        db.add(Configuracao(empresa_id=emp_imob.id, config=config_imobiliaria))
 
     # Usuário Imobiliária
     user_imob = db.query(Usuario).filter(Usuario.email == "imoveis@teste.com").first()
