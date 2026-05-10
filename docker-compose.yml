@@ -28,5 +28,15 @@ services:
     volumes:
       - ./bot-service:/app
 
+  dashboard:
+    build: ./dashboard
+    container_name: atendia-dashboard
+    restart: always
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - bot
+
 volumes:
   postgres_data:

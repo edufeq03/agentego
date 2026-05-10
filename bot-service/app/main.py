@@ -37,7 +37,13 @@ from app.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
 from app.admin_api import router as admin_router
+from app.middleware import security_middleware
+
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
+@app.middleware("http")
+async def security_check(request: Request, call_next):
+    return await security_middleware(request, call_next)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -61,6 +67,22 @@ async def log_requests(request: Request, call_next):
     )
     
     return response
+
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    try:
+        # Testa conexão com banco
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+        
+    return {
+        "status": "ok",
+        "database": db_status,
+        "openai": "available" if os.getenv("OPENAI_API_KEY") else "missing"
+    }
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.reports import enviar_relatorio_semanal_empresa

@@ -56,6 +56,7 @@ class Usuario(Base):
     empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
     email = Column(String, unique=True, nullable=False)
     senha_hash = Column(String, nullable=False)
+    role = Column(String, default="client") # "client" ou "admin" (franqueador)
     criado_em = Column(DateTime, default=datetime.utcnow)
     
     empresa = relationship("Empresa", back_populates="usuarios")
@@ -121,6 +122,7 @@ def init_db():
         with engine.connect() as conn:
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
             conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
+            conn.execute(text('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT \'client\''))
             conn.commit()
             
         print("Conexão com banco de dados estabelecida e migrações do SaaS concluídas.")

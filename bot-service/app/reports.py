@@ -24,9 +24,9 @@ def gerar_dados_semanais(db: Session, empresa_id: str):
         .filter(Lead.empresa_id == empresa_id, Lead.criado_em >= sete_dias_atras)\
         .scalar() or 0
         
-    # 3. Conversões (Visitas Aceitas)
+    # 3. Conversões (Eventos relacionados a visita)
     visitas = db.query(func.count(Evento.id))\
-        .filter(Evento.empresa_id == empresa_id, Evento.tipo == "visita_aceita", Evento.timestamp >= sete_dias_atras)\
+        .filter(Evento.empresa_id == empresa_id, Evento.tipo.in_(["visita_aceita", "perguntou_visita"]), Evento.timestamp >= sete_dias_atras)\
         .scalar() or 0
         
     # 4. Intenção mais frequente

@@ -24,7 +24,8 @@ def migrate():
             "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS valor_mensalidade FLOAT DEFAULT 0.0",
             "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_expiracao_teste TIMESTAMP",
             "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS cupom_vendedor VARCHAR",
-            "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            "ALTER TABLE empresas ADD COLUMN IF NOT EXISTS evolution_instance VARCHAR UNIQUE"
         ]
 
         for cmd in commands:
