@@ -45,7 +45,7 @@ export default function AdminPage() {
 
   async function fetchEmpresas() {
     try {
-      const response = await api.get("/admin/empresas", {
+      const response = await api.get("admin/empresas", {
         headers: { "X-Admin-Token": adminToken }
       });
       setEmpresas(response.data);
@@ -59,7 +59,7 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/admin/empresas", formData, {
+      await api.post("admin/empresas", formData, {
         headers: { "X-Admin-Token": adminToken }
       });
       alert("Academia cadastrada com sucesso!");
@@ -74,7 +74,7 @@ export default function AdminPage() {
 
   async function toggleStatus(id: string) {
     try {
-      await api.patch(`/admin/empresas/${id}/status`, {}, {
+      await api.patch(`admin/empresas/${id}/status`, {}, {
         headers: { "X-Admin-Token": adminToken }
       });
       fetchEmpresas();
