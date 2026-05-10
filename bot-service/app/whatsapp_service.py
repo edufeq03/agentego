@@ -123,3 +123,24 @@ def logout_instance(instance_name: str) -> bool:
         return response.status_code == 200
     except Exception:
         return False
+
+def update_settings(instance_name: str) -> bool:
+    """Configura opções de Rejeitar Chamadas, Ignorar Grupos e Sempre Online."""
+    base_url = get_evolution_base_url()
+    url = f"{base_url}/settings/set/{instance_name}"
+    
+    payload = {
+        "rejectCall": True,
+        "msgCall": "Desculpe, este número é apenas para mensagens automáticas.",
+        "groupsIgnore": True,
+        "alwaysOnline": True,
+        "readMessages": False,
+        "readStatus": False
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=get_headers(), timeout=10)
+        return response.status_code in [200, 201]
+    except Exception as e:
+        logger.error(f"Erro ao configurar settings para {instance_name}: {e}")
+        return False
