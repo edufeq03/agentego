@@ -35,7 +35,7 @@ class EmpresaCreate(BaseModel):
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
     nome: str
-    slug: str
+    slug: Optional[str] = None
     ativo: bool
     valor_mensalidade: float
     data_expiracao_teste: Optional[datetime]

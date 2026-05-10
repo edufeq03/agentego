@@ -28,7 +28,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Para desenvolvimento. Em prod, restrinja ao domínio do dashboard
+    allow_origins=[
+        "http://localhost:3000",
+        "https://zapvai.ignotec.com.br",
+        "https://sites-academia-dashboard.zdgx3l.easypanel.host",
+        "https://sites-academia-agente.zdgx3l.easypanel.host",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
