@@ -86,13 +86,17 @@ def set_webhook(instance_name: str, webhook_url: str) -> bool:
     url = f"{base_url}/webhook/set/{instance_name}"
     
     payload = {
-        "url": webhook_url,
         "enabled": True,
+        "url": webhook_url,
+        "webhookByEvents": False,
+        "webhookBase64": True,
         "events": [
             "MESSAGES_UPSERT",
             "MESSAGES_UPDATE",
+            "MESSAGES_DELETE",
             "SEND_MESSAGE",
-            "CONNECTION_UPDATE"
+            "CONNECTION_UPDATE",
+            "TYPEING_START"
         ]
     }
     

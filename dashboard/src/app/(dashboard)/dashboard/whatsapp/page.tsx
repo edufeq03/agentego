@@ -55,6 +55,19 @@ export default function WhatsAppConnection() {
     }
   }
 
+  async function handleSync() {
+    setLoading(true);
+    try {
+      await api.post("/dashboard/whatsapp/sync");
+      alert("Configurações sincronizadas com a Evolution API!");
+      await checkStatus();
+    } catch (err) {
+      alert("Erro ao sincronizar configurações.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -129,13 +142,20 @@ export default function WhatsAppConnection() {
               <p className="text-slate-400 max-w-sm mx-auto">
                 Tudo pronto! Seu agente inteligente já está operando nesta linha de WhatsApp.
               </p>
-              <div className="pt-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <button 
                   onClick={checkStatus}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all mx-auto"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all"
                 >
                   <RefreshCw size={18} />
                   Atualizar Status
+                </button>
+                <button 
+                  onClick={handleSync}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-xl transition-all"
+                >
+                  <RefreshCw size={18} />
+                  Sincronizar Configurações
                 </button>
               </div>
             </div>

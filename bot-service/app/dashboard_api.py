@@ -296,3 +296,17 @@ def logout_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Dep
         return {"status": "ok", "mensagem": "WhatsApp desconectado com sucesso"}
     else:
         raise HTTPException(status_code=500, detail="Falha ao desconectar WhatsApp")
+
+@router.post("/whatsapp/sync")
+def sync_whatsapp_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    if not empresa.evolution_instance:
+        raise HTTPException(status_code=404, detail="Nenhuma instância vinculada")
+        
+    base_url = os.getenv("BASE_URL", "http://localhost:8000")
+    webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
+    
+    sucesso = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+    if sucesso:
+        return {"status": "ok", "mensagem": "Configurações sincronizadas com sucesso"}
+    else:
+        raise HTTPException(status_code=500, detail="Falha ao sincronizar configurações")
