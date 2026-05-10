@@ -12,8 +12,15 @@ router = APIRouter()
 # Segurança básica via Token de Admin no Header
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "atendia-master-2026")
 
-def verify_admin(x_admin_token: str = Header(None)):
-    if x_admin_token != ADMIN_TOKEN:
+import logging
+logger = logging.getLogger(__name__)
+
+def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
+    # Log para depuração (Removeremos depois)
+    logger.info(f"Tentativa de login ADM com token: {x_admin_token}")
+    
+    if not x_admin_token or x_admin_token != ADMIN_TOKEN:
+        logger.warning(f"Acesso Negado! Esperado: {ADMIN_TOKEN} | Recebido: {x_admin_token}")
         raise HTTPException(status_code=401, detail="Não autorizado: Token de Admin inválido")
 
 class EmpresaCreate(BaseModel):
