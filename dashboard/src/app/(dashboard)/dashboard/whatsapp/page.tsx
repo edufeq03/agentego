@@ -169,7 +169,7 @@ export default function WhatsAppConnection() {
                 <div className="relative bg-white p-4 rounded-xl overflow-hidden shadow-2xl">
                   {qrcode ? (
                     <img 
-                      src={`data:image/png;base64,${qrcode}`} 
+                      src={qrcode.startsWith("data:image") ? qrcode : `data:image/png;base64,${qrcode}`} 
                       alt="WhatsApp QR Code" 
                       className="w-64 h-64"
                     />

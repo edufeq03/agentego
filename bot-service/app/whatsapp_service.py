@@ -66,9 +66,9 @@ def get_qrcode(instance_name: str) -> Optional[str]:
     try:
         response = requests.get(url, headers=get_headers(), timeout=10)
         if response.status_code == 200:
-            # Evolution v2 retorna o base64 no campo 'base64' ou similar
             data = response.json()
-            return data.get("base64") # Depende da versão, às vezes é data.get("code")
+            # Tenta pegar de 'base64' (v2) ou 'code' (v1)
+            return data.get("base64") or data.get("code")
         return None
     except Exception as e:
         logger.error(f"Erro ao buscar QR Code para {instance_name}: {e}")
