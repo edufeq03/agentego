@@ -1,13 +1,13 @@
 from app.openai_client import perguntar
 
 def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str) -> str:
-    # 1. Identidade do Agente (Dinâmica)
+    # 1. Identidade do Agente (Dinâmica - Prioriza campos planos do Dashboard)
     identidade = config.get('identidade', {})
-    nome_agente = identidade.get('nome', config.get('nome_agente', 'Rosana'))
-    cargo = identidade.get('cargo', 'Assistente Virtual')
-    nome_empresa = identidade.get('empresa', config.get('nome_empresa', 'Empresa'))
-    missao = identidade.get('missao', 'Auxiliar clientes com clareza, empatia e eficiência, representando a empresa com excelência.')
-    tom_voz = identidade.get('tom_voz', 'Amigável, profissional e prestativo.')
+    nome_agente = config.get('nome_agente') or identidade.get('nome') or 'Rosana'
+    cargo = config.get('cargo_agente') or identidade.get('cargo') or 'Assistente Virtual'
+    nome_empresa = config.get('nome_empresa') or identidade.get('empresa') or 'Empresa'
+    missao = config.get('missao') or identidade.get('missao') or 'Auxiliar clientes com clareza e eficiência.'
+    tom_voz = config.get('tom_voz') or identidade.get('tom_voz') or 'Amigável e profissional.'
     
     # DEBUG: Log para verificar o que está sendo lido do banco
     print(f"DEBUG PROMPT -> Nome: {nome_agente} | Empresa: {nome_empresa} | Cargo: {cargo}")
