@@ -10,10 +10,16 @@ def get_evolution_base_url():
     url = os.getenv("EVOLUTION_URL", "")
     if not url:
         return ""
-    # Assume que a URL termina em /message/sendText/instancia
+    
+    # Se a URL tem o sufixo de envio, remove ele
     if "/message/sendText" in url:
-        return url.split("/message/sendText")[0]
-    return url
+        base = url.split("/message/sendText")[0]
+    else:
+        # Se for uma URL pura, garante que não termina em barra
+        base = url.rstrip("/")
+        
+    print(f"DEBUG WHATSAPP -> Base URL extraída: {base}")
+    return base
 
 def get_headers():
     return {
