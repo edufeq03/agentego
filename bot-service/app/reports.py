@@ -76,8 +76,8 @@ async def enviar_relatorio_semanal_empresa(db: Session, empresa: Empresa):
         dados = gerar_dados_semanais(db, empresa.id)
         mensagem = formatar_relatorio_whatsapp(empresa.nome, dados)
         
-        enviar_whatsapp(empresa.telefone_proprietario, mensagem)
-        logger.info(f"Relatório semanal enviado para {empresa.nome} ({empresa.telefone_proprietario})")
+        enviar_whatsapp(empresa.telefone_proprietario, mensagem, empresa.evolution_instance)
+        logger.info(f"Relatório semanal enviado para {empresa.nome} ({empresa.telefone_proprietario}) usando instância {empresa.evolution_instance}")
         return True
     except Exception as e:
         logger.error(f"Erro ao enviar relatório para {empresa.nome}: {e}")
