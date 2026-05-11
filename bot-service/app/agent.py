@@ -17,6 +17,10 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
     secoes_conhecimento = ""
     conhecimento = config.get('conhecimento', {})
     
+    # Garantir que conhecimento seja um dicionário
+    if not isinstance(conhecimento, dict):
+        conhecimento = {}
+
     # Se não houver 'conhecimento' estruturado, tenta converter o formato antigo de academia
     if not conhecimento and ('planos' in config or 'horarios' in config):
         # Fallback para compatibilidade com o nicho de academia legado
@@ -28,9 +32,12 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
         secoes_conhecimento += f"=== INFORMAÇÕES DA ACADEMIA ===\n"
         secoes_conhecimento += f"Planos: {planos}\n"
         secoes_conhecimento += f"Horários: {horarios}\n"
-        if aulas_vip: secoes_conhecimento += f"Aulas VIP: {', '.join(aulas_vip)}\n"
-        if professores:
-            secoes_conhecimento += "\nPROFESSORES:\n" + "\n".join([f"- {p.get('nome', 'N/A')}: {p.get('especialidade', 'N/A')}" for p in professores if isinstance(p, dict)])
+        if isinstance(aulas_vip, list):
+            secoes_conhecimento += f"Aulas VIP: {', '.join([str(x) for x in aulas_vip])}\n"
+        if isinstance(professores, list):
+            professores_str = "\n".join([f"- {p.get('nome', 'N/A')}: {p.get('especialidade', 'N/A')}" for p in professores if isinstance(p, dict)])
+            if professores_str:
+                secoes_conhecimento += "\nPROFESSORES:\n" + professores_str
     else:
         # Novo formato flexível
         for titulo, conteudo in conhecimento.items():
