@@ -45,10 +45,14 @@ def gerar_dados_semanais(db: Session, empresa_id: str):
         "top_intencao": intencao_str
     }
 
-def formatar_relatorio_whatsapp(empresa_nome: str, dados: dict):
+def formatar_relatorio_whatsapp(empresa_nome: str, slug: str, dados: dict):
     """
     Cria a string formatada com emojis para o WhatsApp.
     """
+    import os
+    base_url = os.getenv("BASE_URL", "https://app.atendia.com.br")
+    dashboard_url = f"{base_url}/{slug}"
+
     msg = (
         f"📊 *Relatório Semanal: {empresa_nome}*\n"
         f"Período: Últimos 7 dias\n\n"
@@ -58,6 +62,7 @@ def formatar_relatorio_whatsapp(empresa_nome: str, dados: dict):
         f"• Visitas Agendadas: {dados['visitas']} ✅\n\n"
         f"💡 *Insights da IA:*\n"
         f"O assunto mais procurado foi: *{dados['top_intencao'].capitalize()}*.\n\n"
+        f"📲 *Acesse seu Dashboard:* {dashboard_url}\n\n"
         f"Continue investindo no atendimento rápido para converter esses leads! 🦾"
     )
     return msg
@@ -74,7 +79,7 @@ async def enviar_relatorio_semanal_empresa(db: Session, empresa: Empresa):
         
     try:
         dados = gerar_dados_semanais(db, empresa.id)
-        mensagem = formatar_relatorio_whatsapp(empresa.nome, dados)
+        mensagem = formatar_relatorio_whatsapp(empresa.nome, empresa.slug, dados)
         
         enviar_whatsapp(empresa.telefone_proprietario, mensagem, empresa.evolution_instance)
         logger.info(f"Relatório semanal enviado para {empresa.nome} ({empresa.telefone_proprietario}) usando instância {empresa.evolution_instance}")

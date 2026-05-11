@@ -7,7 +7,10 @@ logger = logging.getLogger(__name__)
 async def security_middleware(request: Request, call_next):
     """
     Middleware global para verificar isolamento de dados básico.
-    Garante que se houver um empresa_id na query ou no path, ele bate com o token.
+    Garante que se houver um empresa_id na query string, ele bate com o token.
+    
+    IMPORTANTE: Este middleware NÃO protege contra injeção de IDs via PATH PARAMS (ex: /conversas/{telefone}).
+    A proteção de path params é responsabilidade do Depends(obter_empresa) em cada endpoint.
     """
     # Lista de caminhos que não precisam de verificação de empresa_id (públicos ou admin master)
     public_paths = ["/webhook", "/docs", "/openapi.json", "/api/admin", "/login"]

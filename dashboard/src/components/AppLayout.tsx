@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone } from "lucide-react";
 import api from "@/lib/api";
 
@@ -10,6 +10,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const params = useParams();
   const slug = params?.slug as string;
+  const searchParams = useSearchParams();
+  const impersonateToken = searchParams.get('token');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [temConversaPausada, setTemConversaPausada] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,6 +32,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Checa autenticação e valida Slug
   useEffect(() => {
+    // Se houver um token de impersonation na URL, prioriza ele
+    if (impersonateToken && slug) {
+      localStorage.setItem('atendia_token', impersonateToken);
+      localStorage.setItem('atendia_slug', slug);
+      // Limpa a URL imediatamente
+      window.history.replaceState({}, '', `/${slug}`);
+    }
+
     const token = localStorage.getItem('atendia_token');
     const storedSlug = localStorage.getItem('atendia_slug');
     
@@ -41,7 +51,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     } else {
       setIsAuthenticated(true);
     }
-  }, [pathname, slug]);
+  }, [pathname, slug, impersonateToken]);
 
   // Polling para checar se há conversas pausadas
   useEffect(() => {

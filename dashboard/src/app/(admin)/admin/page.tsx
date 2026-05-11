@@ -25,6 +25,12 @@ interface Empresa {
   valor_mensalidade: number;
   data_expiracao_teste: string;
   data_criacao: string;
+  plano: string;
+  limite_conversas_mes: number;
+  conversas_mes_atual: number;
+  tokens_input_mes: number;
+  tokens_output_mes: number;
+  custo_estimado_usd: number;
 }
 
 interface Template {
@@ -46,6 +52,8 @@ export default function AdminPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   // Form State
   const [formData, setFormData] = useState({
@@ -58,7 +66,9 @@ export default function AdminPage() {
     cupom_vendedor: "",
     template_id: "",
     email_admin: "",
-    senha_admin: ""
+    senha_admin: "",
+    plano: "trial",
+    limite_conversas_mes: 100
   });
 
   const [templateData, setTemplateData] = useState({
@@ -164,16 +174,21 @@ export default function AdminPage() {
       
       const { access_token, slug } = response.data;
       
-      // Abre em uma nova aba com o token injetado no localStorage
-      const url = `/${slug}`;
-      localStorage.setItem("atendia_token", access_token);
-      localStorage.setItem("atendia_slug", slug);
-      
+      // Abre em uma nova aba passando o token via URL
+      const url = `/${slug}?token=${access_token}`;
       window.open(url, "_blank");
     } catch (err) {
       alert("Erro ao acessar dashboard do cliente.");
     }
   }
+
+  const filteredEmpresas = empresas.filter(emp => {
+    const matchesSearch = emp.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         emp.slug.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" ? true : 
+                         statusFilter === "active" ? emp.ativo : !emp.ativo;
+    return matchesSearch && matchesStatus;
+  });
 
   if (!isAuthorized) {
     return (
@@ -268,30 +283,87 @@ export default function AdminPage() {
         </div>
 
         {activeTab === "empresas" ? (
-          <div className="glass-panel overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
-                  <th className="p-6 text-sm font-semibold text-slate-400">Empresa / Cliente</th>
-                  <th className="p-6 text-sm font-semibold text-slate-400">URL / Slug</th>
-                  <th className="p-6 text-sm font-semibold text-slate-400">Mensalidade</th>
-                  <th className="p-6 text-sm font-semibold text-slate-400">Status</th>
-                  <th className="p-6 text-sm font-semibold text-slate-400 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {empresas.map((emp) => (
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <input 
+                  type="text" 
+                  placeholder="Buscar empresa ou slug..."
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2 outline-none focus:border-blue-500 transition-all pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Users className="absolute left-3 top-2.5 text-slate-500" size={18} />
+              </div>
+              <div className="flex gap-2 bg-[var(--color-surface)] p-1 rounded-xl border border-[var(--color-border)]">
+                <button 
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >TODAS</button>
+                <button 
+                  onClick={() => setStatusFilter("active")}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === 'active' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >ATIVAS</button>
+                <button 
+                  onClick={() => setStatusFilter("inactive")}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === 'inactive' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >INATIVAS</button>
+              </div>
+            </div>
+
+            <div className="glass-panel overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+                    <th className="p-6 text-sm font-semibold text-slate-400">Empresa / Cliente</th>
+                    <th className="p-6 text-sm font-semibold text-slate-400">URL / Slug</th>
+                    <th className="p-6 text-sm font-semibold text-slate-400">Faturamento</th>
+                    <th className="p-6 text-sm font-semibold text-slate-400">Status</th>
+                    <th className="p-6 text-sm font-semibold text-slate-400 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  {filteredEmpresas.map((emp) => (
                   <tr key={emp.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="p-6">
-                      <span className="font-bold text-lg">{emp.nome}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-lg">{emp.nome}</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            emp.plano === 'trial' ? 'bg-yellow-500/20 text-yellow-500' :
+                            emp.plano === 'starter' ? 'bg-blue-500/20 text-blue-500' :
+                            emp.plano === 'pro' ? 'bg-green-500/20 text-green-500' :
+                            'bg-purple-500/20 text-purple-400'
+                          }`}>
+                            {emp.plano}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {emp.conversas_mes_atual} / {emp.limite_conversas_mes} conv.
+                          </span>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="mt-2 h-1 w-32 bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${
+                              (emp.conversas_mes_atual / emp.limite_conversas_mes) > 0.9 ? 'bg-red-500' :
+                              (emp.conversas_mes_atual / emp.limite_conversas_mes) > 0.7 ? 'bg-yellow-500' :
+                              'bg-blue-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (emp.conversas_mes_atual / emp.limite_conversas_mes) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td className="p-6 text-blue-400 font-mono text-sm">
                       /{emp.slug}
                     </td>
                     <td className="p-6">
-                      <div className="flex items-center gap-2">
-                        <DollarSign size={16} className="text-green-400" />
-                        <span>R$ {emp.valor_mensalidade.toFixed(2)}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <DollarSign size={14} className="text-green-400" />
+                          <span className="font-bold">R$ {emp.valor_mensalidade.toFixed(2)}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono mt-1">Custo IA: ${emp.custo_estimado_usd?.toFixed(2)}</span>
                       </div>
                     </td>
                     <td className="p-6">
@@ -433,6 +505,21 @@ export default function AdminPage() {
                 <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Mensalidade (R$)</label>
                 <input type="number" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
                   value={formData.valor_mensalidade} onChange={(e) => setFormData({...formData, valor_mensalidade: parseFloat(e.target.value)})} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Plano SaaS</label>
+                <select className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.plano} onChange={(e) => {
+                    const p = e.target.value;
+                    const lim = p === 'starter' ? 500 : p === 'pro' ? 2000 : p === 'ilimitado' ? 999999 : 100;
+                    setFormData({...formData, plano: p, limite_conversas_mes: lim});
+                  }}>
+                  <option value="trial">Trial (100 conversas)</option>
+                  <option value="starter">Starter (500 conversas)</option>
+                  <option value="pro">Pro (2.000 conversas)</option>
+                  <option value="ilimitado">Ilimitado</option>
+                </select>
               </div>
 
               <div className="col-span-full border-t border-white/5 pt-4">

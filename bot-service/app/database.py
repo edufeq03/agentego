@@ -12,7 +12,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(DATABASE_URL, pool_size=20, max_overflow=30)
+engine = create_engine(DATABASE_URL, pool_size=5, max_overflow=10)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -31,6 +31,17 @@ class Empresa(Base):
     valor_mensalidade = Column(Float, default=0.0)
     data_expiracao_teste = Column(DateTime, nullable=True)
     cupom_vendedor = Column(String, nullable=True)
+    
+    # Billing e Planos
+    plano = Column(String, default="trial") # trial, starter, pro, ilimitado
+    limite_conversas_mes = Column(Integer, default=100)
+    conversas_mes_atual = Column(Integer, default=0)
+    data_reset_contador = Column(DateTime, nullable=True)
+    
+    # Rastreamento interno de custos (tokens)
+    tokens_input_mes = Column(Integer, default=0)
+    tokens_output_mes = Column(Integer, default=0)
+    
     data_criacao = Column(DateTime, server_default=func.now())
     etapas_funil = Column(JSONB, default=["novo", "curioso", "interessado", "agendado"])
     
@@ -123,6 +134,15 @@ def init_db():
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
             conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
             conn.execute(text('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT \'client\''))
+            
+            # Novas colunas de Billing
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano VARCHAR DEFAULT \'trial\''))
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS limite_conversas_mes INTEGER DEFAULT 100'))
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS conversas_mes_atual INTEGER DEFAULT 0'))
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_reset_contador TIMESTAMP'))
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_input_mes INTEGER DEFAULT 0'))
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_output_mes INTEGER DEFAULT 0'))
+            
             conn.commit()
             
         print("Conexão com banco de dados estabelecida e migrações do SaaS concluídas.")

@@ -1,6 +1,7 @@
 import pytz
 import logging
 logger = logging.getLogger(__name__)
+from datetime import datetime, timedelta
 from app.database import SessionLocal, Empresa, Lead, Mensagem, Transbordo, Configuracao
 from app.classifier import classificar_intencao, calcular_stage
 from app.agent import processar_mensagem_dinamica, processar_confirmacao_transbordo
@@ -55,7 +56,39 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         db.close()
         return {"status": "pausado", "motivo": "transbordo_ativo"}
 
-    lead = carregar_lead(db, empresa.id, telefone)
+    # --- CONTROLE DE USO (BILLING) ---
+    # 1. Verifica reset mensal do contador
+    agora = datetime.utcnow()
+    if not empresa.data_reset_contador or agora >= empresa.data_reset_contador:
+        empresa.conversas_mes_atual = 0
+        # Próximo reset: 1º dia do próximo mês
+        if agora.month == 12:
+            empresa.data_reset_contador = datetime(agora.year + 1, 1, 1)
+        else:
+            empresa.data_reset_contador = datetime(agora.year, agora.month + 1, 1)
+        db.commit()
+
+    # 2. Verifica se o lead é novo no mês (contabiliza 1 conversa)
+    lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
+    
+    # Se o lead não existe ou foi criado antes do último reset, consideramos uma "conversa ativa" este mês
+    # No Modelo A, contamos "leads ativos no mês"
+    # Aqui usaremos uma lógica simplificada: se a última mensagem do lead foi antes do reset, ele conta como nova conversa
+    ultima_msg = db.query(Mensagem).filter(Mensagem.lead_id == lead.id if lead else False).order_by(Mensagem.timestamp.desc()).first()
+    if not lead or not ultima_msg or ultima_msg.timestamp < (empresa.data_reset_contador - timedelta(days=31)):
+        # Só incrementa se não for ilimitado ou se estiver abaixo do limite
+        if empresa.plano != "ilimitado" and empresa.conversas_mes_atual >= empresa.limite_conversas_mes:
+            db.close()
+            return {
+                "status": "limite_atingido", 
+                "resposta": "Olá! No momento nosso atendimento automático atingiu o limite mensal. Por favor, aguarde que um atendente humano falará com você em breve. 🙏"
+            }
+        empresa.conversas_mes_atual = (empresa.conversas_mes_atual or 0) + 1
+        db.commit()
+
+    if not lead:
+        lead = carregar_lead(db, empresa.id, telefone)
+    # ---------------------------------
     
     # Salva a mensagem recebida
     intencao = classificar_intencao(mensagem_texto)
@@ -65,7 +98,12 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
 
     # Analisa sentimento (IA)
     from app.classifier import analisar_sentimento_ia
-    sentimento = analisar_sentimento_ia(mensagem_texto)
+    sentimento, t_in, t_out = analisar_sentimento_ia(mensagem_texto)
+    
+    # Registra tokens do sentimento
+    empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
+    empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
+    db.commit()
     
     if sentimento == "negativo":
         registrar_evento(db, empresa.id, lead.id, "sentimento_negativo", {"mensagem": mensagem_texto})
@@ -94,15 +132,20 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     contexto_tempo = gerar_contexto_tempo(configuracao)
 
     if status_transbordo == "aguardando":
-        resposta_raw = processar_confirmacao_transbordo(mensagem_texto, historico=historico)
+        resposta_raw, t_in, t_out = processar_confirmacao_transbordo(mensagem_texto, historico=historico)
         if "[CONFIRMAR_TRANSBORDO]" in resposta_raw:
             atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
         elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
             atualizar_status_transbordo(db, empresa.id, telefone, None, lead_id=lead.id)
     else:
-        resposta_raw = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico, sentimento=sentimento)
+        resposta_raw, t_in, t_out = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico, sentimento=sentimento)
         if "[SUGERIR_TRANSBORDO]" in resposta_raw:
             atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
+
+    # Registra tokens da resposta principal
+    empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
+    empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
+    db.commit()
 
     resposta_limpa = limpar_tags(resposta_raw)
     logger.info(f"Resposta gerada para {telefone}", extra={"empresa_id": str(empresa.id), "lead_id": str(lead.id), "tipo": "ia_response"})

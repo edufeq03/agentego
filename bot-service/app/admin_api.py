@@ -11,18 +11,17 @@ import uuid
 router = APIRouter()
 
 # Segurança básica via Token de Admin no Header
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "atendia-master-2026")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
+if not ADMIN_TOKEN:
+    raise RuntimeError("ADMIN_TOKEN não configurado no ambiente. Abortando.")
 
 import logging
 logger = logging.getLogger(__name__)
 
 def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
-    # Log para depuração (Removeremos depois)
-    logger.info(f"Tentativa de login ADM com token: {x_admin_token}")
-    
     if not x_admin_token or x_admin_token != ADMIN_TOKEN:
-        logger.warning(f"Acesso Negado! Esperado: {ADMIN_TOKEN} | Recebido: {x_admin_token}")
-        raise HTTPException(status_code=401, detail="Não autorizado: Token de Admin inválido")
+        logger.warning("Tentativa de acesso admin com token inválido.")
+        raise HTTPException(status_code=401, detail="Não autorizado")
 
 class TemplateCreate(BaseModel):
     nome_nicho: str
@@ -44,6 +43,8 @@ class EmpresaCreate(BaseModel):
     cupom_vendedor: Optional[str] = None
     template_id: Optional[uuid.UUID] = None
     etapas_funil: Optional[List[str]] = None
+    plano: Optional[str] = "trial"
+    limite_conversas_mes: Optional[int] = 100
 
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
@@ -51,8 +52,15 @@ class EmpresaResponse(BaseModel):
     slug: Optional[str] = None
     ativo: bool
     valor_mensalidade: float
-    data_expiracao_teste: Optional[datetime]
-    data_criacao: datetime
+    data_expiracao_teste: Optional[datetime] = None
+    data_criacao: Optional[datetime] = None
+    
+    plano: str
+    limite_conversas_mes: int
+    conversas_mes_atual: int
+    tokens_input_mes: int
+    tokens_output_mes: int
+    custo_estimado_usd: Optional[float] = 0.0
 
     class Config:
         from_attributes = True
@@ -89,8 +97,38 @@ def listar_empresas(db: Session = Depends(get_db)):
     for emp in empresas:
         if not emp.slug:
             emp.slug = re.sub(r'[^a-z0-9]+', '-', emp.nome.lower()).strip('-')
+        # Calcula custo estimado USD (gpt-4o-mini pricing)
+        emp.custo_estimado_usd = ((emp.tokens_input_mes or 0) * 0.00000015) + ((emp.tokens_output_mes or 0) * 0.0000006)
     db.commit()
     return empresas
+
+@router.get("/financeiro/resumo", dependencies=[Depends(verify_admin)])
+def resumo_financeiro(db: Session = Depends(get_db)):
+    empresas = db.query(Empresa).filter(Empresa.ativo == True).all()
+    
+    total_clientes = len(empresas)
+    mrr = sum(emp.valor_mensalidade or 0 for emp in empresas)
+    
+    total_tokens_in = sum(emp.tokens_input_mes or 0 for emp in empresas)
+    total_tokens_out = sum(emp.tokens_output_mes or 0 for emp in empresas)
+    
+    # Custo estimado total em USD
+    custo_ia_usd = (total_tokens_in * 0.00000015) + (total_tokens_out * 0.0000006)
+    
+    # Detalhamento por plano
+    planos_count = {
+        "trial": db.query(Empresa).filter(Empresa.plano == "trial", Empresa.ativo == True).count(),
+        "starter": db.query(Empresa).filter(Empresa.plano == "starter", Empresa.ativo == True).count(),
+        "pro": db.query(Empresa).filter(Empresa.plano == "pro", Empresa.ativo == True).count(),
+        "ilimitado": db.query(Empresa).filter(Empresa.plano == "ilimitado", Empresa.ativo == True).count(),
+    }
+    
+    return {
+        "total_clientes": total_clientes,
+        "mrr": mrr,
+        "custo_ia_usd": custo_ia_usd,
+        "planos": planos_count
+    }
 
 @router.post("/empresas", response_model=EmpresaResponse, dependencies=[Depends(verify_admin)])
 def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
@@ -112,7 +150,9 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
         telefone_proprietario=data.telefone_proprietario,
         valor_mensalidade=data.valor_mensalidade,
         data_expiracao_teste=expiracao,
-        cupom_vendedor=data.cupom_vendedor
+        cupom_vendedor=data.cupom_vendedor,
+        plano=data.plano,
+        limite_conversas_mes=data.limite_conversas_mes
     )
 
     # Se forneceu etapas diretamente

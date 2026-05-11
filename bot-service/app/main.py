@@ -101,18 +101,39 @@ async def tarefa_relatorio_semanal():
     finally:
         db.close()
 
+async def tarefa_manutencao_diaria():
+    """Roda diariamente para expirar trials e limpezas."""
+    logger.info("Iniciando manutenção diária (expiração de trials)...")
+    db = SessionLocal()
+    try:
+        from datetime import datetime
+        agora = datetime.utcnow()
+        # Expirar trials vencidos
+        empresas_trial = db.query(Empresa).filter(
+            Empresa.plano == "trial",
+            Empresa.data_expiracao_teste < agora,
+            Empresa.ativo == True
+        ).all()
+        for e in empresas_trial:
+            e.ativo = False
+            logger.info(f"Trial expirado para empresa: {e.nome} (ID: {e.id})")
+        db.commit()
+    except Exception as e:
+        logger.error(f"Erro na manutenção diária: {e}")
+    finally:
+        db.close()
+
 @app.on_event("startup")
 def on_startup():
     init_db()
     # Agenda para toda Segunda-feira às 09:00 AM
     scheduler.add_job(tarefa_relatorio_semanal, 'cron', day_of_week='mon', hour=9, minute=0)
+    # Agenda manutenção diária à meia-noite
+    scheduler.add_job(tarefa_manutencao_diaria, 'cron', hour=0, minute=0)
     scheduler.start()
-    logger.info("Scheduler iniciado: Relatórios semanais agendados para Segundas às 09:00.")
+    logger.info("Scheduler iniciado: Relatórios semanais (Seg 09h) e Manutenção (00h).")
 
-@app.get("/")
 
-def health_check():
-    return {"status": "online", "message": "AtendIA (SaaS) está rodando!"}
 
 async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto_combinado: str, cliente_enviou_audio: bool = False):
     """
@@ -175,8 +196,12 @@ async def webhook(token: str, request: Request):
     try:
         logger.info(f"--- WEBHOOK RECEBIDO (Token: {token}) ---")
         data = await request.json()
+        # 2.5: Truncar logs de RAW DATA para evitar poluição com base64
         import json
-        logger.info(f"RAW DATA: {json.dumps(data)}")
+        if logger.isEnabledFor(logging.DEBUG):
+            safe_data = {k: (v[:50] + "...[truncado]" if isinstance(v, str) and len(v) > 50 else v)
+                         for k, v in data.items()}
+            logger.debug(f"RAW DATA (truncado): {json.dumps(safe_data)}")
 
         # 1. Identificar Empresa pelo token
         empresa = db.query(Empresa).filter(Empresa.webhook_token == token, Empresa.ativo == True).first()
@@ -262,20 +287,5 @@ async def webhook(token: str, request: Request):
         
         # Retorna IMEDIATAMENTE para a Evolution API
         return {"status": "ok", "mensagem": "adicionada_ao_buffer"}
-    finally:
-        db.close()
-
-@app.delete("/transbordo/{token}/{telefone}")
-def reativar_robo(token: str, telefone: str):
-    db = SessionLocal()
-    try:
-        empresa = db.query(Empresa).filter(Empresa.webhook_token == token).first()
-        if not empresa:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
-        
-        from app.pipeline import atualizar_status_transbordo
-        atualizar_status_transbordo(db, empresa.id, telefone, None)
-        logger.info(f"[{telefone}] Robô reativado manualmente via API para a empresa {empresa.nome}.")
-        return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}
     finally:
         db.close()

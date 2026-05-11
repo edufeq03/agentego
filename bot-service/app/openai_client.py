@@ -15,7 +15,10 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None):
         model="gpt-4o-mini",
         messages=mensagens
     )
-    return response.choices[0].message.content
+    texto = response.choices[0].message.content
+    t_in = response.usage.prompt_tokens
+    t_out = response.usage.completion_tokens
+    return texto, t_in, t_out
 
 def transcrever_audio(caminho_arquivo):
     with open(caminho_arquivo, "rb") as audio_file:

@@ -4,49 +4,36 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Save, CheckCircle2, Plus, Trash2, Users, Dumbbell, MapPin, Sparkles, Clock } from "lucide-react";
 
-interface Professor {
-  nome: string;
-  especialidade: string;
-  bio: string;
-}
-
-interface Instalacao {
-  nome: string;
-  descricao: string;
-}
-
-interface AulaDetalhe {
-  nome: string;
-  descricao: string;
-  horario: string;
+interface Conhecimento {
+  categoria: string;
+  conteudo: string;
 }
 
 interface ConfigData {
   nome_agente: string;
   nome_empresa: string;
-  planos: { basico: number; vip: number };
-  horarios: { semana: string; sabado: string };
   endereco: string;
-  pagamentos: string[];
-  aulas_vip: string[];
-  professores: Professor[];
-  instalacoes: Instalacao[];
-  detalhes_aulas: AulaDetalhe[];
+  horarios: { semana: string; sabado: string };
+  faq: { pergunta: string; resposta: string }[];
+  conhecimento: Conhecimento[];
+  regras_comportamento: string[];
   timezone: string;
+  // Campos legados mantidos para compatibilidade durante migração
+  planos?: { basico: number; vip: number };
+  professores?: any[];
+  instalacoes?: any[];
+  detalhes_aulas?: any[];
 }
 
 export default function Configuracoes() {
   const [config, setConfig] = useState<ConfigData>({
     nome_agente: "",
     nome_empresa: "",
-    planos: { basico: 0, vip: 0 },
-    horarios: { semana: "", sabado: "" },
     endereco: "",
-    pagamentos: [],
-    aulas_vip: [],
-    professores: [],
-    instalacoes: [],
-    detalhes_aulas: [],
+    horarios: { semana: "", sabado: "" },
+    faq: [],
+    conhecimento: [],
+    regras_comportamento: [],
     timezone: "America/Sao_Paulo"
   });
   
@@ -73,21 +60,15 @@ export default function Configuracoes() {
             nome_agente: configData.nome_agente || "",
             nome_empresa: configData.nome_empresa || "",
             endereco: configData.endereco || "",
-            planos: {
-              basico: configData.planos?.basico || 0,
-              vip: configData.planos?.vip || 0
-            },
             horarios: {
               semana: configData.horarios?.semana || "",
               sabado: configData.horarios?.sabado || ""
             },
-            professores: configData.professores || [],
-            instalacoes: configData.instalacoes || [],
-            detalhes_aulas: configData.detalhes_aulas || [],
+            faq: configData.faq || [],
+            conhecimento: configData.conhecimento || [],
+            regras_comportamento: configData.regras_comportamento || [],
             timezone: configData.timezone || "America/Sao_Paulo"
           });
-          setPagamentosStr(configData.pagamentos ? configData.pagamentos.join(", ") : "");
-          setAulasVipStr(configData.aulas_vip ? configData.aulas_vip.join(", ") : "");
         }
         setWebhookToken(webhook_token || "");
         setBaseUrl(base_url || "");
@@ -130,62 +111,42 @@ export default function Configuracoes() {
     }
   };
 
-  // Funções para manipular as listas estruturadas
-  const addProfessor = () => {
+  const addConhecimento = () => {
     setConfig({
       ...config,
-      professores: [...config.professores, { nome: "", especialidade: "", bio: "" }]
+      conhecimento: [...config.conhecimento, { categoria: "", conteudo: "" }]
     });
   };
 
-  const removeProfessor = (index: number) => {
-    const newProfessores = [...config.professores];
-    newProfessores.splice(index, 1);
-    setConfig({ ...config, professores: newProfessores });
+  const removeConhecimento = (index: number) => {
+    const newItems = [...config.conhecimento];
+    newItems.splice(index, 1);
+    setConfig({ ...config, conhecimento: newItems });
   };
 
-  const updateProfessor = (index: number, field: keyof Professor, value: string) => {
-    const newProfessores = [...config.professores];
-    newProfessores[index] = { ...newProfessores[index], [field]: value };
-    setConfig({ ...config, professores: newProfessores });
+  const updateConhecimento = (index: number, field: keyof Conhecimento, value: string) => {
+    const newItems = [...config.conhecimento];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setConfig({ ...config, conhecimento: newItems });
   };
 
-  const addInstalacao = () => {
+  const addFAQ = () => {
     setConfig({
       ...config,
-      instalacoes: [...config.instalacoes, { nome: "", descricao: "" }]
+      faq: [...config.faq, { pergunta: "", resposta: "" }]
     });
   };
 
-  const removeInstalacao = (index: number) => {
-    const newInstalacoes = [...config.instalacoes];
-    newInstalacoes.splice(index, 1);
-    setConfig({ ...config, instalacoes: newInstalacoes });
+  const removeFAQ = (index: number) => {
+    const newItems = [...config.faq];
+    newItems.splice(index, 1);
+    setConfig({ ...config, faq: newItems });
   };
 
-  const updateInstalacao = (index: number, field: keyof Instalacao, value: string) => {
-    const newInstalacoes = [...config.instalacoes];
-    newInstalacoes[index] = { ...newInstalacoes[index], [field]: value };
-    setConfig({ ...config, instalacoes: newInstalacoes });
-  };
-
-  const addAula = () => {
-    setConfig({
-      ...config,
-      detalhes_aulas: [...config.detalhes_aulas, { nome: "", descricao: "", horario: "" }]
-    });
-  };
-
-  const removeAula = (index: number) => {
-    const newAulas = [...config.detalhes_aulas];
-    newAulas.splice(index, 1);
-    setConfig({ ...config, detalhes_aulas: newAulas });
-  };
-
-  const updateAula = (index: number, field: keyof AulaDetalhe, value: string) => {
-    const newAulas = [...config.detalhes_aulas];
-    newAulas[index] = { ...newAulas[index], [field]: value };
-    setConfig({ ...config, detalhes_aulas: newAulas });
+  const updateFAQ = (index: number, field: 'pergunta' | 'resposta', value: string) => {
+    const newItems = [...config.faq];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setConfig({ ...config, faq: newItems });
   };
 
   if (loading) {
@@ -260,109 +221,94 @@ export default function Configuracoes() {
             </div>
           </section>
 
-          {/* 2. Time de Professores (Estruturado) */}
+          {/* 2. Base de Conhecimento Dinâmica */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
               <div className="flex items-center gap-2 text-white font-semibold text-lg">
-                <Users className="text-blue-400" size={20} />
-                Time de Professores
+                <Plus className="text-blue-400" size={20} />
+                Base de Conhecimento
               </div>
               <button 
-                onClick={addProfessor}
+                onClick={addConhecimento}
                 type="button"
                 className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
               >
-                <Plus size={14} /> Adicionar Professor
+                <Plus size={14} /> Adicionar Tópico
               </button>
             </div>
 
             <div className="space-y-4">
-              {config.professores.map((prof, index) => (
+              {config.conhecimento.map((item, index) => (
                 <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group">
                   <button 
-                    onClick={() => removeProfessor(index)}
+                    onClick={() => removeConhecimento(index)}
                     className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 size={12} />
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <input 
-                      placeholder="Nome do Professor"
-                      value={prof.nome}
-                      onChange={e => updateProfessor(index, 'nome', e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                    <input 
-                      placeholder="Especialidade (ex: Musculação, Yoga)"
-                      value={prof.especialidade}
-                      onChange={e => updateProfessor(index, 'especialidade', e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      placeholder="Título do Tópico (ex: Preços, Diferenciais, Equipe)"
+                      value={item.categoria}
+                      onChange={e => updateConhecimento(index, 'categoria', e.target.value)}
+                      className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white font-bold focus:outline-none focus:border-[var(--color-brand-500)]"
                     />
                     <textarea 
-                      placeholder="Breve biografia ou diferenciais..."
-                      value={prof.bio}
-                      onChange={e => updateProfessor(index, 'bio', e.target.value)}
-                      className="md:col-span-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-16 resize-none"
+                      placeholder="Descreva aqui as informações que o robô deve saber sobre este tópico..."
+                      value={item.conteudo}
+                      onChange={e => updateConhecimento(index, 'conteudo', e.target.value)}
+                      className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-24 resize-none"
                     />
                   </div>
                 </div>
               ))}
-              {config.professores.length === 0 && (
-                <p className="text-center text-sm text-[var(--color-foreground-muted)] py-4">Nenhum professor cadastrado ainda.</p>
+              {config.conhecimento.length === 0 && (
+                <p className="text-center text-sm text-[var(--color-foreground-muted)] py-4">Sua base de conhecimento está vazia. Adicione tópicos para o robô aprender!</p>
               )}
             </div>
           </section>
 
-          {/* 3. Detalhes das Aulas (Estruturado) */}
+          {/* 3. Perguntas Frequentes (FAQ) */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
               <div className="flex items-center gap-2 text-white font-semibold text-lg">
-                <Clock className="text-purple-400" size={20} />
-                Grade e Detalhes de Aulas
+                <Users className="text-purple-400" size={20} />
+                Perguntas Frequentes (FAQ)
               </div>
               <button 
-                onClick={addAula}
+                onClick={addFAQ}
                 type="button"
                 className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
               >
-                <Plus size={14} /> Adicionar Aula
+                <Plus size={14} /> Adicionar Pergunta
               </button>
             </div>
 
             <div className="space-y-4">
-              {config.detalhes_aulas.map((aula, index) => (
+              {config.faq.map((item, index) => (
                 <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group">
                   <button 
-                    onClick={() => removeAula(index)}
+                    onClick={() => removeFAQ(index)}
                     className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 size={12} />
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <input 
-                      placeholder="Nome da Aula (ex: Spinning)"
-                      value={aula.nome}
-                      onChange={e => updateAula(index, 'nome', e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                    <input 
-                      placeholder="Horários (ex: Terças e Quintas às 19h)"
-                      value={aula.horario}
-                      onChange={e => updateAula(index, 'horario', e.target.value)}
-                      className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      placeholder="Pergunta que o cliente costuma fazer"
+                      value={item.pergunta}
+                      onChange={e => updateFAQ(index, 'pergunta', e.target.value)}
+                      className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                     />
                     <textarea 
-                      placeholder="Descrição do que o aluno vai fazer na aula..."
-                      value={aula.descricao}
-                      onChange={e => updateAula(index, 'descricao', e.target.value)}
-                      className="md:col-span-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-16 resize-none"
+                      placeholder="Resposta que o robô deve dar"
+                      value={item.resposta}
+                      onChange={e => updateFAQ(index, 'resposta', e.target.value)}
+                      className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-16 resize-none"
                     />
                   </div>
                 </div>
               ))}
-              {config.detalhes_aulas.length === 0 && (
-                <p className="text-center text-sm text-[var(--color-foreground-muted)] py-4">Nenhuma aula detalhada ainda.</p>
-              )}
             </div>
           </section>
         </div>

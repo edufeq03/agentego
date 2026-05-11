@@ -10,7 +10,7 @@ try:
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     # Testa a conexão
     redis_client.ping()
-    logger.info(f"Conectado ao Redis em {REDIS_URL}")
+    logger.info("Conectado ao Redis com sucesso.")
 except Exception as e:
     logger.warning(f"Não foi possível conectar ao Redis ({e}). O sistema usará fallback para memória RAM.")
     redis_client = None

@@ -16,7 +16,8 @@ def analisar_sentimento_ia(texto: str) -> str:
     - "Que porcaria de atendimento" -> negativo
     """
     try:
-        res = perguntar(texto, prompt).lower().strip()
+        res, t_in, t_out = perguntar(texto, prompt)
+        res = res.lower().strip()
         if "negativo" in res: return "negativo"
         if "positivo" in res: return "positivo"
         return "neutro"

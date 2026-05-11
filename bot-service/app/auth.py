@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 import bcrypt
 import os
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super_secret_key_change_in_production")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError("JWT_SECRET não configurado ou muito curto (mínimo 32 caracteres). Abortando.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 dias
 
