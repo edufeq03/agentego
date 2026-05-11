@@ -26,6 +26,24 @@ export default function ZapvaiLanding() {
         nav.classList.toggle('open');
       });
     }
+
+    // Smooth scroll for all anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href')?.substring(1);
+        if (targetId) {
+          const targetElement = document.getElementById(targetId);
+          if (targetElement) {
+            targetElement.scrollIntoView({
+              behavior: 'smooth'
+            });
+            // Close mobile nav if open
+            nav?.classList.remove('open');
+          }
+        }
+      });
+    });
   }, []);
 
   return (
@@ -46,6 +64,7 @@ export default function ZapvaiLanding() {
             <nav id="main-nav">
               <a href="#benefits">Benefícios</a>
               <a href="#how">Como funciona</a>
+              <a href="#pricing">Preços</a>
               <a href="#faq">Dúvidas</a>
               <Link href="/login" className="nav-cta" style={{ marginLeft: '8px' }}>Painel do Cliente</Link>
             </nav>
@@ -474,6 +493,94 @@ export default function ZapvaiLanding() {
               </svg>
               Em poucos minutos, seu atendimento já está ativo e funcionando — sem precisar de equipe de TI.
             </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="divider"></div>
+      
+      {/* ═══════════════════ PRICING ═══════════════════ */}
+      <section className="pricing-section" id="pricing">
+        <div className="container">
+          <div className="section-head reveal" style={{textAlign:'center'}}>
+            <div className="section-label" style={{justifyContent:'center'}}>Planos e Preços</div>
+            <h2 className="section-title">Escolha o plano ideal para<br /><em>o seu momento</em></h2>
+            <p className="section-sub" style={{margin:'0 auto'}}>Sem taxas de adesão. Cancele quando quiser.</p>
+          </div>
+
+          <div className="pricing-grid">
+            {/* Plan 1 */}
+            <div className="price-card reveal reveal-delay-1">
+              <div className="pc-tag">Individual</div>
+              <h3 className="pc-title">Plano Starter</h3>
+              <div className="pc-price">
+                <span className="currency">R$</span>
+                <span className="amount">97</span>
+                <span className="period">/mês</span>
+              </div>
+              <p className="pc-desc">Ideal para pequenos negócios que estão começando a automatizar.</p>
+              
+              <ul className="pc-features">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> 1 Vendedor Automático</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> 1 Número de WhatsApp</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Atendimento 24h/7</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Filtro de Leads básico</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Suporte por e-mail</li>
+              </ul>
+
+              <a href="https://wa.me/5519996737713?text=Olá! Quero assinar o Plano Starter." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Começar agora</a>
+            </div>
+
+            {/* Plan 2 - Featured */}
+            <div className="price-card featured reveal reveal-delay-2">
+              <div className="pc-badge">Mais Popular</div>
+              <div className="pc-tag" style={{color:'var(--cyan)'}}>Escalabilidade</div>
+              <h3 className="pc-title">Plano Pro</h3>
+              <div className="pc-price">
+                <span className="currency">R$</span>
+                <span className="amount">197</span>
+                <span className="period">/mês</span>
+              </div>
+              <p className="pc-desc">Perfeito para quem quer separar vendas de suporte ou escalar volume.</p>
+              
+              <ul className="pc-features">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> <strong>2 Vendedores Automáticos</strong></li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> <strong>2 Números de WhatsApp</strong></li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Estratégias Diferentes</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Dashboard de Métricas</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Suporte Prioritário</li>
+              </ul>
+
+              <a href="https://wa.me/5519996737713?text=Olá! Quero assinar o Plano Pro." className="btn-primary" style={{width:'100%',justifyContent:'center'}}>Assinar Plano Pro</a>
+            </div>
+
+            {/* Plan 3 */}
+            <div className="price-card reveal reveal-delay-3">
+              <div className="pc-tag">Corporativo</div>
+              <h3 className="pc-title">Plano Business</h3>
+              <div className="pc-price">
+                <span className="currency">R$</span>
+                <span className="amount">397</span>
+                <span className="period">/mês</span>
+              </div>
+              <p className="pc-desc">Para empresas que precisam de inteligência sob medida e alto volume.</p>
+              
+              <ul className="pc-features">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Vendedores Ilimitados</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Números Ilimitados</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> <strong>IA Treinada sob medida</strong></li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Integração via API / CRM</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Gerente de Conta Dedicado</li>
+              </ul>
+
+              <a href="https://wa.me/5519996737713?text=Olá! Quero saber mais sobre o Plano Business." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Falar com consultor</a>
+            </div>
+          </div>
+
+          <div className="pricing-bottom reveal" style={{marginTop:'40px', textAlign:'center'}}>
+            <p style={{fontSize:'0.85rem', color:'var(--text-faint)'}}>
+              * Planos Business podem exigir taxa de setup única para treinamento personalizado da IA.
+            </p>
           </div>
         </div>
       </section>
