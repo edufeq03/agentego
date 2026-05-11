@@ -49,6 +49,9 @@ class Empresa(Base):
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False, cascade="all, delete-orphan")
     leads = relationship("Lead", back_populates="empresa", cascade="all, delete-orphan")
     usuarios = relationship("Usuario", back_populates="empresa", cascade="all, delete-orphan")
+    mensagens = relationship("Mensagem", back_populates="empresa", cascade="all, delete-orphan")
+    eventos = relationship("Evento", back_populates="empresa", cascade="all, delete-orphan")
+    transbordos = relationship("Transbordo", back_populates="empresa", cascade="all, delete-orphan")
 
 class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
@@ -93,7 +96,7 @@ class Lead(Base):
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     empresa = relationship("Empresa", back_populates="leads")
-    mensagens = relationship("Mensagem", back_populates="lead")
+    mensagens = relationship("Mensagem", back_populates="lead", cascade="all, delete-orphan")
 
 class Mensagem(Base):
     __tablename__ = "mensagens"
@@ -106,6 +109,7 @@ class Mensagem(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     
     lead = relationship("Lead", back_populates="mensagens")
+    empresa = relationship("Empresa", back_populates="mensagens")
 
 class Evento(Base):
     __tablename__ = "eventos"
@@ -115,6 +119,9 @@ class Evento(Base):
     tipo = Column(String, nullable=False)
     metadata_ = Column("metadata", JSONB, default=dict) # 'metadata' é reservado em sqlalchemy
     timestamp = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="eventos")
+    lead = relationship("Lead")
 
 class Transbordo(Base):
     __tablename__ = "transbordo"
@@ -123,6 +130,8 @@ class Transbordo(Base):
     telefone = Column(String, nullable=False)
     status = Column(String, default="aguardando") # aguardando, pausado
     criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="transbordos")
 
 def init_db():
     try:
