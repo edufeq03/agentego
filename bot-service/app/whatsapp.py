@@ -41,9 +41,9 @@ def simular_digitacao(numero, instance_name):
     }
     
     try:
-        requests.post(url, json=payload, headers=headers, timeout=2)
+        requests.post(url, json=payload, headers=headers, timeout=5)
     except Exception as e:
-        logger.error(f"Erro ao simular digitação: {e}")
+        logger.warning(f"Erro ao simular digitação (não crítico): {e}")
 
 def simular_gravacao_audio(numero, instance_name):
     base_url = whatsapp_service.get_evolution_base_url()

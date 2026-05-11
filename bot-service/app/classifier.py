@@ -18,11 +18,12 @@ def analisar_sentimento_ia(texto: str) -> str:
     try:
         res, t_in, t_out = perguntar(texto, prompt)
         res = res.lower().strip()
-        if "negativo" in res: return "negativo"
-        if "positivo" in res: return "positivo"
-        return "neutro"
+        sentimento = "neutro"
+        if "negativo" in res: sentimento = "negativo"
+        elif "positivo" in res: sentimento = "positivo"
+        return sentimento, t_in, t_out
     except:
-        return "neutro"
+        return "neutro", 0, 0
 
 def classificar_intencao(texto: str) -> str:
     texto = texto.lower()
