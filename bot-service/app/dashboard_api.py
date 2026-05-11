@@ -6,10 +6,15 @@ import pytz
 from typing import List, Dict, Any
 from pydantic import BaseModel
 
-from app.database import get_db, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario
+from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario
 from app.auth import verify_password, create_access_token, decode_access_token
+import logging
+import os
+from app import whatsapp_service
+from fastapi import BackgroundTasks
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class LoginRequest(BaseModel):
     email: str
@@ -213,7 +218,7 @@ def reativar_robo_dashboard(telefone: str, empresa: Empresa = Depends(obter_empr
     atualizar_status_transbordo(db, empresa.id, telefone, None)
     return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}
 
-import os
+
 
 @router.get("/config")
 def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
@@ -250,9 +255,7 @@ async def disparar_relatorio_manual(empresa: Empresa = Depends(obter_empresa), d
         raise HTTPException(status_code=500, detail="Falha ao enviar relatório. Verifique se o telefone do proprietário está configurado.")
 
 # --- NOVOS ENDPOINTS: GESTÃO DE WHATSAPP (EVOLUTION API) ---
-from app import whatsapp_service
 
-from fastapi import BackgroundTasks
 
 def sync_task_background(empresa_id: int):
     """Sincroniza as configurações da Evolution em segundo plano."""
