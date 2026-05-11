@@ -14,6 +14,7 @@ router = APIRouter()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "atendia-master-2026")
 
 import logging
+from app.main import tarefa_relatorio_semanal
 logger = logging.getLogger(__name__)
 
 def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
@@ -68,6 +69,19 @@ def criar_template(data: TemplateCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(novo)
     return novo
+
+@router.put("/templates/{template_id}", dependencies=[Depends(verify_admin)])
+def atualizar_template(template_id: uuid.UUID, data: TemplateCreate, db: Session = Depends(get_db)):
+    template = db.query(PromptTemplate).filter(PromptTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    for key, value in data.dict().items():
+        setattr(template, key, value)
+    
+    db.commit()
+    db.refresh(template)
+    return template
 
 @router.get("/empresas", response_model=List[EmpresaResponse], dependencies=[Depends(verify_admin)])
 def listar_empresas(db: Session = Depends(get_db)):
@@ -194,3 +208,13 @@ def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "slug": slug
     }
+
+@router.get("/debug/trigger-reports", dependencies=[Depends(verify_admin)])
+def trigger_reports_manual():
+    """Gatilho manual para testar o envio de relatórios semanais."""
+    try:
+        tarefa_relatorio_semanal()
+        return {"status": "ok", "message": "Disparo de relatórios iniciado com sucesso."}
+    except Exception as e:
+        logger.error(f"Erro ao disparar relatórios manuais: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

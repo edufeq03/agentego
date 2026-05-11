@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -108,11 +109,19 @@ export default function AdminPage() {
         ...templateData,
         etapas_funil: templateData.etapas_funil.split(",").map(s => s.trim().toLowerCase())
       };
-      await api.post("admin/templates", payload, {
-        headers: { "X-Admin-Token": adminToken }
-      });
-      alert("Template criado com sucesso!");
+      if (editingTemplate) {
+        await api.put(`admin/templates/${editingTemplate.id}`, payload, {
+          headers: { "X-Admin-Token": adminToken }
+        });
+        alert("Template atualizado com sucesso!");
+      } else {
+        await api.post("admin/templates", payload, {
+          headers: { "X-Admin-Token": adminToken }
+        });
+        alert("Template criado com sucesso!");
+      }
       setShowTemplateModal(false);
+      setEditingTemplate(null);
       fetchData();
     } catch (err: any) {
       alert(err.response?.data?.detail || "Erro ao criar template.");
@@ -221,7 +230,18 @@ export default function AdminPage() {
               </button>
             ) : (
               <button 
-                onClick={() => setShowTemplateModal(true)}
+                onClick={() => {
+                  setEditingTemplate(null);
+                  setTemplateData({
+                    nome_nicho: "",
+                    prompt_sistema: "",
+                    tom_voz: "",
+                    missao: "",
+                    objetivo: "",
+                    etapas_funil: "novo, curioso, interessado, agendado"
+                  });
+                  setShowTemplateModal(true);
+                }}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold transition-all shadow-lg shadow-purple-600/20"
               >
                 <Plus size={20} />
@@ -321,7 +341,27 @@ export default function AdminPage() {
                   <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
                     <ShieldCheck size={24} />
                   </div>
-                  <span className="text-xs font-bold bg-purple-500/20 px-2 py-1 rounded uppercase tracking-wider">Template</span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setEditingTemplate(t);
+                        setTemplateData({
+                          nome_nicho: t.nome_nicho,
+                          prompt_sistema: t.prompt_sistema,
+                          tom_voz: t.tom_voz,
+                          missao: t.missao,
+                          objetivo: t.objetivo,
+                          etapas_funil: "novo, curioso, interessado, agendado" // Simplificado por enquanto
+                        });
+                        setShowTemplateModal(true);
+                      }}
+                      className="p-1.5 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors"
+                      title="Editar Template"
+                    >
+                      <Settings size={18} />
+                    </button>
+                    <span className="text-xs font-bold bg-purple-500/20 px-2 py-1 rounded uppercase tracking-wider">Template</span>
+                  </div>
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t.nome_nicho}</h3>
@@ -427,9 +467,9 @@ export default function AdminPage() {
             <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-purple-600/10">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <ShieldCheck className="text-purple-400" />
-                Novo Template de Nicho
+                {editingTemplate ? `Editando: ${editingTemplate.nome_nicho}` : "Novo Template de Nicho"}
               </h2>
-              <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-white">Fechar</button>
+              <button onClick={() => { setShowTemplateModal(false); setEditingTemplate(null); }} className="text-slate-400 hover:text-white">Fechar</button>
             </div>
             
             <form onSubmit={handleCreateTemplate} className="p-8 space-y-4">
@@ -471,7 +511,7 @@ export default function AdminPage() {
               </div>
 
               <button type="submit" disabled={loading} className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
-                {loading ? "Criando..." : "Salvar Template Mestre"}
+                {loading ? "Processando..." : editingTemplate ? "Salvar Alterações" : "Salvar Template Mestre"}
                 <CheckCircle2 size={20} />
               </button>
             </form>
