@@ -104,7 +104,8 @@ def set_webhook(instance_name: str, webhook_url: str):
                 "SEND_MESSAGE",
                 "CONNECTION_UPDATE",
                 "CALL",
-                "TYPE_BOT"
+                "TYPEBOT_START",
+                "TYPEBOT_CHANGE_STATUS"
             ]
         }
     }
