@@ -63,14 +63,14 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     db.add(msg_user)
     db.commit()
 
-    # Analisa sentimento (Heurística básica)
-    sentimento = "neutro"
-    palavras_negativas = ["ruim", "péssimo", "horrível", "droga", "atraso", "demora", "não funciona", "absurdo", "lixo"]
-    if any(p in mensagem_texto.lower() for p in palavras_negativas):
-        sentimento = "negativo"
+    # Analisa sentimento (IA)
+    from app.classifier import analisar_sentimento_ia
+    sentimento = analisar_sentimento_ia(mensagem_texto)
+    
+    if sentimento == "negativo":
         registrar_evento(db, empresa.id, lead.id, "sentimento_negativo", {"mensagem": mensagem_texto})
-    elif any(p in mensagem_texto.lower() for p in ["bom", "ótimo", "excelente", "obrigado", "valeu", "show"]):
-        sentimento = "positivo"
+    elif sentimento == "positivo":
+        registrar_evento(db, empresa.id, lead.id, "sentimento_positivo")
 
     # Atualiza o funil de vendas (stage)
     novo_stage = calcular_stage(lead.stage, intencao)

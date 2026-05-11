@@ -1,3 +1,28 @@
+from app.openai_client import perguntar
+
+def analisar_sentimento_ia(texto: str) -> str:
+    """
+    Usa IA para classificar o humor do cliente.
+    Retorna: 'positivo', 'neutro' ou 'negativo'.
+    """
+    prompt = """
+    Analise o sentimento da mensagem abaixo de um cliente de uma academia/serviço.
+    Responda APENAS com uma das palavras: 'positivo', 'neutro' ou 'negativo'.
+    
+    Exemplos:
+    - "Achei um absurdo essa demora" -> negativo
+    - "Queria saber o preço" -> neutro
+    - "Muito obrigado pela atenção, adorei" -> positivo
+    - "Que porcaria de atendimento" -> negativo
+    """
+    try:
+        res = perguntar(texto, prompt).lower().strip()
+        if "negativo" in res: return "negativo"
+        if "positivo" in res: return "positivo"
+        return "neutro"
+    except:
+        return "neutro"
+
 def classificar_intencao(texto: str) -> str:
     texto = texto.lower()
     if any(p in texto for p in ["preço", "preco", "valor", "quanto", "custa", "mensalidade", "orçamento", "orcamento"]):
