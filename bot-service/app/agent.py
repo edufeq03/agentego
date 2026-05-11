@@ -9,6 +9,18 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
     missao = config.get('missao') or identidade.get('missao') or 'Auxiliar clientes com clareza e eficiência.'
     tom_voz = config.get('tom_voz') or identidade.get('tom_voz') or 'Amigável e profissional.'
     instrucoes_adicionais = config.get('prompt_sistema') or config.get('instrucoes') or ''
+
+    # 1.1 Substituição automática de placeholders para evitar nomes genéricos do template
+    def limpar_placeholders(texto):
+        if not texto: return ""
+        texto = texto.replace("[NOME_DA_ACADEMIA]", nome_empresa)
+        texto = texto.replace("[NOME_DA_EMPRESA]", nome_empresa)
+        texto = texto.replace("[NOME_DO_AGENTE]", nome_agente)
+        return texto
+
+    missao = limpar_placeholders(missao)
+    tom_voz = limpar_placeholders(tom_voz)
+    instrucoes_adicionais = limpar_placeholders(instrucoes_adicionais)
     
     # DEBUG: Log para verificar o que está sendo lido do banco
     print(f"DEBUG PROMPT -> Nome: {nome_agente} | Empresa: {nome_empresa} | Cargo: {cargo}")
