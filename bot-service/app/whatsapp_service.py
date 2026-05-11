@@ -67,8 +67,10 @@ def get_connection_status(instance_name: str) -> str:
         if response.status_code == 404:
             return "not_found"
         return "disconnected"
-    except Exception:
-        return "disconnected"
+    except Exception as e:
+        logger.error(f"Erro ao buscar status da instância {instance_name}: {e}")
+        # Retorna 'loading' em caso de erro de rede temporário para evitar que a UI "pisque" como desconectado
+        return "loading"
 
 def get_qrcode(instance_name: str) -> Optional[str]:
     """Retorna o base64 do QR Code para conexão."""

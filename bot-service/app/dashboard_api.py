@@ -257,6 +257,10 @@ async def disparar_relatorio_manual(empresa: Empresa = Depends(obter_empresa), d
 # --- NOVOS ENDPOINTS: GESTÃO DE WHATSAPP (EVOLUTION API) ---
 
 
+# Controle de sincronização em memória para evitar tarefas redundantes
+# Formato: {instance_name: timestamp_da_ultima_sincronizacao}
+ultima_sincronizacao = {}
+
 def sync_task_background(empresa_id: Any):
     """Sincroniza as configurações da Evolution em segundo plano."""
     logger.info(f"Iniciando tarefa de sincronização de background para empresa ID: {empresa_id}")
@@ -317,8 +321,14 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
     if status != "connected" and status != "not_found":
         qrcode = whatsapp_service.get_qrcode(instance_name)
     elif status == "connected":
-        # Chama a sincronização imediatamente em background
-        background_tasks.add_task(sync_task_background, empresa.id)
+        # Só sincroniza se não foi sincronizado nos últimos 5 minutos
+        agora = datetime.utcnow()
+        last_sync = ultima_sincronizacao.get(instance_name)
+        
+        if not last_sync or (agora - last_sync) > timedelta(minutes=5):
+            ultima_sincronizacao[instance_name] = agora
+            background_tasks.add_task(sync_task_background, empresa.id)
+            logger.info(f"[{instance_name}] Sincronização disparada via background task.")
         
     return {
         "status": status,
@@ -353,6 +363,9 @@ def logout_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Dep
         
     sucesso = whatsapp_service.logout_instance(empresa.evolution_instance)
     if sucesso:
+        # Remove do cache de sincronização para permitir nova sincronização ao reconectar
+        if empresa.evolution_instance in ultima_sincronizacao:
+            del ultima_sincronizacao[empresa.evolution_instance]
         return {"status": "ok", "mensagem": "WhatsApp desconectado com sucesso"}
     else:
         raise HTTPException(status_code=500, detail="Falha ao desconectar WhatsApp")

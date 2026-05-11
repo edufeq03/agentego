@@ -60,6 +60,11 @@ async def log_requests(request: Request, call_next):
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = "{0:.2f}ms".format(process_time)
     
+    # Ignora logs de polling frequente para não poluir o console
+    polling_paths = ["/api/dashboard/whatsapp/status", "/api/dashboard/conversas"]
+    if request.url.path in polling_paths and response.status_code == 200:
+        return response
+
     logger.info(
         f"Request: {request.method} {request.url.path}",
         extra={
@@ -198,7 +203,6 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 async def webhook(token: str, request: Request):
     db = SessionLocal()
     try:
-        logger.info(f"--- WEBHOOK RECEBIDO (Token: {token}) ---")
         data = await request.json()
         # 2.5: Truncar logs de RAW DATA para evitar poluição com base64
         import json
@@ -287,6 +291,7 @@ async def webhook(token: str, request: Request):
         import functools
         callback = functools.partial(processar_pipeline_callback, cliente_enviou_audio=cliente_enviou_audio)
         
+        logger.info(f"[{empresa.nome}] Mensagem de {telefone}: {mensagem[:50]}...")
         adicionar_mensagem(empresa, telefone, mensagem, callback)
         
         # Retorna IMEDIATAMENTE para a Evolution API

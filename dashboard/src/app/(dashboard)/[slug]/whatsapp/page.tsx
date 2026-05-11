@@ -36,7 +36,7 @@ export default function WhatsAppConnection() {
       if (status !== "connected") {
         checkStatus();
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [status]);
