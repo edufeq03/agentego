@@ -218,6 +218,34 @@ def reativar_robo_dashboard(telefone: str, empresa: Empresa = Depends(obter_empr
     atualizar_status_transbordo(db, empresa.id, telefone, None)
     return {"status": "ok", "mensagem": f"Robô reativado para {telefone}"}
 
+@router.post("/conversas/{telefone}/enviar")
+def enviar_mensagem_humana(telefone: str, payload: dict, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.whatsapp import enviar_whatsapp
+    from app.database import Mensagem, Lead
+    
+    mensagem_texto = payload.get("mensagem")
+    if not mensagem_texto:
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+        
+    lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead não encontrado")
+        
+    # 1. Enviar via WhatsApp
+    enviar_whatsapp(telefone, mensagem_texto, empresa.evolution_instance)
+    
+    # 2. Salvar no histórico como 'agente' (ou 'humano', mas nosso sistema usa agente para o que sai do sistema)
+    nova_msg = Mensagem(
+        empresa_id=empresa.id,
+        lead_id=lead.id,
+        tipo="agente",
+        mensagem=mensagem_texto
+    )
+    db.add(nova_msg)
+    db.commit()
+    
+    return {"status": "ok", "mensagem": "Mensagem enviada"}
+
 
 
 @router.get("/config")

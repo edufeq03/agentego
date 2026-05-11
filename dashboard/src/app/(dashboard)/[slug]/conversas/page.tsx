@@ -28,9 +28,19 @@ export default function Conversas() {
   const [conversaAtiva, setConversaAtiva] = useState<ConversaData | null>(null);
   const [mensagens, setMensagens] = useState<MensagemData[]>([]);
   const [loadingMensagens, setLoadingMensagens] = useState(false);
-
-  // useRef para armazenar o valor atual do estado e evitar dependências no setInterval
+  const [mensagemInput, setMensagemInput] = useState("");
+  const [enviandoMensagem, setEnviandoMensagem] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversaAtivaRef = useRef(conversaAtiva);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [mensagens]);
 
   useEffect(() => {
     conversaAtivaRef.current = conversaAtiva;
@@ -107,6 +117,34 @@ export default function Conversas() {
     } catch (error) {
       console.error("Erro ao pausar robô:", error);
       alert("Erro ao pausar robô.");
+    }
+  }
+
+  async function handleSendMessage() {
+    if (!conversaAtiva || !mensagemInput.trim()) return;
+    
+    setEnviandoMensagem(true);
+    try {
+      await api.post(`/dashboard/conversas/${conversaAtiva.telefone}/enviar`, {
+        mensagem: mensagemInput
+      });
+      
+      // Atualiza localmente para dar feedback imediato
+      const novaMsg: MensagemData = {
+        tipo: 'agente',
+        mensagem: mensagemInput,
+        timestamp: new Date().toISOString()
+      };
+      
+      setMensagens([...mensagens, novaMsg]);
+      setMensagemInput("");
+      
+      // O polling vai atualizar o resto depois
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      alert("Erro ao enviar mensagem. Verifique a conexão do WhatsApp.");
+    } finally {
+      setEnviandoMensagem(false);
     }
   }
 
@@ -234,38 +272,74 @@ export default function Conversas() {
                 </div>
               )}
               
-              {/* Mensagens */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" id="chat-messages">
                 {loadingMensagens ? (
                   <div className="flex justify-center py-10">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand-500)]"></div>
                   </div>
                 ) : (
-                  mensagens.map((msg, index) => {
-                    const isUser = msg.tipo === 'usuario';
-                    return (
-                      <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-[var(--color-surface-hover)]' : 'bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)]'}`}>
-                            {isUser ? <User size={16} className="text-[var(--color-foreground-muted)]" /> : <Bot size={16} className="text-white" />}
-                          </div>
-                          
-                          <div className={`p-3 md:p-4 rounded-2xl ${
-                            isUser 
-                              ? 'bg-[var(--color-surface-hover)] text-white rounded-tr-none' 
-                              : 'bg-[var(--color-brand-600)] text-white rounded-tl-none'
-                          }`}>
-                            <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">{msg.mensagem}</p>
-                            <span className={`text-[10px] mt-1 md:mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
-                              {new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                            </span>
+                  <>
+                    {mensagens.map((msg, index) => {
+                      const isUser = msg.tipo === 'usuario';
+                      return (
+                        <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-[var(--color-surface-hover)]' : 'bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)]'}`}>
+                              {isUser ? <User size={16} className="text-[var(--color-foreground-muted)]" /> : <Bot size={16} className="text-white" />}
+                            </div>
+                            
+                            <div className={`p-3 md:p-4 rounded-2xl ${
+                              isUser 
+                                ? 'bg-[var(--color-surface-hover)] text-white rounded-tr-none' 
+                                : 'bg-[var(--color-brand-600)] text-white rounded-tl-none'
+                            }`}>
+                              <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">{msg.mensagem}</p>
+                              <span className={`text-[10px] mt-1 md:mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
+                                {new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </>
                 )}
               </div>
+
+              {/* Input de Mensagem (Apenas se pausado) */}
+              {conversaAtiva.transbordo === 'pausado' ? (
+                <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input 
+                      type="text"
+                      placeholder="Digite sua mensagem aqui..."
+                      value={mensagemInput}
+                      onChange={(e) => setMensagemInput(e.target.value)}
+                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!mensagemInput.trim() || enviandoMensagem}
+                      className="bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {enviandoMensagem ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : "Enviar"}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-hover)]/20 text-center">
+                  <p className="text-xs text-[var(--color-foreground-muted)]">
+                    Pause o robô para enviar mensagens manualmente.
+                  </p>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-foreground-muted)] p-8 text-center">
