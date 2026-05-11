@@ -16,7 +16,7 @@ export default function PrivacyPage() {
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
           </div>
-          Zap<span>vai</span>
+          Agente<span>Go</span>
         </div>
         <h1 className="legal-title">Política de Privacidade</h1>
         <p className="last-update">Última atualização: 26 de abril de 2026</p>
@@ -24,12 +24,18 @@ export default function PrivacyPage() {
 
       <main>
         <div className="content-section">
-          <h2 className="legal-subtitle">1. Introdução</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            1. Introdução
+          </h2>
           <p>A AgenteGo está comprometida em proteger sua privacidade. Esta Política de Privacidade explica como coletamos, usamos, divulgamos e protegemos suas informações quando você utiliza nossa plataforma de automação de vendas via WhatsApp.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">2. Coleta de Dados</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            2. Coleta de Dados
+          </h2>
           <p>Coletamos informações que você nos fornece diretamente, bem como dados gerados durante o uso do serviço:</p>
           <ul>
             <li><strong>Informações de Registro:</strong> Nome, e-mail e dados de contato.</li>
@@ -40,7 +46,10 @@ export default function PrivacyPage() {
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">3. Uso das Informações</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            3. Uso das Informações
+          </h2>
           <p>Utilizamos os dados coletados para:</p>
           <ul>
             <li>Operar e manter a plataforma de IA vendedora.</li>
@@ -51,17 +60,26 @@ export default function PrivacyPage() {
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">4. Segurança</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            4. Segurança
+          </h2>
           <p>Implementamos medidas de segurança técnicas e organizacionais para proteger seus dados, incluindo criptografia de ponta a ponta onde aplicável e armazenamento em servidores seguros (AWS/Google Cloud).</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">5. Seus Direitos (LGPD)</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            5. Seus Direitos (LGPD)
+          </h2>
           <p>Em conformidade com a Lei Geral de Proteção de Dados (LGPD), você tem o direito de acessar, corrigir, excluir ou portar seus dados pessoais. Para exercer esses direitos, entre em contato através de nosso suporte.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">6. Contato</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            6. Contato
+          </h2>
           <p>Se você tiver dúvidas sobre esta política, entre em contato conosco pelo e-mail: <strong>contato@ignotec.com.br</strong></p>
         </div>
       </main>

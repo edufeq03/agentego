@@ -16,7 +16,7 @@ export default function TermsPage() {
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
           </div>
-          Zap<span>vai</span>
+          Agente<span>Go</span>
         </div>
         <h1 className="legal-title">Termos de Serviço</h1>
         <p className="last-update">Última atualização: 26 de abril de 2026</p>
@@ -24,17 +24,26 @@ export default function TermsPage() {
 
       <main>
         <div className="content-section">
-          <h2 className="legal-subtitle">1. Aceitação dos Termos</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            1. Aceitação dos Termos
+          </h2>
           <p>Ao acessar e utilizar a plataforma AgenteGo, você concorda em cumprir e estar vinculado a estes Termos de Serviço. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">2. Descrição do Serviço</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            2. Descrição do Serviço
+          </h2>
           <p>A AgenteGo fornece uma solução de Inteligência Artificial para automação de atendimento e vendas via WhatsApp. Nosso serviço inclui o treinamento de uma IA personalizada com base nos dados do seu negócio.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">3. Responsabilidades do Usuário</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            3. Responsabilidades do Usuário
+          </h2>
           <p>O usuário é responsável por:</p>
           <ul>
             <li>Garantir que o uso do WhatsApp esteja em conformidade com as políticas comerciais da Meta/WhatsApp.</li>
@@ -45,17 +54,26 @@ export default function TermsPage() {
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">4. Planos e Pagamentos</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            4. Planos e Pagamentos
+          </h2>
           <p>O acesso aos serviços da AgenteGo é baseado em planos de assinatura. Os valores e limites de cada plano estão descritos em nossa página principal. O atraso no pagamento pode resultar na suspensão temporária dos serviços.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">5. Limitação de Responsabilidade</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            5. Limitação de Responsabilidade
+          </h2>
           <p>A AgenteGo não se responsabiliza por eventuais bloqueios de números de WhatsApp realizados pela Meta, uma vez que o uso da ferramenta é de inteira responsabilidade do usuário final. Também não garantimos resultados financeiros específicos, pois o sucesso das vendas depende de múltiplos fatores externos à ferramenta.</p>
         </div>
 
         <div className="content-section">
-          <h2 className="legal-subtitle">6. Rescisão</h2>
+          <h2 className="legal-subtitle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--cyan)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            6. Rescisão
+          </h2>
           <p>Você pode cancelar sua assinatura a qualquer momento através do nosso painel ou suporte. O cancelamento interrompe cobranças futuras, mas não confere direito a reembolso de períodos já utilizados, salvo disposição em contrário.</p>
         </div>
       </main>
