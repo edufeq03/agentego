@@ -27,6 +27,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://agentego.ignotec.com.br",
+        "https://agentego.com.br",
+        "https://www.agentego.com.br",
+        "http://agentego.com.br",
+        "http://www.agentego.com.br",
         "https://sites-academia-dashboard.zdgx3l.easypanel.host",
         "https://sites-academia-agente.zdgx3l.easypanel.host",
     ],
