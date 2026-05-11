@@ -224,6 +224,7 @@ async def webhook(token: str, request: Request):
 
         # 2. Extrair dados da Evolution API
         event_type = data.get("event", "unknown")
+        logger.info(f"🌐 [WEBHOOK] Evento recebido: {event_type}")
         
         # Se não for uma mensagem nova, ignoramos a maioria dos eventos para limpar o log
         if event_type not in ["messages.upsert", "messages.update", "unknown"]:
