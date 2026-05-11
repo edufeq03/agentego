@@ -257,32 +257,46 @@ async def disparar_relatorio_manual(empresa: Empresa = Depends(obter_empresa), d
 # --- NOVOS ENDPOINTS: GESTÃO DE WHATSAPP (EVOLUTION API) ---
 
 
-def sync_task_background(empresa_id: int):
+def sync_task_background(empresa_id: Any):
     """Sincroniza as configurações da Evolution em segundo plano."""
+    logger.info(f"Iniciando tarefa de sincronização de background para empresa ID: {empresa_id}")
     db = SessionLocal()
     try:
         empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
-        if not empresa or not empresa.evolution_instance:
+        if not empresa:
+            logger.error(f"Empresa {empresa_id} não encontrada para sincronização.")
+            return
+        
+        if not empresa.evolution_instance:
+            logger.warning(f"Empresa {empresa.nome} ({empresa_id}) não possui instância vinculada.")
             return
             
+        instance_name = empresa.evolution_instance
         base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
         webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
         
-        # Sincroniza Webhook e Configurações de Comportamento
-        logger.info(f"[{empresa.evolution_instance}] Sincronizando Webhook: {webhook_url}")
-        sucesso_wh, erro_wh = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
-        if not sucesso_wh:
-            logger.error(f"[{empresa.evolution_instance}] Falha ao sincronizar Webhook: {erro_wh}")
+        logger.info(f"[{instance_name}] Sincronizando para URL de Webhook: {webhook_url}")
         
-        logger.info(f"[{empresa.evolution_instance}] Sincronizando Configurações (RejectCall/GroupsIgnore)")
-        sucesso_st, erro_st = whatsapp_service.update_settings(empresa.evolution_instance)
-        if not sucesso_st:
-            logger.error(f"[{empresa.evolution_instance}] Falha ao sincronizar Configurações: {erro_st}")
+        # Sincroniza Webhook
+        sucesso_wh, erro_wh = whatsapp_service.set_webhook(instance_name, webhook_url)
+        if sucesso_wh:
+            logger.info(f"[{instance_name}] Webhook sincronizado com SUCESSO.")
+        else:
+            logger.error(f"[{instance_name}] FALHA ao sincronizar Webhook: {erro_wh}")
+        
+        # Sincroniza Configurações de Comportamento
+        logger.info(f"[{instance_name}] Sincronizando Configurações (RejectCall/GroupsIgnore/AlwaysOnline)")
+        sucesso_st, erro_st = whatsapp_service.update_settings(instance_name)
+        if sucesso_st:
+            logger.info(f"[{instance_name}] Configurações sincronizadas com SUCESSO.")
+        else:
+            logger.error(f"[{instance_name}] FALHA ao sincronizar Configurações: {erro_st}")
         
         if sucesso_wh and sucesso_st:
-            logger.info(f"[{empresa.evolution_instance}] Auto-sincronização de background concluída com SUCESSO.")
+            logger.info(f"[{instance_name}] Sincronização automática concluída com ÊXITO.")
+            
     except Exception as e:
-        logger.error(f"Erro crítico na sincronização de background: {e}")
+        logger.error(f"Erro CRÍTICO na sincronização de background para {empresa_id}: {e}", exc_info=True)
     finally:
         db.close()
 
