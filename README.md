@@ -1,4 +1,4 @@
-# AtendIA - SaaS de Atendimento Inteligente para Academias
+# AgenteGo - SaaS de Atendimento Inteligente para Academias
 
 Plataforma multi-tenant para automação de atendimento via WhatsApp utilizando IA (OpenAI) e Evolution API.
 

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15
-    container_name: atendia-db
+    container_name: agentego-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-user}
@@ -16,7 +16,7 @@ services:
 
   bot:
     build: ./bot-service
-    container_name: atendia-bot
+    container_name: agentego-bot
     restart: always
     env_file: .env
     environment:
@@ -32,7 +32,7 @@ services:
 
   dashboard:
     build: ./dashboard
-    container_name: atendia-dashboard
+    container_name: agentego-dashboard
     restart: always
     env_file: .env
     ports:
@@ -42,7 +42,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: atendia-redis
+    container_name: agentego-redis
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD:-mudar_senha_redis}
     ports:

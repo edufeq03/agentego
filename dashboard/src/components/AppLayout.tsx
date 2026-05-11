@@ -34,14 +34,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Se houver um token de impersonation na URL, prioriza ele
     if (impersonateToken && slug) {
-      localStorage.setItem('atendia_token', impersonateToken);
-      localStorage.setItem('atendia_slug', slug);
+      localStorage.setItem('agentego_token', impersonateToken);
+      localStorage.setItem('agentego_slug', slug);
       // Limpa a URL imediatamente
       window.history.replaceState({}, '', `/${slug}`);
     }
 
-    const token = localStorage.getItem('atendia_token');
-    const storedSlug = localStorage.getItem('atendia_slug');
+    const token = localStorage.getItem('agentego_token');
+    const storedSlug = localStorage.getItem('agentego_slug');
     
     if (!token) {
       window.location.href = '/login';
@@ -74,8 +74,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, pathname]);
 
   function handleLogout() {
-    localStorage.removeItem('atendia_token');
-    localStorage.removeItem('atendia_slug');
+    localStorage.removeItem('agentego_token');
+    localStorage.removeItem('agentego_slug');
     window.location.href = '/login';
   }
 
@@ -102,9 +102,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between h-16 px-6 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-3">
             <div className="bg-[var(--color-brand-500)] p-2 rounded-lg text-white">
-              <Dumbbell size={20} />
+              <Smartphone size={20} />
             </div>
-            <span className="text-xl font-bold text-white tracking-tight">AtendIA</span>
+            <span className="text-xl font-bold text-white tracking-tight">AgenteGo</span>
           </div>
           <button 
             className="md:hidden text-[var(--color-foreground-muted)] hover:text-white"

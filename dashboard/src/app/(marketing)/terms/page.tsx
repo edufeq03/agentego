@@ -1,5 +1,5 @@
 import Link from "next/link";
-import "../zapvai.css";
+import "../agentego.css";
 
 export default function TermsPage() {
   return (
@@ -25,12 +25,12 @@ export default function TermsPage() {
       <main>
         <div className="content-section">
           <h2 className="legal-subtitle">1. Aceitação dos Termos</h2>
-          <p>Ao acessar e utilizar a plataforma Zapvai, você concorda em cumprir e estar vinculado a estes Termos de Serviço. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.</p>
+          <p>Ao acessar e utilizar a plataforma AgenteGo, você concorda em cumprir e estar vinculado a estes Termos de Serviço. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.</p>
         </div>
 
         <div className="content-section">
           <h2 className="legal-subtitle">2. Descrição do Serviço</h2>
-          <p>A Zapvai fornece uma solução de Inteligência Artificial para automação de atendimento e vendas via WhatsApp. Nosso serviço inclui o treinamento de uma IA personalizada com base nos dados do seu negócio.</p>
+          <p>A AgenteGo fornece uma solução de Inteligência Artificial para automação de atendimento e vendas via WhatsApp. Nosso serviço inclui o treinamento de uma IA personalizada com base nos dados do seu negócio.</p>
         </div>
 
         <div className="content-section">
@@ -46,12 +46,12 @@ export default function TermsPage() {
 
         <div className="content-section">
           <h2 className="legal-subtitle">4. Planos e Pagamentos</h2>
-          <p>O acesso aos serviços da Zapvai é baseado em planos de assinatura. Os valores e limites de cada plano estão descritos em nossa página principal. O atraso no pagamento pode resultar na suspensão temporária dos serviços.</p>
+          <p>O acesso aos serviços da AgenteGo é baseado em planos de assinatura. Os valores e limites de cada plano estão descritos em nossa página principal. O atraso no pagamento pode resultar na suspensão temporária dos serviços.</p>
         </div>
 
         <div className="content-section">
           <h2 className="legal-subtitle">5. Limitação de Responsabilidade</h2>
-          <p>A Zapvai não se responsabiliza por eventuais bloqueios de números de WhatsApp realizados pela Meta, uma vez que o uso da ferramenta é de inteira responsabilidade do usuário final. Também não garantimos resultados financeiros específicos, pois o sucesso das vendas depende de múltiplos fatores externos à ferramenta.</p>
+          <p>A AgenteGo não se responsabiliza por eventuais bloqueios de números de WhatsApp realizados pela Meta, uma vez que o uso da ferramenta é de inteira responsabilidade do usuário final. Também não garantimos resultados financeiros específicos, pois o sucesso das vendas depende de múltiplos fatores externos à ferramenta.</p>
         </div>
 
         <div className="content-section">
@@ -61,7 +61,7 @@ export default function TermsPage() {
       </main>
 
       <footer>
-        <p>&copy; 2026 Zapvai. Todos os direitos reservados. Desenvolvido por Ignotec.</p>
+        <p>&copy; 2026 AgenteGo. Todos os direitos reservados. Desenvolvido por Ignotec.</p>
       </footer>
     </div>
   );

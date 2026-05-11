@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dumbbell, Lock, Mail, Loader2 } from "lucide-react";
+import { Smartphone, Lock, Mail, Loader2 } from "lucide-react";
 import api from "@/lib/api";
 
 export default function Login() {
@@ -22,8 +22,8 @@ export default function Login() {
       const { access_token, slug } = response.data;
       
       // Salva o token e o slug no localStorage
-      localStorage.setItem("atendia_token", access_token);
-      localStorage.setItem("atendia_slug", slug);
+      localStorage.setItem("agentego_token", access_token);
+      localStorage.setItem("agentego_slug", slug);
       
       // Redireciona para o dashboard específico da empresa
       router.push(`/${slug}`);
@@ -50,11 +50,11 @@ export default function Login() {
         <div className="glass-panel p-8 md:p-10 border border-white/10 shadow-2xl">
           <div className="flex flex-col items-center mb-10">
             <div className="bg-blue-600 p-3.5 rounded-2xl text-white shadow-xl shadow-blue-600/30 mb-5 transform transition-transform hover:scale-110">
-              <Dumbbell size={32} strokeWidth={2.5} />
+              <Smartphone size={32} strokeWidth={2.5} />
             </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">AtendIA</h1>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">AgenteGo</h1>
             <p className="text-slate-400 mt-2 text-center font-medium">
-              Gestão Inteligente de Academias
+              Gestão Inteligente via WhatsApp
             </p>
           </div>
 
@@ -117,7 +117,7 @@ export default function Login() {
         </div>
         
         <p className="text-center mt-8 text-slate-500 text-sm">
-          &copy; 2026 AtendIA — Sistema Exclusivo para Academias
+          &copy; 2026 AgenteGo — Sistema de Atendimento via IA
         </p>
       </div>
     </div>

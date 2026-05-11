@@ -26,7 +26,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://zapvai.ignotec.com.br",
+        "https://agentego.ignotec.com.br",
         "https://sites-academia-dashboard.zdgx3l.easypanel.host",
         "https://sites-academia-agente.zdgx3l.easypanel.host",
     ],

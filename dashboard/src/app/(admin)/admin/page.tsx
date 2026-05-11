@@ -199,7 +199,7 @@ export default function AdminPage() {
               <ShieldCheck size={48} />
             </div>
             <h1 className="text-2xl font-bold">Acesso Restrito - ADM</h1>
-            <p className="text-slate-400">Insira o seu Token Master para gerenciar a rede AtendIA.</p>
+            <p className="text-slate-400">Insira o seu Token Master para gerenciar a rede AgenteGo.</p>
           </div>
           <div className="space-y-4">
             <input 

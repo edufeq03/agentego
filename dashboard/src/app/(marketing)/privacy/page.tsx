@@ -1,5 +1,5 @@
 import Link from "next/link";
-import "../zapvai.css";
+import "../agentego.css";
 
 export default function PrivacyPage() {
   return (
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <main>
         <div className="content-section">
           <h2 className="legal-subtitle">1. Introdução</h2>
-          <p>A Zapvai está comprometida em proteger sua privacidade. Esta Política de Privacidade explica como coletamos, usamos, divulgamos e protegemos suas informações quando você utiliza nossa plataforma de automação de vendas via WhatsApp.</p>
+          <p>A AgenteGo está comprometida em proteger sua privacidade. Esta Política de Privacidade explica como coletamos, usamos, divulgamos e protegemos suas informações quando você utiliza nossa plataforma de automação de vendas via WhatsApp.</p>
         </div>
 
         <div className="content-section">
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
       </main>
 
       <footer>
-        <p>&copy; 2026 Zapvai. Todos os direitos reservados. Desenvolvido por Ignotec.</p>
+        <p>&copy; 2026 AgenteGo. Todos os direitos reservados. Desenvolvido por Ignotec.</p>
       </footer>
     </div>
   );

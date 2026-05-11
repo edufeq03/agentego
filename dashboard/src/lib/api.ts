@@ -11,7 +11,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   // Apenas roda no client-side
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('atendia_token');
+    const token = localStorage.getItem('agentego_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

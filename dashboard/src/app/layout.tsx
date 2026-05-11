@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AtendIA - Gestão Inteligente",
+  title: "AgenteGo - Gestão Inteligente",
   description: "O cérebro por trás do seu atendimento via IA",
 };
 
