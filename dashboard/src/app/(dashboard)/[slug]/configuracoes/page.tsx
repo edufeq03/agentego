@@ -20,9 +20,6 @@ interface ConfigData {
   timezone: string;
   // Campos legados mantidos para compatibilidade durante migração
   planos?: { basico: number; vip: number };
-  professores?: any[];
-  instalacoes?: any[];
-  detalhes_aulas?: any[];
 }
 
 export default function Configuracoes() {
@@ -37,8 +34,6 @@ export default function Configuracoes() {
     timezone: "America/Sao_Paulo"
   });
   
-  const [pagamentosStr, setPagamentosStr] = useState("");
-  const [aulasVipStr, setAulasVipStr] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
@@ -94,13 +89,7 @@ export default function Configuracoes() {
     setSaved(false);
     
     try {
-      const configToSave = {
-        ...config,
-        pagamentos: pagamentosStr.split(",").map(s => s.trim()).filter(s => s),
-        aulas_vip: aulasVipStr.split(",").map(s => s.trim()).filter(s => s)
-      };
-      
-      await api.put("dashboard/config", configToSave);
+      await api.put("dashboard/config", config);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
@@ -327,7 +316,7 @@ export default function Configuracoes() {
                 <input 
                   type="number" 
                   value={config.planos?.basico || 0}
-                  onChange={e => setConfig({...config, planos: {...(config.planos || {}), basico: Number(e.target.value)}})}
+                  onChange={e => setConfig({...config, planos: { basico: Number(e.target.value), vip: config.planos?.vip || 0 }})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                 />
               </div>
@@ -336,7 +325,7 @@ export default function Configuracoes() {
                 <input 
                   type="number" 
                   value={config.planos?.vip || 0}
-                  onChange={e => setConfig({...config, planos: {...(config.planos || {}), vip: Number(e.target.value)}})}
+                  onChange={e => setConfig({...config, planos: { basico: config.planos?.basico || 0, vip: Number(e.target.value) }})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                 />
               </div>
@@ -355,7 +344,7 @@ export default function Configuracoes() {
                 <input 
                   type="text" 
                   value={config.horarios?.semana || ""}
-                  onChange={e => setConfig({...config, horarios: {...(config.horarios || {}), semana: e.target.value}})}
+                  onChange={e => setConfig({...config, horarios: { semana: e.target.value, sabado: config.horarios?.sabado || "" }})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                   placeholder="Ex: 08:00 as 18:00"
                 />
@@ -365,7 +354,7 @@ export default function Configuracoes() {
                 <input 
                   type="text" 
                   value={config.horarios?.sabado || ""}
-                  onChange={e => setConfig({...config, horarios: {...(config.horarios || {}), sabado: e.target.value}})}
+                  onChange={e => setConfig({...config, horarios: { semana: config.horarios?.semana || "", sabado: e.target.value }})}
                   className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
                   placeholder="Ex: 08:00 as 14:00"
                 />
@@ -386,46 +375,7 @@ export default function Configuracoes() {
             </div>
           </section>
 
-          {/* Instalações (Estruturado) */}
-          <section className="glass-panel p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2 text-white font-semibold text-lg">
-                <MapPin className="text-emerald-400" size={20} />
-                Instalações
-              </div>
-              <button 
-                onClick={addInstalacao}
-                type="button"
-                className="text-[10px] flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)]"
-              >
-                <Plus size={12} /> Adicionar
-              </button>
-            </div>
-            <div className="space-y-3">
-              {config.instalacoes.map((inst, index) => (
-                <div key={index} className="space-y-1 relative group">
-                   <button 
-                    onClick={() => removeInstalacao(index)}
-                    className="absolute -top-1 -right-1 bg-red-500/80 p-1 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-10"
-                  >
-                    <Trash2 size={10} />
-                  </button>
-                  <input 
-                    placeholder="Diferencial (ex: Piscina)"
-                    value={inst.nome}
-                    onChange={e => updateInstalacao(index, 'nome', e.target.value)}
-                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  />
-                  <input 
-                    placeholder="Descrição rápida..."
-                    value={inst.descricao}
-                    onChange={e => updateInstalacao(index, 'descricao', e.target.value)}
-                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-3 text-[11px] text-[var(--color-foreground-muted)] focus:outline-none focus:border-[var(--color-brand-500)]"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
+
 
           {/* Configuração de Integração (Webhook) */}
           <section className="glass-panel p-6 space-y-6">
