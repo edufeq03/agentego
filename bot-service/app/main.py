@@ -60,10 +60,13 @@ async def log_requests(request: Request, call_next):
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = "{0:.2f}ms".format(process_time)
     
-    # Ignora logs de polling frequente para não poluir o console
-    polling_paths = ["/api/dashboard/whatsapp/status", "/api/dashboard/conversas"]
-    if request.url.path in polling_paths and response.status_code == 200:
-        return response
+    # Ignora logs de polling frequente e webhooks para não poluir o console
+    if response.status_code == 200:
+        path = request.url.path
+        if path.startswith("/webhook") or \
+           path.startswith("/api/dashboard/whatsapp/status") or \
+           path.startswith("/api/dashboard/conversas"):
+            return response
 
     logger.info(
         f"Request: {request.method} {request.url.path}",
@@ -162,7 +165,9 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
             simular_digitacao(telefone, empresa.evolution_instance)
 
         # Processar no Pipeline Central
+        logger.info(f"🤖 [IA] Gerando resposta para {telefone}...")
         resultado = processar_webhook(empresa, telefone, texto_combinado)
+        logger.info(f"✅ [IA] Resposta pronta para {telefone}")
         
         if resultado["status"] == "pausado":
             logger.info(f"[{telefone}] Número pausado (transbordo ativo). Mensagem ignorada.")
@@ -292,7 +297,7 @@ async def webhook(token: str, request: Request):
         import functools
         callback = functools.partial(processar_pipeline_callback, cliente_enviou_audio=cliente_enviou_audio)
         
-        logger.info(f"[{empresa.nome}] Mensagem de {telefone}: {mensagem[:50]}...")
+        logger.info(f"📩 [MENSAGEM RECEBIDA] {telefone} ({empresa.nome}): {mensagem[:50]}...")
         adicionar_mensagem(empresa, telefone, mensagem, callback)
         
         # Retorna IMEDIATAMENTE para a Evolution API
