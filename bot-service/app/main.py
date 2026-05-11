@@ -218,47 +218,48 @@ async def webhook(token: str, request: Request):
             return {"status": "erro", "motivo": "token_invalido"}
 
         # 2. Extrair dados da Evolution API
+        event_type = data.get("event", "unknown")
+        
+        # Se não for uma mensagem nova, ignoramos a maioria dos eventos para limpar o log
+        if event_type not in ["messages.upsert", "messages.update", "unknown"]:
+            return {"status": "ignorado", "motivo": f"evento_{event_type}_nao_processado"}
+
         mensagem = data.get("message")
         telefone = data.get("phone")
         cliente_enviou_audio = False
 
-        # Se a mensagem vier como objeto (Evolution v2 ou simulação)
-        if isinstance(mensagem, dict):
-            msg_obj = mensagem
-            if "conversation" in msg_obj:
-                mensagem = msg_obj["conversation"]
-            elif "extendedTextMessage" in msg_obj:
-                mensagem = msg_obj["extendedTextMessage"].get("text", "")
-            else:
-                mensagem = None
-
+        # Extração Robusta (v1 e v2)
         if not mensagem and "data" in data:
             event_data = data["data"]
+            msg_obj = event_data.get("message", {})
+            message_type = event_data.get("messageType", "conversation")
             
+            # 1. Identificar Telefone
             remote_jid = event_data.get("key", {}).get("remoteJid", "")
             if "@s.whatsapp.net" in remote_jid:
                 telefone = remote_jid.split("@")[0]
-                
-            msg_obj = event_data.get("message", {})
-            message_type = event_data.get("messageType", "")
+            
+            # 2. Evitar Auto-Resposta (Loop)
+            if event_data.get("key", {}).get("fromMe") == True:
+                # Verificação de comando de reativação via chat
+                if "conversation" in msg_obj:
+                    texto = msg_obj["conversation"]
+                    if texto and texto.strip().lower() == "/reativar":
+                        from app.pipeline import atualizar_status_transbordo
+                        atualizar_status_transbordo(db, empresa.id, telefone, None)
+                        enviar_whatsapp(telefone, "🤖 *Atendimento Automático Reativado*.", empresa.evolution_instance)
+                        logger.info(f"[{telefone}] Robô reativado pelo corretor via chat.")
+                        return {"status": "ok"}
+                return {"status": "ignorado", "motivo": "from_me"}
 
+            # 3. Extrair Texto
             if "conversation" in msg_obj:
                 mensagem = msg_obj["conversation"]
             elif "extendedTextMessage" in msg_obj:
-                mensagem = msg_obj["extendedTextMessage"].get("text", "")
-
-            # Evitar loop de si mesmo
-            if event_data.get("key", {}).get("fromMe") == True:
-                if mensagem and mensagem.strip().lower() == "/reativar":
-                    from app.pipeline import atualizar_status_transbordo
-                    atualizar_status_transbordo(db, empresa.id, telefone, None)
-                    enviar_whatsapp(telefone, "🤖 *Atendimento Automático Reativado*.", empresa.evolution_instance)
-                    logger.info(f"[{telefone}] Robô reativado pelo corretor via chat (/reativar).")
-                    return {"status": "ok", "mensagem": "reativado_via_chat"}
-                return {"status": "ignorado", "motivo": "mensagem_enviada_pelo_bot"}
-                
-            # Tratar Áudio
-            elif message_type == "audioMessage" or "audioMessage" in msg_obj:
+                mensagem = msg_obj["extendedTextMessage"].get("text")
+            
+            # 4. Tratar Áudio
+            if message_type == "audioMessage" or "audioMessage" in msg_obj:
                 cliente_enviou_audio = True
                 base64_audio = msg_obj.get("base64") or event_data.get("base64")
                 
