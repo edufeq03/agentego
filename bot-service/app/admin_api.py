@@ -14,7 +14,6 @@ router = APIRouter()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "atendia-master-2026")
 
 import logging
-from app.main import tarefa_relatorio_semanal
 logger = logging.getLogger(__name__)
 
 def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
@@ -213,6 +212,7 @@ def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
 def trigger_reports_manual():
     """Gatilho manual para testar o envio de relatórios semanais."""
     try:
+        from app.main import tarefa_relatorio_semanal
         tarefa_relatorio_semanal()
         return {"status": "ok", "message": "Disparo de relatórios iniciado com sucesso."}
     except Exception as e:
