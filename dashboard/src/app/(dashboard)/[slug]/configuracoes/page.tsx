@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Save, CheckCircle2, Plus, Trash2, Users, Dumbbell, MapPin, Sparkles, Clock } from "lucide-react";
+import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock } from "lucide-react";
 
 interface Conhecimento {
   categoria: string;
@@ -177,7 +177,7 @@ export default function Configuracoes() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Nome da Academia</label>
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Nome da Empresa</label>
                 <input 
                   type="text" 
                   value={config.nome_empresa}
@@ -307,7 +307,7 @@ export default function Configuracoes() {
           {/* Planos */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
-              <Dumbbell className="text-orange-400" size={20} />
+              <CreditCard className="text-orange-400" size={20} />
               Mensalidades / Preços
             </div>
             <div className="space-y-4">
