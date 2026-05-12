@@ -80,6 +80,14 @@ async def log_requests(request: Request, call_next):
     )
     
     return response
+    
+@app.get("/")
+async def root():
+    return {
+        "app": "AgenteGo API",
+        "status": "online",
+        "docs": "/docs"
+    }
 
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
