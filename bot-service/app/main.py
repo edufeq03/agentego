@@ -145,6 +145,10 @@ def on_startup():
     scheduler.start()
     logger.info("Scheduler iniciado: Relatórios semanais (Seg 09h) e Manutenção (00h).")
 
+@app.on_event("shutdown")
+def on_shutdown():
+    logger.warning("⚠️ EVENTO DE SHUTDOWN RECEBIDO! O container está sendo encerrado.")
+
 
 
 async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto_combinado: str, cliente_enviou_audio: bool = False):
