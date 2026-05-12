@@ -48,3 +48,5 @@ Recomenda-se configurar um cronjob para execução diária.
 
 ## Suporte
 Em caso de transbordo (atendimento humano), o bot pausará automaticamente e notificará o status no dashboard. Para reativar o bot manualmente, use o botão "Reativar Robô" na tela de conversas.
+
+Para problemas técnicos ou configuração de ambiente, consulte o [Guia de Troubleshooting](docs/local_development_and_troubleshooting.md).
