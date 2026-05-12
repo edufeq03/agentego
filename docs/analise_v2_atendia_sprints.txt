@@ -1,0 +1,754 @@
+================================================================
+ANÁLISE TÉCNICA E ESTRATÉGICA v2 — ATENDIA
+Reanálise pós-implementações parciais
+Data: Maio 2026
+================================================================
+
+CONTEXTO DESTA REANÁLISE
+--------------------------
+Esta é a segunda rodada de análise. O código foi relido na íntegra.
+Itens resolvidos desde a v1 são mencionados brevemente como
+crédito antes de cada bloco. O foco está no que ainda precisa
+ser feito e no que é novo.
+
+NOVIDADES DETECTADAS NO CÓDIGO (implementadas pelo dev):
+  ✅ logger.py — Logger JSON estruturado, excelente para produção
+  ✅ middleware.py — Detecção de tentativa de violação de isolamento
+     multi-tenant via empresa_id na query string
+  ✅ redis_client.py — Redis adicionado com fallback gracioso para RAM
+  ✅ database.py — Campo role em Usuario ("client" / "admin")
+  ✅ dashboard_api.py — Login agora inclui role no JWT payload
+  ✅ admin/page.tsx — Painel admin web funcional (CRUD de empresas
+     e templates, impersonation, toggle de status)
+  ✅ seed_templates.py — Templates iniciais por nicho
+  ✅ reports.py — Relatório semanal com formatação WhatsApp rica
+  ✅ /health endpoint com verificação real de banco e OpenAI
+  ✅ Docker Compose agora inclui Redis e Dashboard como serviços
+
+ITENS DA v1 QUE AINDA NÃO FORAM RESOLVIDOS (mantidos nesta análise):
+  ❌ ADMIN_TOKEN hardcoded com fallback "atendia-master-2026"
+  ❌ JWT_SECRET com fallback inseguro
+  ❌ docker-compose credenciais hardcoded (user/pass)
+  ❌ conversas.db ainda presente na raiz do repositório
+  ❌ Endpoint /transbordo/{token}/{telefone} sem autenticação real
+  ❌ Logs do ADMIN_TOKEN em texto claro no warning
+
+================================================================
+PARTE 1 — ESTRATÉGIA DE PRECIFICAÇÃO (pergunta do dev)
+================================================================
+
+PERGUNTA: "Como cobrar do cliente se cada um tem um perfil de uso
+diferente de LLM? Uma loja com 20 mensagens/dia vs 100 mensagens/dia?"
+
+RESPOSTA ESTRATÉGICA COMPLETA:
+
+O problema que você identificou é real e é chamado no mercado de
+"custo variável não repassado". Existem três modelos usados por
+SaaS que têm esse perfil (custo de IA por transação):
+
+---
+MODELO A — PLANO FLAT COM LIMITE DE CONVERSAS (RECOMENDADO AGORA)
+---
+
+Como funciona:
+  Você não precisa expor tokens para o cliente. Você vende
+  "conversas atendidas por mês" como unidade de valor.
+  O cliente entende "conversa" — não entende "token".
+
+Exemplo de tabela de planos:
+
+  STARTER   — R$ 197/mês — até 500 conversas/mês
+  PRO       — R$ 397/mês — até 2.000 conversas/mês
+  ILIMITADO — R$ 697/mês — sem limite (uso justo)
+
+  (conversa = 1 lead ativo que enviou pelo menos 1 mensagem no mês)
+
+Por que funciona para você:
+  - 1 conversa média = ~10 trocas de mensagens = ~2.000 tokens.
+  - gpt-4o-mini custa ~$0,60 por 1M tokens de input + $2,40 output.
+  - 500 conversas × 2.000 tokens = 1M tokens → custo real ~$0,60–3,00.
+  - Com R$ 197, sua margem bruta é confortável mesmo no pior caso.
+  - 2.000 conversas no PRO → custo real ~$3–12. Com R$ 397, seguro.
+
+O plano ILIMITADO existe para ancorar o PRO como "razoável" e
+para clientes grandes que já têm tráfego alto. O "uso justo"
+(fair use policy) é uma cláusula nos termos que permite suspender
+clientes abusivos (ex: > 10.000 conversas/mês no plano Ilimitado).
+
+Implementação no banco:
+  Adicionar em Empresa:
+    plano (String): "starter" | "pro" | "ilimitado"
+    limite_conversas_mes (Integer): 500 | 2000 | 99999
+    conversas_mes_atual (Integer): contador do mês corrente
+    data_reset_contador (DateTime): primeiro dia do próximo mês
+
+  Em pipeline.py, antes de processar:
+    Se conversas_mes_atual >= limite_conversas_mes:
+      Enviar mensagem ao lead: "Nosso atendimento automático está
+      temporariamente indisponível. Entre em contato pelo telefone."
+      Notificar proprietário via WhatsApp sobre limite atingido.
+      Retornar sem chamar a OpenAI.
+
+---
+MODELO B — REPASSE DE CUSTO COM MARKUP (para clientes GRANDES)
+---
+
+Como funciona:
+  Você rastreia os tokens consumidos por empresa (já sugerido na v1)
+  e cobra uma taxa fixa + markup sobre o custo real de IA.
+
+Exemplo:
+  Taxa base: R$ 197/mês (cobertura do serviço/plataforma)
+  + Custo de IA: tokens consumidos × taxa unitária com markup de 3×
+
+Por que NÃO é o modelo ideal para agora:
+  - Exige faturamento variável (boleto muda todo mês).
+  - Clientes de PME odeiam conta variável — causa cancelamentos.
+  - Complexidade de billing muito maior.
+  - Só vale para clientes enterprise (franquias grandes, redes).
+
+Conclusão: use o Modelo A agora. Adicione o Modelo B como
+"Plano Enterprise" sob consulta quando tiver clientes grandes.
+
+---
+MODELO C — COBRANÇA POR LEAD GERADO (performance)
+---
+
+Como funciona:
+  Você cobra por lead que atingiu um determinado stage
+  (ex: "agendado" ou "qualificado"), não por mensagem.
+
+Por que NÃO recomendo agora:
+  - Você não controla a qualidade do produto/atendimento do cliente.
+  - O cliente pode manipular os stages para não pagar.
+  - Muito difícil de auditar sem integração com CRM externo.
+  - Adequado apenas para nichos de alto ticket (imobiliárias premium).
+
+---
+RECOMENDAÇÃO FINAL PARA IMPLEMENTAÇÃO:
+---
+
+  1. Agora: Implementar Modelo A (flat por conversas)
+     com 3 planos (Starter, Pro, Ilimitado).
+  2. Médio prazo: Rastrear tokens por empresa internamente
+     (não expor ao cliente) para calibrar sua margem real.
+  3. Longo prazo: Oferecer Modelo B como "Enterprise" para
+     clientes com > 5.000 conversas/mês.
+
+O rastreamento de tokens (descrito na Sprint 3 abaixo) serve
+para você, o operador da plataforma, entender sua margem real —
+não precisa ser exposto ao cliente final.
+
+================================================================
+PARTE 2 — SEGURANÇA
+================================================================
+
+================================================================
+SPRINT 1 — SEGURANÇA CRÍTICA (itens da v1 ainda abertos)
+================================================================
+
+OBJETIVO: Corrigir as vulnerabilidades que persistiram desde
+a primeira análise. São as mais graves.
+
+---
+ITEM 1.1 — ADMIN_TOKEN hardcoded (CRÍTICO — ainda presente)
+---
+ARQUIVO: bot-service/app/admin_api.py
+CÓDIGO ATUAL:
+  ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "atendia-master-2026")
+  logger.info(f"Tentativa de login ADM com token: {x_admin_token}")
+  logger.warning(f"Acesso Negado! Esperado: {ADMIN_TOKEN} | Recebido: ...")
+
+CORREÇÃO:
+  ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
+  if not ADMIN_TOKEN:
+      raise RuntimeError("ADMIN_TOKEN não definido. Abortando inicialização.")
+
+  def verify_admin(x_admin_token: str = Header(None, alias="X-Admin-Token")):
+      if not x_admin_token or x_admin_token != ADMIN_TOKEN:
+          logger.warning("Tentativa de acesso admin com token inválido.")
+          raise HTTPException(status_code=401, detail="Não autorizado")
+      # NUNCA logar o valor do token esperado ou recebido
+
+---
+ITEM 1.2 — JWT_SECRET com fallback inseguro (CRÍTICO — ainda presente)
+---
+ARQUIVO: bot-service/app/auth.py
+CÓDIGO ATUAL:
+  SECRET_KEY = os.getenv("JWT_SECRET", "super_secret_key_change_in_production")
+
+CORREÇÃO:
+  SECRET_KEY = os.getenv("JWT_SECRET")
+  if not SECRET_KEY or len(SECRET_KEY) < 32:
+      raise RuntimeError("JWT_SECRET inválido ou ausente.")
+
+---
+ITEM 1.3 — docker-compose com credenciais hardcoded (ainda presente)
+---
+ARQUIVO: docker-compose.yml
+CÓDIGO ATUAL:
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: pass
+  DATABASE_URL=postgresql://user:pass@db:5432/atendimento (hardcoded no bot)
+
+CORREÇÃO:
+  No docker-compose.yml:
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    POSTGRES_DB: ${POSTGRES_DB}
+  No serviço bot:
+    DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+  Adicionar ao .env.example:
+    POSTGRES_USER=atendIA_user
+    POSTGRES_PASSWORD=MUDE_ISSO_PARA_SENHA_FORTE
+    POSTGRES_DB=atendIA_prod
+
+---
+ITEM 1.4 — conversas.db ainda no repositório (CRÍTICO)
+---
+O arquivo conversas.db está na raiz do projeto.
+Pode conter dados reais de clientes/leads.
+
+AÇÃO IMEDIATA:
+  echo "*.db" >> .gitignore
+  git rm --cached conversas.db
+  git commit -m "remove banco SQLite do repositório"
+
+  Se o repositório for público ou já foi compartilhado:
+  Usar git-filter-repo para remover do histórico completo.
+
+---
+ITEM 1.5 — Endpoint /transbordo sem autenticação real (ainda presente)
+---
+ARQUIVO: bot-service/app/main.py
+  @app.delete("/transbordo/{token}/{telefone}")
+  def reativar_robo(token: str, telefone: str):
+  
+O webhook_token é exposto no dashboard. Qualquer pessoa com esse
+token pode reativar o robô de qualquer conversa pausada sem precisar
+de JWT.
+
+CORREÇÃO:
+  Remover este endpoint público.
+  A funcionalidade já existe de forma segura em:
+    POST /api/dashboard/conversas/{telefone}/reativar
+  (que exige JWT via obter_empresa)
+
+================================================================
+SPRINT 2 — SEGURANÇA NOVA (detectada nesta reanálise)
+================================================================
+
+---
+ITEM 2.1 — Painel Admin autentica via localStorage (problema novo)
+---
+ARQUIVO: dashboard/src/app/(admin)/admin/page.tsx
+
+O admin token fica no estado React (useState) e é enviado no
+header de cada requisição. Isso é aceitável para tokens não-sensíveis,
+mas o fluxo de impersonation tem um problema grave:
+
+CÓDIGO PROBLEMÁTICO (handleImpersonate):
+  localStorage.setItem("atendia_token", access_token);
+  localStorage.setItem("atendia_slug", slug);
+  window.open(url, "_blank");
+
+O impersonation grava o token JWT de um CLIENTE no localStorage
+da aba do admin. Se o admin tiver outras abas abertas da plataforma,
+o token pode interferir na sessão delas. Além disso, o localStorage
+persiste até ser limpado — o token fica "esquecido" no navegador.
+
+CORREÇÃO:
+  - Para impersonation, passar o token como parâmetro de URL
+    (token de uso único, expira em 5 minutos):
+    window.open(`/${slug}?impersonate_token=${access_token}`, "_blank")
+  - A página do cliente lê o parâmetro, grava temporariamente,
+    e limpa a URL imediatamente após.
+  - OU: abrir a aba e usar postMessage para transferir o token
+    sem expô-lo na URL.
+
+---
+ITEM 2.2 — Middleware de isolamento não cobre path params
+---
+ARQUIVO: bot-service/app/middleware.py
+
+O middleware verifica empresa_id injetado via QUERY STRING:
+  query_empresa_id = request.query_params.get("empresa_id")
+
+Mas não verifica empresa_id injetado via PATH PARAM
+(ex: /api/dashboard/conversas/{telefone} pode ser acessado por
+um cliente tentando ver conversas de outra empresa se ele souber
+o telefone). A proteção real acontece no Depends(obter_empresa)
+de cada endpoint, que é o correto — mas o middleware dá uma
+falsa sensação de cobertura total.
+
+AÇÃO:
+  - Adicionar comentário claro no middleware explicando que a
+    proteção de path params é responsabilidade do Depends() de
+    cada endpoint, não do middleware global.
+  - Auditar todos os endpoints do dashboard_api.py para confirmar
+    que todos usam Depends(obter_empresa) corretamente.
+  - Verificar se algum endpoint aceita empresa_id como path param
+    sem validar contra o token JWT.
+
+---
+ITEM 2.3 — Redis sem autenticação no Docker Compose
+---
+ARQUIVO: docker-compose.yml
+
+O Redis está exposto na porta 6379 sem senha:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+Se o servidor tiver outras aplicações ou se a porta estiver
+acessível na rede, qualquer processo pode ler/escrever no Redis.
+
+CORREÇÃO:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"  # bind apenas em localhost
+
+  Adicionar REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+  no .env.example e REDIS_PASSWORD=MUDE_ISSO ao .env.
+
+---
+ITEM 2.4 — Porta do PostgreSQL exposta externamente
+---
+ARQUIVO: docker-compose.yml
+
+  db:
+    ports:
+      - "5432:5432"
+
+Em produção (VPS), isso expõe o PostgreSQL para qualquer IP que
+consiga chegar na porta 5432 do servidor.
+
+CORREÇÃO:
+  Remover o mapeamento de porta do db em produção, ou restringir:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  O bot acessa o banco pela rede Docker interna (hostname "db"),
+  não precisa de porta exposta externamente.
+
+---
+ITEM 2.5 — Webhook loga o RAW DATA completo em INFO
+---
+ARQUIVO: bot-service/app/main.py
+
+  logger.info(f"RAW DATA: {json.dumps(data)}")
+
+O payload do webhook da Evolution pode conter o base64 completo
+de um áudio (centenas de KB de string). Isso vai para o log JSON
+estruturado, que pode ser enviado para sistemas de log externos.
+Além do volume, dados de áudio de clientes ficam nos logs.
+
+CORREÇÃO:
+  # Não logar o RAW DATA em INFO. Usar DEBUG no máximo.
+  # Em DEBUG, truncar o base64 para não poluir:
+  if logger.isEnabledFor(logging.DEBUG):
+      safe_data = {k: (v[:50] + "...[truncado]" if isinstance(v, str) and len(v) > 50 else v)
+                   for k, v in data.items()}
+      logger.debug(f"RAW DATA (truncado): {json.dumps(safe_data)}")
+
+================================================================
+PARTE 3 — MODELO DE NEGÓCIO
+================================================================
+
+================================================================
+SPRINT 3 — BILLING E CONTROLE DE USO
+================================================================
+
+OBJETIVO: Implementar o Modelo A de precificação (planos por
+volume de conversas) e a infraestrutura de rastreamento interno.
+
+---
+ITEM 3.1 — Adicionar campo plano e contadores à tabela Empresa
+---
+ARQUIVO: bot-service/app/database.py
+
+Adicionar colunas:
+  plano = Column(String, default="trial")
+    # valores: "trial" | "starter" | "pro" | "ilimitado"
+  limite_conversas_mes = Column(Integer, default=100)
+    # trial: 100 | starter: 500 | pro: 2000 | ilimitado: 999999
+  conversas_mes_atual = Column(Integer, default=0)
+  data_reset_contador = Column(DateTime, nullable=True)
+
+  # Para controle interno de custo (não exposto ao cliente)
+  tokens_input_mes = Column(Integer, default=0)
+  tokens_output_mes = Column(Integer, default=0)
+
+Migração manual em init_db() (padrão já usado no projeto):
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano VARCHAR DEFAULT 'trial';
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS limite_conversas_mes INTEGER DEFAULT 100;
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS conversas_mes_atual INTEGER DEFAULT 0;
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_reset_contador TIMESTAMP;
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_input_mes INTEGER DEFAULT 0;
+  ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_output_mes INTEGER DEFAULT 0;
+
+---
+ITEM 3.2 — Rastrear tokens no openai_client.py
+---
+ARQUIVO: bot-service/app/openai_client.py
+
+A função perguntar() atualmente descarta o usage da resposta.
+Modificar para retornar junto com a resposta:
+
+  def perguntar(mensagem_usuario, contexto_sistema, historico=None):
+      ...
+      response = client.chat.completions.create(
+          model="gpt-4o-mini",
+          messages=mensagens
+      )
+      texto = response.choices[0].message.content
+      tokens_input = response.usage.prompt_tokens
+      tokens_output = response.usage.completion_tokens
+      return texto, tokens_input, tokens_output
+
+Adaptar quem chama perguntar() (agent.py) para propagar os tokens
+até pipeline.py, onde são gravados no banco junto com a empresa.
+
+Em pipeline.py, após chamar processar_mensagem_dinamica():
+  resposta, t_in, t_out = processar_mensagem_dinamica(...)
+  empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
+  empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
+  db.commit()
+
+---
+ITEM 3.3 — Controle de limite de conversas no pipeline
+---
+ARQUIVO: bot-service/app/pipeline.py
+
+No início de processar_webhook(), antes de qualquer chamada à IA:
+
+  # Verifica se a empresa está dentro do limite do plano
+  if empresa.plano != "ilimitado":
+      # Verifica e reseta o contador mensal se necessário
+      agora = datetime.utcnow()
+      if not empresa.data_reset_contador or agora >= empresa.data_reset_contador:
+          empresa.conversas_mes_atual = 0
+          # Próximo reset: 1º dia do próximo mês
+          if agora.month == 12:
+              empresa.data_reset_contador = datetime(agora.year + 1, 1, 1)
+          else:
+              empresa.data_reset_contador = datetime(agora.year, agora.month + 1, 1)
+          db.commit()
+
+      # Verifica se este lead é novo no mês (cada lead = 1 conversa)
+      lead_inicio_mes = db.query(Lead).filter(
+          Lead.empresa_id == empresa.id,
+          Lead.telefone == telefone,
+          Lead.criado_em >= empresa.data_reset_contador - timedelta(days=31)
+      ).first()
+
+      # Conta conversas únicas no mês (leads únicos ativos)
+      if empresa.conversas_mes_atual >= empresa.limite_conversas_mes:
+          # Notificar proprietário uma vez por dia (evitar spam)
+          return {
+              "status": "limite_atingido",
+              "resposta": "Olá! No momento nosso atendimento automático está indisponível. Entre em contato conosco pelo telefone ou aguarde nosso retorno. 🙏"
+          }
+
+---
+ITEM 3.4 — Tarefa de reset mensal e expiração de trial
+---
+ARQUIVO: bot-service/app/main.py
+
+Adicionar ao scheduler (já configurado com APScheduler):
+
+  async def tarefa_manutencao_mensal():
+      db = SessionLocal()
+      try:
+          agora = datetime.now()
+          # Expirar trials vencidos
+          empresas_trial = db.query(Empresa).filter(
+              Empresa.plano == "trial",
+              Empresa.data_expiracao_teste < agora,
+              Empresa.ativo == True
+          ).all()
+          for e in empresas_trial:
+              e.ativo = False
+              logger.info(f"Trial expirado: {e.nome}")
+          db.commit()
+      finally:
+          db.close()
+
+  # Rodar diariamente à meia-noite
+  scheduler.add_job(tarefa_manutencao_mensal, 'cron', hour=0, minute=0)
+
+---
+ITEM 3.5 — Expor uso no painel admin
+---
+ARQUIVO: bot-service/app/admin_api.py e dashboard/src/app/(admin)/admin/page.tsx
+
+Adicionar ao EmpresaResponse:
+  plano: str
+  limite_conversas_mes: int
+  conversas_mes_atual: int
+  tokens_input_mes: int
+  tokens_output_mes: int
+  custo_estimado_usd: float  # calculado: (input * 0.00000015) + (output * 0.0000006)
+
+Adicionar endpoint de resumo financeiro:
+  GET /api/admin/financeiro/resumo
+  Retorna:
+    - Total de clientes por plano
+    - MRR (receita mensal recorrente): soma de valor_mensalidade ativos
+    - Custo total estimado de IA no mês corrente
+    - Margem estimada (MRR - custo IA em BRL)
+
+No frontend admin, exibir por empresa:
+  - Badge de plano (TRIAL / STARTER / PRO / ILIMITADO)
+  - Barra de progresso: X conversas de Y usadas este mês
+  - Custo de IA estimado do mês (visível apenas para o admin)
+
+================================================================
+SPRINT 4 — MODELO DE NEGÓCIO COMPLEMENTAR
+================================================================
+
+---
+ITEM 4.1 — Lógica do cupom de vendedor / revenda
+---
+PROBLEMA: O campo cupom_vendedor existe no banco mas não tem
+nenhuma lógica associada.
+
+SOLUÇÃO:
+  Criar tabela Vendedor:
+    id, nome, email, cupom (unique), comissao_pct (float)
+
+  Na criação de empresa, vincular ao vendedor pelo cupom.
+
+  Endpoint admin:
+    GET /api/admin/vendedores/{cupom}/resumo
+    Retorna: lista de empresas captadas, MRR associado,
+    comissão calculada (MRR × comissao_pct).
+
+  Isso habilita modelo de revendedor/afiliado que é padrão
+  para escalar SaaS B2B sem equipe de vendas própria.
+
+---
+ITEM 4.2 — Notificação de trial expirando para o cliente
+---
+PROBLEMA: O cliente não sabe que o trial vai expirar e é
+surpreendido quando o sistema para de funcionar.
+
+SOLUÇÃO:
+  Criar tarefa que roda diariamente:
+    - 7 dias antes: "Seu período de teste termina em 7 dias. ..."
+    - 3 dias antes: "⚠️ Apenas 3 dias restantes do trial. ..."
+    - 1 dia antes: "🚨 Último dia de trial. ..."
+  
+  Mensagem enviada via WhatsApp para telefone_proprietario.
+  Incluir link para contato/contratação.
+
+---
+ITEM 4.3 — Histórico de pagamentos (mínimo viável)
+---
+PROBLEMA: Não há registro de quando e quanto cada empresa pagou.
+
+SOLUÇÃO MÍNIMA (sem gateway):
+  Criar tabela Pagamento:
+    id, empresa_id, valor, data_pagamento, mes_referencia,
+    status ("pago" | "pendente" | "cancelado"),
+    observacao (texto livre)
+
+  Endpoint admin:
+    POST /api/admin/empresas/{id}/pagamentos — registrar pagamento
+    GET  /api/admin/empresas/{id}/pagamentos — histórico
+    GET  /api/admin/financeiro/inadimplentes — empresas com
+         pagamento pendente do mês anterior
+
+  No painel admin, exibir status de pagamento ao lado de cada empresa:
+    "✅ Pago — Abril/2026" ou "⚠️ Pendente — Maio/2026"
+
+================================================================
+PARTE 4 — USABILIDADE
+================================================================
+
+================================================================
+SPRINT 5 — USABILIDADE DO OPERADOR
+================================================================
+
+---
+ITEM 5.1 — Painel admin não exibe uso/plano das empresas
+---
+ARQUIVO: dashboard/src/app/(admin)/admin/page.tsx
+
+O painel está funcional para CRUD mas não mostra o que importa
+operacionalmente: qual o plano de cada cliente, quantas conversas
+usaram no mês, se há inadimplência.
+
+ADICIONAR ao card de cada empresa:
+  - Badge colorido: TRIAL (amarelo) / STARTER (azul) / PRO (verde)
+  - Indicador de conversas: "320/500 conversas este mês"
+  - Status de pagamento: "✅ Em dia" ou "⚠️ Pendente"
+  - Dias restantes de trial (se aplicável)
+  - Custo de IA estimado (visível só para o franqueador)
+
+---
+ITEM 5.2 — Painel admin não tem busca/filtro de empresas
+---
+À medida que a base crescer (20, 50, 100 clientes), a lista
+sem filtro se torna inutilizável.
+
+ADICIONAR:
+  - Campo de busca por nome ou slug (filtro client-side no React)
+  - Filtros por status: "Ativas", "Inativas", "Trial", "Trial expirando"
+  - Ordenação por data de criação ou por nome
+
+---
+ITEM 5.3 — reports.py não envia link do dashboard no relatório
+---
+ARQUIVO: bot-service/app/reports.py
+
+O relatório semanal está bem estruturado, mas não inclui
+o link para o dashboard do cliente. Isso desperdiça uma
+oportunidade de engajamento semanal.
+
+ADICIONAR ao final da mensagem:
+  base_url = os.getenv("BASE_URL", "https://app.atendia.com.br")
+  f"\n📲 *Ver no Dashboard:* {base_url}/{empresa.slug}"
+
+---
+ITEM 5.4 — Configurações do dashboard ainda hardcoded para academia
+---
+ARQUIVO: dashboard/src/app/(dashboard)/[slug]/configuracoes/page.tsx
+
+A interface de configurações tem campos fixos para academia
+(planos.basico, planos.vip, horarios.semana, horarios.sabado,
+professores, instalacoes, aulas_vip).
+
+O backend (agent.py) já suporta config JSONB genérico com
+seções dinâmicas em "conhecimento", mas o frontend ainda
+força os campos de academia.
+
+SOLUÇÃO (já recomendada na v1, ainda pendente):
+  Refatorar a tela de configurações para:
+  SEÇÃO 1: Identidade do Agente
+    - Nome do agente (text input)
+    - Cargo (text input)
+    - Nome da empresa (text input)
+    - Missão (textarea)
+    - Tom de voz (textarea ou select)
+  
+  SEÇÃO 2: Base de Conhecimento (dinâmica)
+    - O cliente adiciona seções: [+ Adicionar Seção]
+    - Cada seção tem: título + área de texto livre
+    - Exemplos de seções: "Planos e Preços", "Horários",
+      "Equipe", "Localização", "Produtos em destaque"
+  
+  SEÇÃO 3: Regras do Agente
+    - Lista de regras (add/remove)
+  
+  SEÇÃO 4: Etapas do Funil
+    - Campo já existe no backend, expor no frontend
+  
+  Isso torna o produto genuinamente multi-nicho sem código
+  adicional para cada novo segmento.
+
+---
+ITEM 5.5 — Sem estado de carregamento explícito nas páginas de dados
+---
+(Pendente da v1)
+Páginas de conversas, funil, insights não têm skeleton loaders
+nem tratamento de erro amigável. Adicionar:
+  - Skeleton loader durante fetch
+  - Estado de erro com botão "Tentar novamente"
+  - Estado vazio ("Ainda não há conversas. Conecte o WhatsApp!")
+
+================================================================
+SPRINT 6 — DÉBITOS TÉCNICOS
+================================================================
+
+---
+ITEM 6.1 — agent-old.py ainda no repositório
+---
+ARQUIVO: bot-service/app/agent-old.py
+Arquivo de versão anterior sem utilidade. Remover.
+
+---
+ITEM 6.2 — context.py e events.py estão vazios
+---
+ARQUIVOS: bot-service/app/context.py, bot-service/app/events.py
+Dois arquivos vazios. Ou implementar ou remover para não
+confundir quem vai dar manutenção.
+
+---
+ITEM 6.3 — Migração manual no init_db() acumulando
+---
+ARQUIVO: bot-service/app/database.py
+As migrações manuais via ALTER TABLE estão crescendo dentro do
+init_db(). Isso funciona mas é frágil — se uma migração falhar
+no meio, o banco fica em estado inconsistente sem rollback.
+
+RECOMENDAÇÃO: Adotar Alembic para migrações versionadas.
+  pip install alembic
+  alembic init migrations
+  alembic revision --autogenerate -m "add plano e contadores"
+  alembic upgrade head
+
+Isso resolve o problema de deploys com migrações parciais.
+
+---
+ITEM 6.4 — Pool do banco superdimensionado para 1 worker
+---
+ARQUIVO: bot-service/app/database.py
+  engine = create_engine(DATABASE_URL, pool_size=20, max_overflow=30)
+  
+Com 1 worker Uvicorn (default em produção), esse pool cria
+conexões desnecessárias. Revisar para:
+  pool_size=5, max_overflow=10
+  
+Aumentar apenas quando escalar horizontalmente (múltiplos workers).
+
+---
+ITEM 6.5 — Dois health checks conflitantes em main.py
+---
+ARQUIVO: bot-service/app/main.py
+
+Existem dois endpoints com comportamento diferente:
+  @app.get("/health")  ← verifica banco e openai key (correto)
+  @app.get("/")        ← retorna apenas {"status": "online"} (legado)
+
+Manter apenas o /health e redirecionar / para ele, ou remover
+o endpoint / para não ter dois comportamentos diferentes.
+
+================================================================
+RESUMO EXECUTIVO — PRIORIDADES
+================================================================
+
+FAZER ANTES DE QUALQUER NOVO CLIENTE:
+  1.1 Remover fallback de ADMIN_TOKEN e JWT_SECRET
+  1.3 docker-compose sem credenciais hardcoded
+  1.4 Remover conversas.db do repositório e do histórico git
+  1.5 Remover endpoint /transbordo público
+  2.3 Redis com senha
+  2.4 PostgreSQL não exposto externamente
+
+FAZER ANTES DE COBRAR (essencial para o produto ser um SaaS real):
+  3.1 Adicionar colunas de plano e contadores ao banco
+  3.2 Rastrear tokens no openai_client.py
+  3.3 Bloquear conversa quando limite do plano é atingido
+  3.4 Expiração automática de trial
+  3.5 Exibir plano/uso no painel admin
+
+FAZER PARA MELHORAR PRODUTO (próximas 2-3 semanas):
+  4.2 Notificações de trial expirando
+  4.3 Histórico mínimo de pagamentos
+  5.1 Cards de plano e uso no admin
+  5.3 Link do dashboard no relatório semanal
+  5.4 Configurações multi-nicho no frontend
+
+DÉBITO TÉCNICO (pode acumular um pouco):
+  6.1 Remover agent-old.py
+  6.3 Adotar Alembic
+  6.4 Ajustar pool do banco
+
+================================================================
+FIM DO DOCUMENTO
+================================================================

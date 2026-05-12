@@ -1,0 +1,24 @@
+# Registro de Debug e Dificuldades Técnicas - 11/05/2026
+
+## 1. Erro de Importação (NameError)
+- **Problema:** Ao disparar a sincronização do WhatsApp em background, o log reportava `NameError: name 'SessionLocal' is not defined`.
+- **Causa:** A função `sync_task_background` no arquivo `dashboard_api.py` tentava abrir uma nova sessão de banco de dados, mas os objetos `SessionLocal` e `logger` não estavam importados ou definidos no escopo do arquivo.
+- **Solução:** Adição dos imports corretos de `app.database` e configuração do logger no topo do arquivo.
+
+## 2. Dependência do Redis (ModuleNotFoundError)
+- **Problema:** O bot entrou em loop de reinicialização com erro `ModuleNotFoundError: No module named 'redis'`.
+- **Causa:** A biblioteca `redis` foi adicionada ao código mas a imagem Docker do bot não foi reconstruída, deixando o ambiente sem o pacote instalado.
+- **Solução:** Rebuild da imagem do bot (`docker compose build bot`). Adicionalmente, o container Redis não estava rodando e foi iniciado.
+
+## 3. URL de Webhook Inválida (localhost)
+- **Problema:** A sincronização acontecia sem erros no log, mas o bot não recebia as mensagens do WhatsApp.
+- **Causa:** A variável de ambiente `BASE_URL` não estava definida no `.env`. O código usava o fallback `http://localhost:8000`, enviando este endereço para a Evolution API. Como a Evolution é externa, ela não conseguia alcançar o bot via "localhost".
+- **Solução:** Configuração de `BASE_URL=https://zapvai.ignotec.com.br` no arquivo `.env`.
+
+## 4. Incompatibilidade Evolution API v2 (Status 400)
+- **Problema:** Erro `Evolution Status 400: Bad Request` ao tentar configurar o webhook.
+- **Causa:** O evento `TYPE_BOT` foi descontinuado ou renomeado nas versões recentes da Evolution API em favor de `TYPEBOT_START` e `TYPEBOT_CHANGE_STATUS`.
+- **Solução:** Atualização da lista de eventos em `whatsapp_service.py` para compatibilidade com Evolution v2.
+
+---
+Documentação gerada automaticamente para histórico de manutenção.

@@ -120,12 +120,17 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
     pct_comercial = (comercial / total_msgs * 100) if total_msgs > 0 else 0
     pct_fora = (fora_comercial / total_msgs * 100) if total_msgs > 0 else 0
     
+    # Transbordos pausados (aguardando humano)
+    from app.database import Transbordo
+    total_pausados = db.query(Transbordo).filter(Transbordo.empresa_id == empresa.id, Transbordo.status == "pausado").count()
+    
     return {
         "cards": {
             "total_leads": total_leads,
             "leads_recentes": leads_recentes,
             "leads_interessados": leads_interessados,
             "visitas": visitas,
+            "pausados": total_pausados,
             "horario_comercial_pct": round(pct_comercial, 1),
             "fora_horario_pct": round(pct_fora, 1),
             "total_mensagens_analisadas": total_msgs

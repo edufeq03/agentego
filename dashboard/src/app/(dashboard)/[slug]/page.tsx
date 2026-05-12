@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Users, UserPlus, Flame, CalendarCheck, Clock, Moon } from "lucide-react";
+import { Users, UserPlus, Flame, CalendarCheck, Clock, Moon, PauseCircle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface VisaoGeralData {
@@ -11,6 +11,7 @@ interface VisaoGeralData {
     leads_recentes: number;
     leads_interessados: number;
     visitas: number;
+    pausados: number;
     horario_comercial_pct: number;
     fora_horario_pct: number;
     total_mensagens_analisadas: number;
@@ -50,17 +51,18 @@ export default function Home() {
     { name: "Total de Leads", value: data.cards.total_leads, icon: Users, color: "text-blue-400" },
     { name: "Novos (7 dias)", value: data.cards.leads_recentes, icon: UserPlus, color: "text-green-400" },
     { name: "Interessados", value: data.cards.leads_interessados, icon: Flame, color: "text-orange-400" },
-    { name: "Visitas Agendadas", value: data.cards.visitas, icon: CalendarCheck, color: "text-purple-400" },
+    { name: "Visitas", value: data.cards.visitas, icon: CalendarCheck, color: "text-purple-400" },
+    { name: "Aguardando Humano", value: data.cards.pausados, icon: PauseCircle, color: "text-red-400" },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.name} className="glass-panel p-6 card-hover">
+            <div key={stat.name} className="glass-panel p-4 card-hover">
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
                   <Icon size={24} />
@@ -79,7 +81,7 @@ export default function Home() {
         {/* Chart */}
         <div className="glass-panel p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold text-white mb-6">Mensagens Recebidas (Últimos 7 dias)</h2>
-          <div className="h-[300px] w-full">
+          <div className="h-[250px] w-full">
             {data.grafico_conversas.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.grafico_conversas} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

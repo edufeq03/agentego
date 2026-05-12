@@ -1,0 +1,27 @@
+# Sugestões de Melhorias Futuras (Fase 2)
+
+Este arquivo registra ideias e melhorias que surgiram durante a implementação das Sprints iniciais, mas que estão fora do escopo atual do MVP.
+
+## Melhorias de Admin e Franqueador
+1. **Edição de Templates de Nicho:** 
+   - Atualmente, os templates são criados via Admin ou Seed, mas não podem ser editados após a criação.
+   - Melhoria: Adicionar funcionalidade na Central do Franqueador para editar o Prompt Base, Tom de Voz e Missão de templates existentes.
+
+## Melhorias de UX e Fluxo
+1. **Controle Manual de Instância WhatsApp:** 
+   - Atualmente, a página de conexão inicia o script da Evolution API automaticamente. 
+   - Melhoria: O procedimento deve ser iniciado apenas ao clicar em um botão ("Conectar WhatsApp").
+   - Validação: O sistema deve verificar se já existe uma instância ativa para aquele cliente antes de tentar criar uma nova, evitando duplicidade na Evolution API.
+
+## Inteligência e IA
+2. **Análise de Sentimento:** Implementar um módulo que detecta o humor do lead (irritado, satisfeito, confuso) e altera o tom de voz da IA ou antecipa o transbordo humano se necessário.
+3. **Lead Scoring Dinâmico:** Atribuir pontuação aos leads com base nas perguntas feitas (ex: perguntar preço vale 10 pontos, pedir visita vale 50 pontos).
+4. **Memória de Longo Prazo (RAG):** Integrar com um banco de vetores para permitir que a IA aprenda com documentos PDF de manuais da academia ou contratos complexos.
+
+## Infraestrutura e Performance
+5. **Persistência com Redis:** Migrar o buffer de mensagens e o histórico de conversas da RAM para o Redis, garantindo que reinicializações do servidor não causem perda de contexto.
+6. **Webhooks de Retorno (Integrations):** Permitir que o sistema envie um webhook para o CRM da academia assim que uma visita for agendada pelo bot.
+7. **Logs de Auditoria:** Registrar no banco de dados quem alterou cada configuração no dashboard (quem mudou o preço, quem mudou o horário, etc).
+
+## Multi-Agente
+8. **Transbordo por Departamento:** Permitir que a IA direcione o transbordo para diferentes números de WhatsApp dependendo do assunto (ex: Financeiro vs. Matrícula).
