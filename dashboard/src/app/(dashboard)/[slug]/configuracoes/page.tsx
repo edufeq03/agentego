@@ -59,9 +59,9 @@ export default function Configuracoes() {
               semana: configData.horarios?.semana || "",
               sabado: configData.horarios?.sabado || ""
             },
-            faq: configData.faq || [],
-            conhecimento: configData.conhecimento || [],
-            regras_comportamento: configData.regras_comportamento || [],
+            faq: Array.isArray(configData.faq) ? configData.faq : [],
+            conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
+            regras_comportamento: Array.isArray(configData.regras_comportamento) ? configData.regras_comportamento : [],
             timezone: configData.timezone || "America/Sao_Paulo"
           });
         }
@@ -227,7 +227,7 @@ export default function Configuracoes() {
             </div>
 
             <div className="space-y-4">
-              {config.conhecimento.map((item, index) => (
+              {Array.isArray(config.conhecimento) && config.conhecimento.map((item, index) => (
                 <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group">
                   <button 
                     onClick={() => removeConhecimento(index)}
