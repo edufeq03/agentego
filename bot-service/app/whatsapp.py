@@ -74,7 +74,7 @@ def enviar_audio_whatsapp(numero, caminho_audio, instance_name):
         
     payload = {
         "number": numero,
-        "audio": audio_audio_base64 if 'audio_audio_base64' in locals() else audio_base64,
+        "audio": audio_base64,
         "delay": 1200,
         "encoding": True
     }

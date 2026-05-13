@@ -18,6 +18,9 @@ interface ConfigData {
   conhecimento: Conhecimento[];
   regras_comportamento: string[];
   timezone: string;
+  stt_enabled: boolean;
+  tts_enabled: boolean;
+  tts_always: boolean;
   // Campos legados mantidos para compatibilidade durante migração
   planos?: { basico: number; vip: number };
 }
@@ -31,7 +34,10 @@ export default function Configuracoes() {
     faq: [],
     conhecimento: [],
     regras_comportamento: [],
-    timezone: "America/Sao_Paulo"
+    timezone: "America/Sao_Paulo",
+    stt_enabled: false,
+    tts_enabled: false,
+    tts_always: false
   });
   
   const [webhookToken, setWebhookToken] = useState("");
@@ -62,7 +68,10 @@ export default function Configuracoes() {
             faq: Array.isArray(configData.faq) ? configData.faq : [],
             conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
             regras_comportamento: Array.isArray(configData.regras_comportamento) ? configData.regras_comportamento : [],
-            timezone: configData.timezone || "America/Sao_Paulo"
+            timezone: configData.timezone || "America/Sao_Paulo",
+            stt_enabled: !!configData.stt_enabled,
+            tts_enabled: !!configData.tts_enabled,
+            tts_always: !!configData.tts_always
           });
         }
         setWebhookToken(webhook_token || "");
@@ -377,7 +386,57 @@ export default function Configuracoes() {
 
 
 
-          {/* Configuração de Integração (Webhook) */}
+          {/* Voz e Áudio */}
+          <section className="glass-panel p-6 space-y-6">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <Sparkles className="text-blue-400" size={20} />
+              Configurações de Voz
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium text-white">Ouvir Áudios (STT)</label>
+                  <p className="text-xs text-[var(--color-foreground-muted)]">Transcrever áudios enviados pelos clientes.</p>
+                </div>
+                <button 
+                  onClick={() => setConfig({...config, stt_enabled: !config.stt_enabled})}
+                  className={`w-11 h-6 flex items-center rounded-full transition-colors ${config.stt_enabled ? 'bg-[var(--color-brand-500)]' : 'bg-gray-700'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${config.stt_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium text-white">Responder com Áudio (TTS)</label>
+                  <p className="text-xs text-[var(--color-foreground-muted)]">O robô responderá com voz (OpenAI Nova).</p>
+                </div>
+                <button 
+                  onClick={() => setConfig({...config, tts_enabled: !config.tts_enabled})}
+                  className={`w-11 h-6 flex items-center rounded-full transition-colors ${config.tts_enabled ? 'bg-[var(--color-brand-500)]' : 'bg-gray-700'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${config.tts_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {config.tts_enabled && (
+                <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4 bg-white/5 p-3 rounded-lg">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium text-white">Sempre enviar áudio</label>
+                    <p className="text-xs text-[var(--color-foreground-muted)]">Mesmo se o cliente mandar texto.</p>
+                  </div>
+                  <button 
+                    onClick={() => setConfig({...config, tts_always: !config.tts_always})}
+                    className={`w-11 h-6 flex items-center rounded-full transition-colors ${config.tts_always ? 'bg-[var(--color-brand-500)]' : 'bg-gray-700'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${config.tts_always ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Integração Técnica (Webhook) */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <Plus className="text-brand-400 rotate-45" size={20} />

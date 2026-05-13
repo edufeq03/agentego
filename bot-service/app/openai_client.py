@@ -34,4 +34,4 @@ def gerar_audio(texto, caminho_salvar):
         voice="nova",
         input=texto
     )
-    response.stream_to_file(caminho_salvar)
+    response.write_to_file(caminho_salvar)

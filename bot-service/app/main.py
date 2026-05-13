@@ -189,7 +189,11 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
         logger.info(f"[{telefone}] Cliente: '{texto_combinado}' -> IA: '{resposta}'")
 
         # Enviar Resposta via Evolution API
-        if cliente_enviou_audio:
+        config = empresa.configuracoes.config if empresa.configuracoes else {}
+        tts_enabled = config.get("tts_enabled", False)
+        tts_always = config.get("tts_always", False)
+
+        if tts_enabled and (cliente_enviou_audio or tts_always):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
                 caminho_audio_resposta = temp_out.name
             try:
@@ -278,6 +282,10 @@ async def webhook(token: str, request: Request):
             
             # 4. Tratar Áudio
             if message_type == "audioMessage" or "audioMessage" in msg_obj:
+                config = empresa.configuracoes.config if empresa.configuracoes else {}
+                if not config.get("stt_enabled", False):
+                    return {"status": "ignorado", "motivo": "stt_desativado"}
+
                 cliente_enviou_audio = True
                 base64_audio = msg_obj.get("base64") or event_data.get("base64")
                 
