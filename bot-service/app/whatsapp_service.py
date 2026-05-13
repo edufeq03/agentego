@@ -142,7 +142,7 @@ def update_settings(instance_name: str):
         "msgCall": "Desculpe, este número é apenas para mensagens automáticas.",
         "groupsIgnore": True,
         "alwaysOnline": True,
-        "readMessages": False,
+        "readMessages": True,
         "readStatus": False,
         "syncFullHistory": False
     }
