@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Mic, Save, Info, Volume2, Music, UserCircle } from "lucide-react";
 import api from "@/lib/api";
-import { toast } from "react-hot-toast";
 
 const VOICES = [
   { id: "nova", name: "Nova", gender: "Feminino", desc: "Enérgica e profissional" },
@@ -41,7 +40,7 @@ export default function ConfiguracoesFalaPage() {
         }
       } catch (error) {
         console.error("Erro ao carregar configurações:", error);
-        toast.error("Erro ao carregar configurações");
+        alert("Erro ao carregar configurações");
       } finally {
         setLoading(false);
       }
@@ -53,10 +52,10 @@ export default function ConfiguracoesFalaPage() {
     setSaving(true);
     try {
       await api.post(`/dashboard/configuracoes/${slug}`, { config });
-      toast.success("Configurações de fala atualizadas!");
+      alert("Configurações de fala atualizadas!");
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      toast.error("Erro ao salvar configurações");
+      alert("Erro ao salvar configurações");
     } finally {
       setSaving(false);
     }
