@@ -302,12 +302,14 @@ async def webhook(token: str, request: Request):
                     try:
                         from app.whatsapp_service import get_evolution_base_url
                         base_url_evolution = get_evolution_base_url()
-                        # Tentativa 2: Sem a instância na URL (comum em algumas versões da v2)
-                        url_download = f"{base_url_evolution}/chat/getBase64FromMedia"
+                        # Tentativa 3: Usando chaves técnicas (mediaKey/directPath)
+                        url_download = f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}"
                         
+                        audio_msg = msg_obj["audioMessage"]
                         payload_dl = {
-                            "instance": empresa.evolution_instance,
-                            "url": url_audio,
+                            "mediaKey": audio_msg.get("mediaKey"),
+                            "directPath": audio_msg.get("directPath"),
+                            "mimetype": audio_msg.get("mimetype"),
                             "type": "audio"
                         }
                         headers = {"apikey": os.getenv("EVOLUTION_API_KEY"), "Content-Type": "application/json"}
