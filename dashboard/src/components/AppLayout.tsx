@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
     { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
     { name: "Configurações", href: `/${slug}/configuracoes`, icon: Settings },
+    { name: "Configurações de Fala", href: `/${slug}/configuracoes-fala`, icon: Mic },
   ];
 
   // Fecha o menu ao mudar de rota no mobile

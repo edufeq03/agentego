@@ -193,12 +193,13 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
         config = empresa.configuracoes.config if empresa.configuracoes else {}
         tts_enabled = config.get("tts_enabled", False)
         tts_always = config.get("tts_always", False)
+        tts_voice = config.get("tts_voice", "nova")
 
         if tts_enabled and (cliente_enviou_audio or tts_always):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
                 caminho_audio_resposta = temp_out.name
             try:
-                gerar_audio(resposta, caminho_audio_resposta)
+                gerar_audio(resposta, caminho_audio_resposta, voice=tts_voice)
                 enviar_audio_whatsapp(telefone, caminho_audio_resposta, empresa.evolution_instance)
             except Exception as e:
                 logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")

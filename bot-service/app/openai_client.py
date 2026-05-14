@@ -28,10 +28,10 @@ def transcrever_audio(caminho_arquivo):
         )
     return transcription.text
 
-def gerar_audio(texto, caminho_salvar):
+def gerar_audio(texto, caminho_salvar, voice="nova"):
     response = client.audio.speech.create(
         model="tts-1",
-        voice="nova",
+        voice=voice,
         input=texto
     )
     response.write_to_file(caminho_salvar)
