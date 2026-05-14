@@ -290,6 +290,10 @@ async def webhook(token: str, request: Request):
                 cliente_enviou_audio = True
                 base64_audio = msg_obj.get("base64") or event_data.get("base64")
                 
+                # Tenta buscar dentro de audioMessage se não estiver no nível superior
+                if not base64_audio and "audioMessage" in msg_obj:
+                    base64_audio = msg_obj["audioMessage"].get("base64")
+                
                 if base64_audio:
                     if "," in base64_audio:
                         base64_audio = base64_audio.split(",")[1]
@@ -308,6 +312,7 @@ async def webhook(token: str, request: Request):
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                 else:
+                    logger.info(f"[{telefone}] Áudio recebido, mas campo 'base64' está ausente. Chaves disponíveis: {list(msg_obj.keys())}")
                     return {"status": "ignorado", "motivo": "audio_sem_base64"}
 
         if not mensagem:
