@@ -30,6 +30,7 @@ class TemplateCreate(BaseModel):
     missao: Optional[str] = None
     objetivo: Optional[str] = None
     etapas_funil: Optional[List[str]] = None
+    nicho: Optional[str] = "generico"
 
 class EmpresaCreate(BaseModel):
     nome: str
@@ -45,6 +46,7 @@ class EmpresaCreate(BaseModel):
     etapas_funil: Optional[List[str]] = None
     plano: Optional[str] = "trial"
     limite_conversas_mes: Optional[int] = 100
+    nicho: Optional[str] = "generico"
 
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
@@ -162,7 +164,8 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
         data_expiracao_teste=expiracao,
         cupom_vendedor=data.cupom_vendedor,
         plano=data.plano,
-        limite_conversas_mes=data.limite_conversas_mes
+        limite_conversas_mes=data.limite_conversas_mes,
+        nicho=data.nicho
     )
 
     # Se forneceu etapas diretamente
@@ -174,6 +177,8 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
         template = db.query(PromptTemplate).filter(PromptTemplate.id == data.template_id).first()
         if template and template.etapas_funil:
             nova_empresa.etapas_funil = template.etapas_funil
+        if template and template.nicho:
+            nova_empresa.nicho = template.nicho
     
     db.add(nova_empresa)
     db.commit()
