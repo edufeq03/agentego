@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import logging
+import requests
 from fastapi import FastAPI, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
 import asyncio
