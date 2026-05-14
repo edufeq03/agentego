@@ -309,12 +309,15 @@ async def webhook(token: str, request: Request):
                     webhook_apikey = data.get("apikey")
                     headers = {"apikey": webhook_apikey or os.getenv("EVOLUTION_API_KEY"), "Content-Type": "application/json"}
                     
-                    # Lista de endpoints para tentar (em ordem de probabilidade)
+                    webhook_instance_id = data.get("instanceId") or data.get("data", {}).get("instanceId")
+                    inst_ref = webhook_instance_id or empresa.evolution_instance
+                    
+                    # Lista de endpoints para tentar (em ordem de probabilidade, com e sem prefixo /v2)
                     endpoints_tentar = [
-                        f"{base_url_evolution}/message/getBase64FromMedia/{empresa.evolution_instance}",
-                        f"{base_url_evolution}/message/getBase64FromMedia",
-                        f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}",
-                        f"{base_url_evolution}/chat/downloadMedia/{empresa.evolution_instance}"
+                        f"{base_url_evolution}/message/getBase64FromMedia/{inst_ref}",
+                        f"{base_url_evolution}/v2/message/getBase64FromMedia/{inst_ref}",
+                        f"{base_url_evolution}/chat/getBase64FromMedia/{inst_ref}",
+                        f"{base_url_evolution}/v2/chat/getBase64FromMedia/{inst_ref}",
                     ]
                     
                     # Log de versão para debug (ajuda a saber qual documentação seguir)
