@@ -40,6 +40,7 @@ interface Template {
   tom_voz: string;
   missao: string;
   objetivo: string;
+  etapas_funil?: string[];
 }
 
 export default function AdminPage() {
@@ -163,6 +164,21 @@ export default function AdminPage() {
       fetchData();
     } catch (err) {
       alert("Erro ao excluir empresa.");
+    }
+  }
+
+  async function handleDeleteTemplate(id: string, nome: string) {
+    if (!confirm(`TEM CERTEZA? Isso apagará permanentemente o template "${nome}".`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`admin/templates/${id}`, {
+        headers: { "X-Admin-Token": adminToken }
+      });
+      fetchData();
+    } catch (err) {
+      alert("Erro ao excluir template. Certifique-se que o backend suporta esta operação.");
     }
   }
 
@@ -424,7 +440,7 @@ export default function AdminPage() {
                           tom_voz: t.tom_voz,
                           missao: t.missao,
                           objetivo: t.objetivo,
-                          etapas_funil: "novo, curioso, interessado, agendado" // Simplificado por enquanto
+                          etapas_funil: t.etapas_funil ? t.etapas_funil.join(", ") : "novo, curioso, interessado, agendado"
                         });
                         setShowTemplateModal(true);
                       }}
@@ -438,11 +454,21 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t.nome_nicho}</h3>
-                  <p className="text-slate-400 text-sm line-clamp-2 mt-1">{t.prompt_sistema}</p>
+                  <p className="text-slate-400 text-sm line-clamp-3 mt-1">{t.prompt_sistema}</p>
                 </div>
-                <div className="pt-4 flex gap-2">
-                  <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-slate-500">TOM: {t.tom_voz || "Neutro"}</span>
-                  <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-slate-500">OBJ: {t.objetivo?.slice(0, 10)}...</span>
+                <div className="pt-4 flex flex-wrap gap-2">
+                  <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 rounded text-purple-300 border border-purple-500/20">TOM: {t.tom_voz || "Neutro"}</span>
+                  {t.etapas_funil && t.etapas_funil.map(step => (
+                    <span key={step} className="text-[10px] px-2 py-0.5 bg-blue-500/10 rounded text-blue-300 border border-blue-500/20">{step}</span>
+                  ))}
+                </div>
+                <div className="pt-2">
+                   <button 
+                    onClick={() => handleDeleteTemplate(t.id, t.nome_nicho)}
+                    className="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={10} /> Excluir Template
+                  </button>
                 </div>
               </div>
             ))}

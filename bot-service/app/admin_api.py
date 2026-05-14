@@ -90,6 +90,16 @@ def atualizar_template(template_id: uuid.UUID, data: TemplateCreate, db: Session
     db.refresh(template)
     return template
 
+@router.delete("/templates/{template_id}", dependencies=[Depends(verify_admin)])
+def excluir_template(template_id: uuid.UUID, db: Session = Depends(get_db)):
+    template = db.query(PromptTemplate).filter(PromptTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    db.delete(template)
+    db.commit()
+    return {"status": "ok", "message": "Template excluído com sucesso"}
+
 @router.get("/empresas", response_model=List[EmpresaResponse], dependencies=[Depends(verify_admin)])
 def listar_empresas(db: Session = Depends(get_db)):
     empresas = db.query(Empresa).all()
