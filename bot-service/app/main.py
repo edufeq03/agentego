@@ -299,10 +299,17 @@ async def webhook(token: str, request: Request):
                     
                     # Lista de endpoints para tentar (em ordem de probabilidade)
                     endpoints_tentar = [
+                        f"{base_url_evolution}/chat/downloadMedia/{empresa.evolution_instance}",
                         f"{base_url_evolution}/message/getBase64FromMedia/{empresa.evolution_instance}",
                         f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}",
                         f"{base_url_evolution}/chat/getBase64FromMedia"
                     ]
+                    
+                    # Log de versão para debug (ajuda a saber qual documentação seguir)
+                    try:
+                        res_v = requests.get(f"{base_url_evolution}/version", headers=headers, timeout=5)
+                        logger.info(f"DEBUG EVOLUTION - Versão da API: {res_v.text}")
+                    except: pass
                     
                     payload_dl = {
                         "instance": empresa.evolution_instance,
