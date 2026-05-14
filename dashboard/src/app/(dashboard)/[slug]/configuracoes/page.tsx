@@ -18,7 +18,6 @@ interface ConfigData {
   conhecimento: Conhecimento[];
   regras_comportamento: string[];
   timezone: string;
-  timezone: string;
   // Campos legados mantidos para compatibilidade durante migração
   planos?: { basico: number; vip: number };
 }
@@ -32,7 +31,6 @@ export default function Configuracoes() {
     faq: [],
     conhecimento: [],
     regras_comportamento: [],
-    timezone: "America/Sao_Paulo",
     timezone: "America/Sao_Paulo"
   });
   
