@@ -291,39 +291,43 @@ async def webhook(token: str, request: Request):
                 cliente_enviou_audio = True
                 base64_audio = msg_obj.get("base64") or event_data.get("base64")
                 
-                # Tenta buscar dentro de audioMessage se não estiver no nível superior
+                # FALLBACK: Se ainda não tiver base64, tenta vários endpoints da Evolution
                 if not base64_audio and "audioMessage" in msg_obj:
-                    base64_audio = msg_obj["audioMessage"].get("base64")
+                    audio_msg = msg_obj["audioMessage"]
+                    from app.whatsapp_service import get_evolution_base_url
+                    base_url_evolution = get_evolution_base_url()
+                    
+                    # Lista de endpoints para tentar (em ordem de probabilidade)
+                    endpoints_tentar = [
+                        f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}",
+                        f"{base_url_evolution}/chat/getBase64FromMedia"
+                    ]
+                    
+                    payload_dl = {
+                        "instance": empresa.evolution_instance,
+                        "mediaKey": audio_msg.get("mediaKey"),
+                        "directPath": audio_msg.get("directPath"),
+                        "mimetype": audio_msg.get("mimetype"),
+                        "url": audio_msg.get("url"),
+                        "type": "audio"
+                    }
+                    headers = {"apikey": os.getenv("EVOLUTION_API_KEY"), "Content-Type": "application/json"}
+                    
+                    for url_dl in endpoints_tentar:
+                        try:
+                            logger.info(f"[{telefone}] Tentando descriptografia em: {url_dl}")
+                            res_dl = requests.post(url_dl, json=payload_dl, headers=headers, timeout=15)
+                            if res_dl.status_code in [200, 201]:
+                                base64_audio = res_dl.json().get("base64")
+                                if base64_audio:
+                                    logger.info(f"[{telefone}] Áudio descriptografado com SUCESSO via {url_dl.split('/')[-1]}")
+                                    break
+                            else:
+                                logger.warning(f"[{telefone}] Falha no endpoint {url_dl}: Status {res_dl.status_code}")
+                        except Exception as e:
+                            logger.error(f"Erro ao tentar {url_dl}: {e}")
                 
-                # FALLBACK: Se ainda não tiver base64, pede para a Evolution descriptografar via URL
-                if not base64_audio and "audioMessage" in msg_obj and "url" in msg_obj["audioMessage"]:
-                    url_audio = msg_obj["audioMessage"]["url"]
-                    logger.info(f"[{telefone}] Base64 ausente, solicitando descriptografia para Evolution...")
-                    try:
-                        from app.whatsapp_service import get_evolution_base_url
-                        base_url_evolution = get_evolution_base_url()
-                        # Tentativa 3: Usando chaves técnicas (mediaKey/directPath)
-                        url_download = f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}"
-                        
-                        audio_msg = msg_obj["audioMessage"]
-                        payload_dl = {
-                            "mediaKey": audio_msg.get("mediaKey"),
-                            "directPath": audio_msg.get("directPath"),
-                            "mimetype": audio_msg.get("mimetype"),
-                            "type": "audio"
-                        }
-                        headers = {"apikey": os.getenv("EVOLUTION_API_KEY"), "Content-Type": "application/json"}
-                        
-                        res_dl = requests.post(url_download, json=payload_dl, headers=headers, timeout=20)
-                        if res_dl.status_code in [200, 201]:
-                            base64_audio = res_dl.json().get("base64")
-                            logger.info(f"[{telefone}] Áudio descriptografado com sucesso pela Evolution.")
-                        else:
-                            logger.error(f"[{telefone}] Falha na descriptografia Evolution (Status {res_dl.status_code}): {res_dl.text}")
-                    except Exception as e:
-                        logger.error(f"[{telefone}] Erro ao chamar descriptografia Evolution: {e}")
-                
-                # Se agora temos o base64 (seja original ou via fallback)
+                # Se agora temos o base64
                 if base64_audio:
                     if "," in base64_audio:
                         base64_audio = base64_audio.split(",")[1]
