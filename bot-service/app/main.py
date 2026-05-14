@@ -341,17 +341,14 @@ async def webhook(token: str, request: Request):
                     
                     for url_dl in endpoints_tentar:
                         try:
-                            logger.info(f"[{telefone}] Tentando descriptografia em: {url_dl}")
                             res_dl = requests.post(url_dl, json=payload_dl, headers=headers, timeout=15)
                             if res_dl.status_code in [200, 201]:
                                 base64_audio = res_dl.json().get("base64")
                                 if base64_audio:
-                                    logger.info(f"[{telefone}] Áudio descriptografado com SUCESSO via {url_dl.split('/')[-1]}")
+                                    logger.info(f"[{telefone}] Áudio descriptografado via Evolution API.")
                                     break
-                            else:
-                                logger.warning(f"[{telefone}] Falha no endpoint {url_dl}: Status {res_dl.status_code}")
-                        except Exception as e:
-                            logger.error(f"Erro ao tentar {url_dl}: {e}")
+                        except Exception:
+                            continue
                 
                 # Se agora temos o base64
                 if base64_audio:
@@ -376,13 +373,11 @@ async def webhook(token: str, request: Request):
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                 else:
-                    logger.info(f"[{telefone}] Áudio recebido, mas 'base64' ausente.")
-                    logger.info(f"DEBUG ESTRUTURA - Chaves do Webhook: {list(data.keys())}")
-                    if 'data' in data: logger.info(f"DEBUG ESTRUTURA - Chaves de data['data']: {list(data['data'].keys())}")
-                    logger.info(f"DEBUG ESTRUTURA - Chaves de msg_obj: {list(msg_obj.keys())}")
-                    if 'audioMessage' in msg_obj: logger.info(f"DEBUG ESTRUTURA - Chaves de audioMessage: {list(msg_obj['audioMessage'].keys())}")
-                    
-                    return {"status": "ignorado", "motivo": "audio_sem_base64"}
+                    audio_content = None
+
+                if not audio_content:
+                    logger.info(f"[{telefone}] Webhook ignorado: Áudio recebido mas sem conteúdo legível.")
+                    return {"status": "ignorado", "motivo": "audio_sem_conteudo"}
 
         if not mensagem:
             logger.info(f"[{telefone}] Webhook ignorado: Mensagem sem texto ou tipo não suportado.")
