@@ -302,10 +302,11 @@ async def webhook(token: str, request: Request):
                     try:
                         from app.whatsapp_service import get_evolution_base_url
                         base_url_evolution = get_evolution_base_url()
-                        # Endpoint oficial da Evolution para baixar e converter media para base64
-                        url_download = f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}"
+                        # Tentativa 2: Sem a instância na URL (comum em algumas versões da v2)
+                        url_download = f"{base_url_evolution}/chat/getBase64FromMedia"
                         
                         payload_dl = {
+                            "instance": empresa.evolution_instance,
                             "url": url_audio,
                             "type": "audio"
                         }
