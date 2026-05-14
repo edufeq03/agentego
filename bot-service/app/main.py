@@ -294,12 +294,30 @@ async def webhook(token: str, request: Request):
                 if not base64_audio and "audioMessage" in msg_obj:
                     base64_audio = msg_obj["audioMessage"].get("base64")
                 
-                if base64_audio:
-                    if "," in base64_audio:
+                # FALLBACK: Se ainda não tiver base64, tenta baixar via URL
+                if not base64_audio and "audioMessage" in msg_obj and "url" in msg_obj["audioMessage"]:
+                    url_audio = msg_obj["audioMessage"]["url"]
+                    logger.info(f"[{telefone}] Base64 ausente, tentando baixar áudio via URL: {url_audio}")
+                    try:
+                        headers = {"apikey": os.getenv("EVOLUTION_API_KEY")}
+                        res_audio = requests.get(url_audio, headers=headers, timeout=10)
+                        if res_audio.status_code == 200:
+                            audio_content = res_audio.content
+                            logger.info(f"[{telefone}] Áudio baixado com sucesso ({len(audio_content)} bytes)")
+                        else:
+                            logger.error(f"[{telefone}] Falha ao baixar áudio (Status {res_audio.status_code})")
+                            audio_content = None
+                    except Exception as e:
+                        logger.error(f"[{telefone}] Erro ao baixar áudio da URL: {e}")
+                        audio_content = None
+                else:
+                    if base64_audio and "," in base64_audio:
                         base64_audio = base64_audio.split(",")[1]
-                    
+                    audio_content = base64.b64decode(base64_audio) if base64_audio else None
+
+                if audio_content:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
-                        temp_audio.write(base64.b64decode(base64_audio))
+                        temp_audio.write(audio_content)
                         temp_path = temp_audio.name
                     
                     try:
