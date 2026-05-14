@@ -29,13 +29,14 @@ export default function ConfiguracoesFalaPage() {
   useEffect(() => {
     async function loadConfig() {
       try {
-        const response = await api.get(`/dashboard/configuracoes/${slug}`);
+        const response = await api.get("/dashboard/config");
         if (response.data?.config) {
+          const configData = response.data.config;
           setConfig({
-            stt_enabled: response.data.config.stt_enabled !== false,
-            tts_enabled: response.data.config.tts_enabled !== false,
-            tts_always: response.data.config.tts_always === true,
-            tts_voice: response.data.config.tts_voice || "nova"
+            stt_enabled: configData.stt_enabled !== false,
+            tts_enabled: configData.tts_enabled !== false,
+            tts_always: configData.tts_always === true,
+            tts_voice: configData.tts_voice || "nova"
           });
         }
       } catch (error) {
@@ -51,7 +52,12 @@ export default function ConfiguracoesFalaPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      await api.post(`/dashboard/configuracoes/${slug}`, { config });
+      // Carrega a configuração atual primeiro para mesclar, 
+      // para não sobrescrever outros campos do Agent Builder
+      const currentRes = await api.get("/dashboard/config");
+      const fullConfig = { ...(currentRes.data?.config || {}), ...config };
+      
+      await api.put("/dashboard/config", fullConfig);
       alert("Configurações de fala atualizadas!");
     } catch (error) {
       console.error("Erro ao salvar:", error);
