@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -6,12 +6,17 @@ import pytz
 from typing import List, Dict, Any
 from pydantic import BaseModel
 
-from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario
+from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario, MembroAcademia
 from app.auth import verify_password, create_access_token, decode_access_token
 import logging
 import os
+import csv
+import io
+import uuid
+from dateutil import parser as dateparser
 from app import whatsapp_service
 from fastapi import BackgroundTasks
+from app.limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,7 +26,8 @@ class LoginRequest(BaseModel):
     password: str
 
 @router.post("/login")
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.email == req.email).first()
     if not usuario or not verify_password(req.password, usuario.senha_hash):
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
@@ -37,7 +43,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "slug": usuario.empresa.slug
+        "slug": usuario.empresa.slug,
+        "nicho": usuario.empresa.nicho or "generico"
     }
 
 def obter_empresa(authorization: str = Header(None), db: Session = Depends(get_db)):
@@ -259,13 +266,14 @@ def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(
     config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
     config_data = config_obj.config if config_obj else {}
     
-    # DEBUG: Para vermos o que está saindo para o Dashboard
-    print(f"DEBUG API -> Enviando config para {empresa.nome}: {config_data}")
+    # Log apenas da ação, sem expor o conteúdo sensível de config_data em INFO
+    logger.debug(f"Config enviada para {empresa.nome}")
     
     return {
         "config": config_data,
         "webhook_token": empresa.webhook_token,
-        "base_url": os.getenv("BASE_URL", "http://localhost:8000")
+        "base_url": os.getenv("BASE_URL", "http://localhost:8000"),
+        "nicho": empresa.nicho or "generico"
     }
 
 @router.put("/config")
@@ -425,5 +433,175 @@ def sync_whatsapp_config(empresa: Empresa = Depends(obter_empresa), db: Session 
         return {"status": "ok", "mensagem": "Configurações e comportamento sincronizados com sucesso!"}
             
     except Exception as e:
-        print(f"ERRO NA SINCRONIZAÇÃO: {e}")
+        logger.error(f"ERRO NA SINCRONIZAÇÃO: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+# --- ENDPOINTS DE MEMBROS (NICHO ACADEMIA) ---
+
+@router.post("/membros/importar-csv")
+async def importar_membros_csv(
+    file: UploadFile = File(...),
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Apenas arquivos .csv são aceitos")
+
+    conteudo = await file.read()
+    try:
+        texto = conteudo.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = conteudo.decode("latin-1")
+        
+    reader = csv.DictReader(io.StringIO(texto))
+
+    importados = 0
+    erros = []
+
+    for i, row in enumerate(reader):
+        try:
+            nome = row.get("nome") or row.get("Nome") or row.get("NOME")
+            telefone_raw = row.get("celular") or row.get("telefone") or \
+                           row.get("Celular") or row.get("Telefone")
+            vencimento_raw = row.get("vencimento") or row.get("data_vencimento") or \
+                             row.get("Vencimento") or row.get("Data Vencimento")
+            plano = row.get("plano") or row.get("Plano") or None
+
+            if not nome or not telefone_raw or not vencimento_raw:
+                erros.append(f"Linha {i+2}: campos obrigatórios ausentes")
+                continue
+
+            # Normalizar telefone
+            telefone = "".join(filter(str.isdigit, telefone_raw))
+            if len(telefone) == 11:
+                telefone = "55" + telefone
+            if len(telefone) not in [12, 13]:
+                erros.append(f"Linha {i+2}: telefone inválido ({telefone_raw})")
+                continue
+
+            # Parsear data
+            try:
+                data_venc = dateparser.parse(vencimento_raw, dayfirst=True)
+            except Exception:
+                erros.append(f"Linha {i+2}: data inválida ({vencimento_raw})")
+                continue
+
+            # Upsert
+            membro = db.query(MembroAcademia).filter(
+                MembroAcademia.empresa_id == empresa.id,
+                MembroAcademia.telefone == telefone
+            ).first()
+
+            if membro:
+                membro.nome = nome
+                membro.data_vencimento = data_venc
+                membro.plano_nome = plano
+                membro.ativo = True
+                membro.aviso_7_dias_enviado = False
+                membro.aviso_3_dias_enviado = False
+                membro.aviso_vencido_enviado = False
+                membro.atualizado_em = datetime.utcnow()
+            else:
+                novo = MembroAcademia(
+                    empresa_id=empresa.id,
+                    nome=nome,
+                    telefone=telefone,
+                    data_vencimento=data_venc,
+                    plano_nome=plano
+                )
+                db.add(novo)
+                importados += 1
+
+        except Exception as e:
+            erros.append(f"Linha {i+2}: erro inesperado ({str(e)})")
+
+    db.commit()
+    return {
+        "status": "ok",
+        "importados": importados,
+        "erros": erros,
+        "total_linhas": i + 1 if 'i' in locals() else 0
+    }
+
+@router.get("/membros")
+def listar_membros(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    membros = db.query(MembroAcademia).filter(
+        MembroAcademia.empresa_id == empresa.id
+    ).order_by(MembroAcademia.data_vencimento.asc()).all()
+
+    agora = datetime.utcnow()
+    resultado = []
+    for m in membros:
+        dias_restantes = (m.data_vencimento - agora).days
+        resultado.append({
+            "id": str(m.id),
+            "nome": m.nome,
+            "telefone": m.telefone,
+            "plano_nome": m.plano_nome,
+            "data_vencimento": m.data_vencimento.strftime("%d/%m/%Y"),
+            "dias_restantes": dias_restantes,
+            "status": "vencido" if dias_restantes < 0
+                      else "vencendo" if dias_restantes <= 7
+                      else "ativo"
+        })
+    return resultado
+
+@router.delete("/membros/{membro_id}")
+def remover_membro(
+    membro_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    membro = db.query(MembroAcademia).filter(
+        MembroAcademia.id == membro_id,
+        MembroAcademia.empresa_id == empresa.id
+    ).first()
+    if not membro:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    db.delete(membro)
+    db.commit()
+    return {"status": "ok"}
+
+# --- BROADCAST (NICHO ACADEMIA) ---
+
+async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
+    db = SessionLocal()
+    try:
+        empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+        if not empresa: return
+
+        membros = db.query(MembroAcademia).filter(
+            MembroAcademia.empresa_id == empresa_id,
+            MembroAcademia.ativo == True
+        ).all()
+
+        from app.whatsapp import enviar_whatsapp
+        import asyncio
+
+        for membro in membros:
+            try:
+                enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
+                # Delay de segurança para evitar banimento (3-7 segundos)
+                await asyncio.sleep(5) 
+            except Exception as e:
+                logger.error(f"Erro ao enviar comunicado para {membro.telefone}: {e}")
+    finally:
+        db.close()
+
+class ComunicadoRequest(BaseModel):
+    mensagem: str
+
+@router.post("/comunicados/enviar")
+async def enviar_comunicado(
+    req: ComunicadoRequest,
+    background_tasks: BackgroundTasks,
+    empresa: Empresa = Depends(obter_empresa)
+):
+    if not req.mensagem.strip():
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+    
+    background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem)
+    return {"status": "ok", "mensagem": "Disparo iniciado em segundo plano."}

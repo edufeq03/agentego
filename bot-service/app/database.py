@@ -8,7 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/atendimento")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL não definida. Abortando.")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -44,6 +46,7 @@ class Empresa(Base):
     
     data_criacao = Column(DateTime, server_default=func.now())
     etapas_funil = Column(JSONB, default=["novo", "curioso", "interessado", "agendado"])
+    nicho = Column(String, default="generico")
     
     # Relacionamentos
     configuracoes = relationship("Configuracao", back_populates="empresa", uselist=False, cascade="all, delete-orphan")
@@ -62,6 +65,7 @@ class PromptTemplate(Base):
     missao = Column(Text, nullable=True)
     objetivo = Column(Text, nullable=True)
     etapas_funil = Column(JSONB, default=["novo", "curioso", "interessado", "agendado"])
+    nicho = Column(String, default="generico")
     criado_em = Column(DateTime, default=datetime.utcnow)
 
 class Usuario(Base):
@@ -133,6 +137,58 @@ class Transbordo(Base):
     
     empresa = relationship("Empresa", back_populates="transbordos")
 
+class MembroAcademia(Base):
+    __tablename__ = "membros_academia"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    nome = Column(String, nullable=False)
+    telefone = Column(String, nullable=False)
+    data_vencimento = Column(DateTime, nullable=False)
+    plano_nome = Column(String, nullable=True)
+    ativo = Column(Boolean, default=True)
+    aviso_7_dias_enviado = Column(Boolean, default=False)
+    aviso_3_dias_enviado = Column(Boolean, default=False)
+    aviso_vencido_enviado = Column(Boolean, default=False)
+    importado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
+class EmpresaCliente(Base):
+    __tablename__ = "empresas_clientes"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    nome_empresa = Column(String, nullable=False)
+    cnpj = Column(String, nullable=True)
+    regime_tributario = Column(String, nullable=True)
+    contato_nome = Column(String, nullable=True)
+    contato_telefone = Column(String, nullable=True)
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+class ObrigacaoFiscal(Base):
+    __tablename__ = "obrigacoes_fiscais"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_cliente_id = Column(UUID(as_uuid=True), ForeignKey("empresas_clientes.id"), nullable=True)
+    titulo = Column(String, nullable=False)
+    descricao = Column(Text, nullable=True)
+    prazo = Column(DateTime, nullable=False)
+    status = Column(String, default="pendente")
+    aviso_enviado = Column(Boolean, default=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+class DocumentoLegal(Base):
+    __tablename__ = "documentos_legais"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    titulo = Column(String, nullable=False)
+    categoria = Column(String, nullable=True)
+    conteudo = Column(Text, nullable=False)
+    fonte = Column(String, nullable=True)
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -152,6 +208,69 @@ def init_db():
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_input_mes INTEGER DEFAULT 0'))
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tokens_output_mes INTEGER DEFAULT 0'))
             
+            # Nicho e Novas Tabelas
+            conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
+            conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
+            
+            # Tabelas específicas (manualmente se create_all falhar por algum motivo)
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS membros_academia (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    nome VARCHAR NOT NULL,
+                    telefone VARCHAR NOT NULL,
+                    data_vencimento TIMESTAMP NOT NULL,
+                    plano_nome VARCHAR,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    aviso_7_dias_enviado BOOLEAN DEFAULT FALSE,
+                    aviso_3_dias_enviado BOOLEAN DEFAULT FALSE,
+                    aviso_vencido_enviado BOOLEAN DEFAULT FALSE,
+                    importado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+            
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS empresas_clientes (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    nome_empresa VARCHAR NOT NULL,
+                    cnpj VARCHAR,
+                    regime_tributario VARCHAR,
+                    contato_nome VARCHAR,
+                    contato_telefone VARCHAR,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+            
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS obrigacoes_fiscais (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    empresa_cliente_id UUID REFERENCES empresas_clientes(id) ON DELETE SET NULL,
+                    titulo VARCHAR NOT NULL,
+                    descricao TEXT,
+                    prazo TIMESTAMP NOT NULL,
+                    status VARCHAR DEFAULT 'pendente',
+                    aviso_enviado BOOLEAN DEFAULT FALSE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+            
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS documentos_legais (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    titulo VARCHAR NOT NULL,
+                    categoria VARCHAR,
+                    conteudo TEXT NOT NULL,
+                    fonte VARCHAR,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
             conn.commit()
             
         print("Conexão com banco de dados estabelecida e migrações do SaaS concluídas.")

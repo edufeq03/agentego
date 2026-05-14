@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -11,14 +11,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const slug = params?.slug as string;
   const searchParams = useSearchParams();
-  const impersonateToken = searchParams.get('token');
+  const impersonateToken = searchParams.get('_imp');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [temConversaPausada, setTemConversaPausada] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [nicho, setNicho] = useState<string | null>(null);
 
   const navigation = [
     { name: "Visão Geral", href: `/${slug}`, icon: LayoutDashboard },
     { name: "Conectar WhatsApp", href: `/${slug}/whatsapp`, icon: Smartphone },
+    
+    // Nicho Academia
+    ...(nicho === 'academia' ? [
+      { name: "Gestão de Alunos", href: `/${slug}/alunos`, icon: Dumbbell },
+      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
+    ] : []),
+
+    // Nicho Contabilidade
+    ...(nicho === 'contabilidade' ? [
+      { name: "Empresas Clientes", href: `/${slug}/clientes`, icon: Briefcase },
+      { name: "Obrigações Fiscais", href: `/${slug}/obrigacoes`, icon: CalendarCheck },
+      { name: "Base Legal", href: `/${slug}/documentos`, icon: FileText },
+    ] : []),
+
     { name: "Funil de Vendas", href: `/${slug}/funil`, icon: Filter },
     { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
     { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
@@ -37,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (impersonateToken && slug) {
       localStorage.setItem('agentego_token', impersonateToken);
       localStorage.setItem('agentego_slug', slug);
-      // Limpa a URL imediatamente
+      // Limpa a URL imediatamente sem reload
       window.history.replaceState({}, '', `/${slug}`);
     }
 
@@ -73,6 +88,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const interval = setInterval(checkPausadas, 10000); // Check a cada 10s
     return () => clearInterval(interval);
   }, [isAuthenticated, pathname]);
+
+  // Busca o nicho da empresa
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    async function fetchConfig() {
+      try {
+        const response = await api.get('dashboard/config');
+        setNicho(response.data.nicho || 'generico');
+      } catch (error) {
+        console.error("Erro ao carregar nicho:", error);
+      }
+    }
+    fetchConfig();
+  }, [isAuthenticated]);
 
   function handleLogout() {
     localStorage.removeItem('agentego_token');

@@ -191,7 +191,7 @@ export default function AdminPage() {
       const { access_token, slug } = response.data;
       
       // Abre em uma nova aba passando o token via URL
-      const url = `/${slug}?token=${access_token}`;
+      const url = `/${slug}?_imp=${access_token}`;
       window.open(url, "_blank");
     } catch (err) {
       alert("Erro ao acessar dashboard do cliente.");

@@ -4,11 +4,16 @@ load_dotenv()
 import logging
 import requests
 from fastapi import FastAPI, Request, HTTPException, Depends
+from datetime import timedelta
 from sqlalchemy.orm import Session
 import asyncio
 
 from app.logger import setup_logging
 logger = setup_logging()
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.limiter import limiter
 
 from app.database import get_db, SessionLocal, Empresa, init_db
 from app.pipeline import processar_webhook
@@ -22,6 +27,8 @@ import base64
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -144,6 +151,129 @@ async def tarefa_manutencao_diaria():
     finally:
         db.close()
 
+async def tarefa_avisos_vencimento():
+    """Roda diariamente às 09:00 e envia avisos de vencimento de plano."""
+    logger.info("Iniciando tarefa de avisos de vencimento...")
+    db = SessionLocal()
+    try:
+        from app.database import MembroAcademia
+        from app.whatsapp import enviar_whatsapp
+        from datetime import datetime
+        agora = datetime.utcnow()
+
+        # Buscar membros ativos
+        membros_alertar = db.query(MembroAcademia).filter(
+            MembroAcademia.ativo == True
+        ).all()
+
+        for membro in membros_alertar:
+            dias = (membro.data_vencimento - agora).days
+            empresa = db.query(Empresa).filter(
+                Empresa.id == membro.empresa_id,
+                Empresa.ativo == True
+            ).first()
+            if not empresa:
+                continue
+
+            config = empresa.configuracoes.config if empresa.configuracoes else {}
+            nome_empresa = config.get("nome_empresa", empresa.nome)
+            nome_agente = config.get("nome_agente", "Assistente")
+
+            mensagem = None
+
+            if dias == 7 and not membro.aviso_7_dias_enviado:
+                mensagem = (
+                    f"Olá, *{membro.nome}*! 👋\n\n"
+                    f"Aqui é o(a) {nome_agente} da *{nome_empresa}*.\n\n"
+                    f"Passando para lembrar que seu plano "
+                    f"*{membro.plano_nome or 'atual'}* vence em "
+                    f"*7 dias* (dia {membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
+                    f"Para renovar ou tirar dúvidas, é só falar aqui! 😊"
+                )
+                membro.aviso_7_dias_enviado = True
+
+            elif dias == 3 and not membro.aviso_3_dias_enviado:
+                mensagem = (
+                    f"Olá, *{membro.nome}*! ⚠️\n\n"
+                    f"Seu plano *{membro.plano_nome or 'atual'}* na "
+                    f"*{nome_empresa}* vence em *3 dias* "
+                    f"(dia {membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
+                    f"Não deixe sua matrícula vencer! Renove agora e "
+                    f"continue treinando. 💪"
+                )
+                membro.aviso_3_dias_enviado = True
+
+            elif dias < 0 and not membro.aviso_vencido_enviado:
+                mensagem = (
+                    f"Olá, *{membro.nome}*! 😊\n\n"
+                    f"Seu plano na *{nome_empresa}* venceu em "
+                    f"{membro.data_vencimento.strftime('%d/%m/%Y')}.\n\n"
+                    f"Sentimos sua falta! Fale com a gente para renovar "
+                    f"e voltar a treinar. 🏋️"
+                )
+                membro.aviso_vencido_enviado = True
+
+            if mensagem:
+                try:
+                    enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
+                    logger.info(f"Aviso enviado para {membro.nome} ({membro.telefone})")
+                except Exception as e:
+                    logger.error(f"Falha ao enviar aviso para {membro.telefone}: {e}")
+
+        db.commit()
+    except Exception as e:
+        logger.error(f"Erro na tarefa de avisos: {e}")
+    finally:
+        db.close()
+
+async def tarefa_avisos_obrigacoes():
+    """Avisa o proprietário do escritório sobre obrigações nos próximos 3 dias."""
+    logger.info("Iniciando tarefa de avisos de obrigações fiscais...")
+    db = SessionLocal()
+    try:
+        from app.database import ObrigacaoFiscal
+        from app.whatsapp import enviar_whatsapp
+        from datetime import datetime, timedelta
+        agora = datetime.utcnow()
+        em_3_dias = agora + timedelta(days=3)
+
+        obrigacoes = db.query(ObrigacaoFiscal).filter(
+            ObrigacaoFiscal.prazo <= em_3_dias,
+            ObrigacaoFiscal.prazo >= agora,
+            ObrigacaoFiscal.status == "pendente",
+            ObrigacaoFiscal.aviso_enviado == False
+        ).all()
+
+        for ob in obrigacoes:
+            empresa = db.query(Empresa).filter(
+                Empresa.id == ob.empresa_id,
+                Empresa.ativo == True,
+                Empresa.telefone_proprietario.isnot(None)
+            ).first()
+            if not empresa:
+                continue
+
+            dias = (ob.prazo - agora).days
+            msg = (
+                f"⚠️ *Lembrete de Obrigação Fiscal*\n\n"
+                f"*{ob.titulo}*\n"
+                f"Prazo: *{ob.prazo.strftime('%d/%m/%Y')}* "
+                f"({'hoje' if dias == 0 else f'em {dias} dia(s)'})\n\n"
+                f"{ob.descricao or ''}"
+            )
+            try:
+                enviar_whatsapp(empresa.telefone_proprietario, msg, empresa.evolution_instance)
+                ob.aviso_enviado = True
+                logger.info(f"Aviso de obrigação enviado para {empresa.nome}")
+            except Exception as e:
+                logger.error(f"Falha ao enviar aviso de obrigação para {empresa.nome}: {e}")
+
+        db.commit()
+    except Exception as e:
+        logger.error(f"Erro na tarefa de obrigações: {e}")
+    finally:
+        db.close()
+
 @app.on_event("startup")
 def on_startup():
     init_db()
@@ -151,6 +281,10 @@ def on_startup():
     scheduler.add_job(tarefa_relatorio_semanal, 'cron', day_of_week='mon', hour=9, minute=0)
     # Agenda manutenção diária à meia-noite
     scheduler.add_job(tarefa_manutencao_diaria, 'cron', hour=0, minute=0)
+    # Agenda avisos de academia às 09:00
+    scheduler.add_job(tarefa_avisos_vencimento, 'cron', hour=9, minute=0)
+    # Agenda avisos de contabilidade às 08:00
+    scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0)
     scheduler.start()
     logger.info("Scheduler iniciado: Relatórios semanais (Seg 09h) e Manutenção (00h).")
 
@@ -223,6 +357,7 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 
 
 @app.post("/webhook/{token}")
+@limiter.limit("60/minute")
 async def webhook(token: str, request: Request):
     db = SessionLocal()
     try:

@@ -9,6 +9,8 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
     missao = config.get('missao') or identidade.get('missao') or 'Auxiliar clientes com clareza e eficiência.'
     tom_voz = config.get('tom_voz') or identidade.get('tom_voz') or 'Amigável e profissional.'
     instrucoes_adicionais = config.get('prompt_sistema') or config.get('instrucoes') or ''
+    nicho = config.get('nicho', 'generico')
+    documentos = config.get('documentos', [])
 
     # 1.1 Substituição automática de placeholders para evitar nomes genéricos do template
     def limpar_placeholders(texto):
@@ -68,6 +70,13 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
             else:
                 secoes_conhecimento += f"{conteudo}\n"
 
+    # 2.1 Documentos Legais (Específico Contabilidade)
+    if nicho == 'contabilidade' and documentos:
+        secoes_conhecimento += "\n=== BASE LEGAL E DOCUMENTOS ===\n"
+        secoes_conhecimento += "Use as informações abaixo para responder dúvidas técnicas:\n"
+        for doc in documentos:
+            secoes_conhecimento += f"\n- {doc.get('titulo', 'Documento')}:\n{doc.get('conteudo', '')}\n"
+
     # 3. Regras e Guardrails
     regras = config.get('regras', [
         "Identificar a necessidade do usuário com clareza.",
@@ -89,6 +98,10 @@ Você é {nome_agente}, {cargo} da {nome_empresa}.
 
 === INSTRUÇÕES ADICIONAIS ===
 {instrucoes_adicionais}
+
+=== NICHO DE ATUAÇÃO ===
+Você atua no nicho: {nicho.upper()}
+{"[IMPORTANTE: Você é um assistente de contabilidade. Seja preciso com termos técnicos e use a base legal fornecida.]" if nicho == 'contabilidade' else ""}
 
 === CONTEXTO ATUAL ===
 {contexto_tempo}

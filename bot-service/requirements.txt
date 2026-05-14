@@ -11,3 +11,6 @@ pyjwt
 bcrypt
 apscheduler
 redis
+slowapi
+python-dateutil
+python-multipart

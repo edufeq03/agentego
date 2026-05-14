@@ -10,7 +10,9 @@ async def security_middleware(request: Request, call_next):
     Garante que se houver um empresa_id na query string, ele bate com o token.
     
     IMPORTANTE: Este middleware NÃO protege contra injeção de IDs via PATH PARAMS (ex: /conversas/{telefone}).
-    A proteção de path params é responsabilidade do Depends(obter_empresa) em cada endpoint.
+    A proteção de path params é responsabilidade do Depends(obter_empresa) em cada endpoint, que valida o 
+    id_empresa do JWT contra a posse do recurso. Este middleware foca em auditoria de query params.
+    Design Decision: Isolamento de dados é garantido pela injeção de dependência 'obter_empresa'.
     """
     # Lista de caminhos que não precisam de verificação de empresa_id (públicos ou admin master)
     public_paths = ["/webhook", "/docs", "/openapi.json", "/api/admin", "/login"]

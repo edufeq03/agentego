@@ -2,7 +2,7 @@ import pytz
 import logging
 logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
-from app.database import SessionLocal, Empresa, Lead, Mensagem, Transbordo, Configuracao
+from app.database import SessionLocal, Empresa, Lead, Mensagem, Transbordo, Configuracao, DocumentoLegal
 from app.classifier import classificar_intencao, calcular_stage
 from app.agent import processar_mensagem_dinamica, processar_confirmacao_transbordo
 from app.context import gerar_contexto_tempo
@@ -130,6 +130,14 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
 
     configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
     contexto_tempo = gerar_contexto_tempo(configuracao)
+    
+    # Injeta nicho e documentos no config para o Agente
+    configuracao["nicho"] = empresa.nicho or "generico"
+    if configuracao["nicho"] == "contabilidade":
+        docs = db.query(DocumentoLegal).filter(DocumentoLegal.empresa_id == empresa.id, DocumentoLegal.ativo == True).all()
+        configuracao["documentos"] = [{"titulo": d.titulo, "conteudo": d.conteudo} for d in docs]
+    else:
+        configuracao["documentos"] = []
 
     if status_transbordo == "aguardando":
         resposta_raw, t_in, t_out = processar_confirmacao_transbordo(mensagem_texto, historico=historico)
