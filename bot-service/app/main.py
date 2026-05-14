@@ -298,10 +298,17 @@ async def webhook(token: str, request: Request):
                     base_url_evolution = get_evolution_base_url()
                     
                     # Lista de endpoints para tentar (em ordem de probabilidade)
+                    webhook_server_url = data.get("server_url")
+                    if webhook_server_url:
+                        logger.info(f"DEBUG EVOLUTION - Usando server_url do Webhook: {webhook_server_url}")
+                        base_url_evolution = webhook_server_url.rstrip('/')
+                    else:
+                        from app.whatsapp_service import get_evolution_base_url
+                        base_url_evolution = get_evolution_base_url().rstrip('/')
+
                     endpoints_tentar = [
                         f"{base_url_evolution}/chat/downloadMedia/{empresa.evolution_instance}",
                         f"{base_url_evolution}/message/getBase64FromMedia/{empresa.evolution_instance}",
-                        f"{base_url_evolution}/chat/getBase64FromMedia/{empresa.evolution_instance}",
                         f"{base_url_evolution}/chat/getBase64FromMedia"
                     ]
                     
