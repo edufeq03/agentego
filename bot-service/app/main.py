@@ -284,6 +284,7 @@ async def webhook(token: str, request: Request):
             if message_type == "audioMessage" or "audioMessage" in msg_obj:
                 config = empresa.configuracoes.config if empresa.configuracoes else {}
                 if not config.get("stt_enabled", False):
+                    logger.warning(f"[{telefone}] Áudio recebido, mas STT está DESATIVADO nas configurações.")
                     return {"status": "ignorado", "motivo": "stt_desativado"}
 
                 cliente_enviou_audio = True
@@ -310,6 +311,7 @@ async def webhook(token: str, request: Request):
                     return {"status": "ignorado", "motivo": "audio_sem_base64"}
 
         if not mensagem:
+            logger.info(f"[{telefone}] Webhook ignorado: Mensagem sem texto ou tipo não suportado.")
             return {"status": "ignorado", "motivo": "sem_texto"}
 
         # 3. Adicionar mensagem ao Buffer (Debounce)
