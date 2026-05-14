@@ -312,7 +312,12 @@ async def webhook(token: str, request: Request):
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                 else:
-                    logger.info(f"[{telefone}] Áudio recebido, mas campo 'base64' está ausente. Chaves disponíveis: {list(msg_obj.keys())}")
+                    logger.info(f"[{telefone}] Áudio recebido, mas 'base64' ausente.")
+                    logger.info(f"DEBUG ESTRUTURA - Chaves do Webhook: {list(data.keys())}")
+                    if 'data' in data: logger.info(f"DEBUG ESTRUTURA - Chaves de data['data']: {list(data['data'].keys())}")
+                    logger.info(f"DEBUG ESTRUTURA - Chaves de msg_obj: {list(msg_obj.keys())}")
+                    if 'audioMessage' in msg_obj: logger.info(f"DEBUG ESTRUTURA - Chaves de audioMessage: {list(msg_obj['audioMessage'].keys())}")
+                    
                     return {"status": "ignorado", "motivo": "audio_sem_base64"}
 
         if not mensagem:
