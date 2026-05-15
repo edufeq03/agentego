@@ -464,68 +464,78 @@ export default function Configuracoes() {
               <Clock className="text-green-400" size={20} />
               Horário de Funcionamento
             </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Segunda a Sexta</label>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="time" 
-                      value={parseTime(config.horarios?.semana || "").start}
-                      onChange={e => updateTime('semana', 'start', e.target.value)}
-                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                    <span className="text-slate-500">as</span>
-                    <input 
-                      type="time" 
-                      value={parseTime(config.horarios?.semana || "").end}
-                      onChange={e => updateTime('semana', 'end', e.target.value)}
-                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                  </div>
+            <div className="space-y-3">
+              {/* Segunda a Sexta */}
+              <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <Clock size={12} className="text-green-400" />
+                  Segunda a Sexta
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Sábados</label>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="time" 
-                      value={parseTime(config.horarios?.sabado || "").start}
-                      onChange={e => updateTime('sabado', 'start', e.target.value)}
-                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                    <span className="text-slate-500">as</span>
-                    <input 
-                      type="time" 
-                      value={parseTime(config.horarios?.sabado || "").end}
-                      onChange={e => updateTime('sabado', 'end', e.target.value)}
-                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.semana || "").start}
+                    onChange={e => updateTime('semana', 'start', e.target.value)}
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-green-500/50 transition-colors"
+                  />
+                  <span className="text-xs text-slate-600 font-medium">as</span>
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.semana || "").end}
+                    onChange={e => updateTime('semana', 'end', e.target.value)}
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-green-500/50 transition-colors"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Domingos / Feriados</label>
-                <div className="flex items-center gap-2">
+              {/* Sábados */}
+              <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <Clock size={12} className="text-blue-400" />
+                  Sábados
+                </div>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.sabado || "").start}
+                    onChange={e => updateTime('sabado', 'start', e.target.value)}
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+                  />
+                  <span className="text-xs text-slate-600 font-medium">as</span>
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.sabado || "").end}
+                    onChange={e => updateTime('sabado', 'end', e.target.value)}
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Domingos / Feriados */}
+              <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <Clock size={12} className="text-purple-400" />
+                  Domingos / Feriados
+                </div>
+                <div className="flex items-center gap-3">
                   <input 
                     type="time" 
                     value={parseTime(config.horarios?.domingo || "").start}
                     onChange={e => updateTime('domingo', 'start', e.target.value)}
-                    className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
                   />
-                  <span className="text-slate-500">as</span>
+                  <span className="text-xs text-slate-600 font-medium">as</span>
                   <input 
                     type="time" 
                     value={parseTime(config.horarios?.domingo || "").end}
                     onChange={e => updateTime('domingo', 'end', e.target.value)}
-                    className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    className="flex-1 bg-slate-900/50 border border-white/5 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
                   />
                 </div>
-                <p className="text-[10px] text-slate-500 italic leading-tight">Deixe em branco ou coloque horários iguais se estiver fechado.</p>
+                <p className="text-[9px] text-slate-600 italic">Deixe em branco se estiver fechado.</p>
               </div>
 
-              <div className="space-y-1 pt-2">
+              <div className="space-y-1 pt-4">
                 <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Fuso Horário (Timezone)</label>
                 <select 
                   value={config.timezone}
