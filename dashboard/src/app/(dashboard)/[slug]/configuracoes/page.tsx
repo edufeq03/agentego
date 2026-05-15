@@ -16,9 +16,10 @@ interface ConfigData {
   horarios: { semana: string; sabado: string };
   faq: { pergunta: string; resposta: string }[];
   conhecimento: Conhecimento[];
+  planos_detalhados: { nome: string; valor: number; periodicidade: string; descricao: string }[];
   regras_comportamento: string[];
   timezone: string;
-  // Campos legados mantidos para compatibilidade durante migração
+  // Campos legados mantidos para compatibilidade
   planos?: { basico: number; vip: number };
   aviso_vencimento_1?: number;
   aviso_vencimento_2?: number;
@@ -33,6 +34,7 @@ export default function Configuracoes() {
     horarios: { semana: "", sabado: "" },
     faq: [],
     conhecimento: [],
+    planos_detalhados: [],
     regras_comportamento: [],
     timezone: "America/Sao_Paulo",
     aviso_vencimento_1: 7,
@@ -68,6 +70,7 @@ export default function Configuracoes() {
             },
             faq: Array.isArray(configData.faq) ? configData.faq : [],
             conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
+            planos_detalhados: Array.isArray(configData.planos_detalhados) ? configData.planos_detalhados : [],
             regras_comportamento: Array.isArray(configData.regras_comportamento) ? configData.regras_comportamento : [],
             timezone: configData.timezone || "America/Sao_Paulo",
             aviso_vencimento_1: configData.aviso_vencimento_1 ?? 7,
@@ -148,8 +151,26 @@ export default function Configuracoes() {
 
   const updateFAQ = (index: number, field: 'pergunta' | 'resposta', value: string) => {
     const newItems = [...config.faq];
-    newItems[index] = { ...newItems[index], [field]: value };
     setConfig({ ...config, faq: newItems });
+  };
+
+  const addPlano = () => {
+    setConfig({
+      ...config,
+      planos_detalhados: [...(config.planos_detalhados || []), { nome: "", valor: 0, periodicidade: "mensal", descricao: "" }]
+    });
+  };
+
+  const removePlano = (index: number) => {
+    const newItems = [...config.planos_detalhados];
+    newItems.splice(index, 1);
+    setConfig({ ...config, planos_detalhados: newItems });
+  };
+
+  const updatePlano = (index: number, field: string, value: any) => {
+    const newItems = [...config.planos_detalhados];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setConfig({ ...config, planos_detalhados: newItems });
   };
 
   if (loading) {
@@ -318,31 +339,84 @@ export default function Configuracoes() {
 
         {/* Sidebar: Configurações Rápidas */}
         <div className="space-y-8">
-          {/* Planos */}
+          {/* 4. Planos e Mensalidades (Dinamizado) */}
           <section className="glass-panel p-6 space-y-6">
-            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
-              <CreditCard className="text-orange-400" size={20} />
-              Mensalidades / Preços
+            <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2 text-white font-semibold text-lg">
+                <CreditCard className="text-orange-400" size={20} />
+                Planos e Mensalidades
+              </div>
+              <button 
+                onClick={addPlano}
+                type="button"
+                className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
+              >
+                <Plus size={14} /> Adicionar Plano
+              </button>
             </div>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Plano Básico (R$)</label>
-                <input 
-                  type="number" 
-                  value={config.planos?.basico || 0}
-                  onChange={e => setConfig({...config, planos: { basico: Number(e.target.value), vip: config.planos?.vip || 0 }})}
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Plano VIP / Premium (R$)</label>
-                <input 
-                  type="number" 
-                  value={config.planos?.vip || 0}
-                  onChange={e => setConfig({...config, planos: { basico: config.planos?.basico || 0, vip: Number(e.target.value) }})}
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                />
-              </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {config.planos_detalhados?.map((plano, index) => (
+                <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group space-y-3">
+                  <button 
+                    onClick={() => removePlano(index)}
+                    className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-10"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold">Nome do Plano</label>
+                      <input 
+                        placeholder="Ex: Semestral"
+                        value={plano.nome}
+                        onChange={e => updatePlano(index, 'nome', e.target.value)}
+                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase font-bold">Valor (R$)</label>
+                      <input 
+                        type="number"
+                        value={plano.valor}
+                        onChange={e => updatePlano(index, 'valor', Number(e.target.value))}
+                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase font-bold">Ciclo</label>
+                      <select 
+                        value={plano.periodicidade}
+                        onChange={e => updatePlano(index, 'periodicidade', e.target.value)}
+                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-xs text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      >
+                        <option value="mensal">Mensal</option>
+                        <option value="trimestral">Trimestral</option>
+                        <option value="semestral">Semestral</option>
+                        <option value="anual">Anual</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold">Observação / Destaque</label>
+                      <input 
+                        placeholder="Ex: Recorrência no cartão"
+                        value={plano.descricao}
+                        onChange={e => updatePlano(index, 'descricao', e.target.value)}
+                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(!config.planos_detalhados || config.planos_detalhados.length === 0) && (
+                <div className="col-span-full py-8 text-center text-slate-500 text-sm italic glass-panel border-dashed">
+                  Nenhum plano cadastrado. Clique em "Adicionar Plano" para começar.
+                </div>
+              )}
             </div>
           </section>
 

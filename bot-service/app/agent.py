@@ -54,6 +54,20 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
             else:
                 secoes_conhecimento += f"{conteudo}\n"
 
+    # 2.0.2 - Planos e Mensalidades (Dinamizados)
+    planos_detalhados = config.get('planos_detalhados', [])
+    if isinstance(planos_detalhados, list) and planos_detalhados:
+        secoes_conhecimento += "\n=== PLANOS E MENSALIDADES ===\n"
+        for p in planos_detalhados:
+            if isinstance(p, dict):
+                nome = p.get('nome', 'Plano')
+                valor = p.get('valor', 0)
+                ciclo = p.get('periodicidade', 'mensal')
+                obs = p.get('descricao', '')
+                secoes_conhecimento += f"- {nome}: R$ {valor} ({ciclo})"
+                if obs: secoes_conhecimento += f" | Obs: {obs}"
+                secoes_conhecimento += "\n"
+
     # Fallback para nicho de academia legado (planos/horários em campos separados)
     if not secoes_conhecimento and ('planos' in config or 'horarios' in config):
         planos = config.get('planos', {})
