@@ -68,11 +68,18 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
                 if obs: secoes_conhecimento += f" | Obs: {obs}"
                 secoes_conhecimento += "\n"
 
-    # Fallback para nicho de academia legado (planos/horários em campos separados)
-    if not secoes_conhecimento and ('planos' in config or 'horarios' in config):
+    # 2.0.3 - Horários de Funcionamento (Dinamizados)
+    horarios = config.get('horarios', {})
+    if horarios:
+        secoes_conhecimento += "\n=== HORÁRIO DE FUNCIONAMENTO ===\n"
+        secoes_conhecimento += f"- Segunda a Sexta: {horarios.get('semana', 'Não informado')}\n"
+        secoes_conhecimento += f"- Sábados: {horarios.get('sabado', 'Não informado')}\n"
+        secoes_conhecimento += f"- Domingos e Feriados: {horarios.get('domingo', 'Fechado')}\n"
+
+    # Fallback para nicho de academia legado (apenas planos se ainda não houver seções)
+    if not secoes_conhecimento and 'planos' in config:
         planos = config.get('planos', {})
-        horarios = config.get('horarios', {})
-        secoes_conhecimento += f"=== INFORMAÇÕES DA ACADEMIA ===\nPlanos: {planos}\nHorários: {horarios}\n"
+        secoes_conhecimento += f"=== PLANOS DA ACADEMIA ===\n{planos}\n"
 
     # 2.0.1 - Prioridade para FAQ e Conhecimento Geral (se existirem como campos planos)
     faq = config.get('faq', [])
