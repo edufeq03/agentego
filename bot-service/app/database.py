@@ -7,6 +7,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
+import logging
+logger = logging.getLogger(__name__)
+
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
