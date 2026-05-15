@@ -42,6 +42,7 @@ export default function Configuracoes() {
   
   const [webhookToken, setWebhookToken] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [telefoneProprietario, setTelefoneProprietario] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -76,6 +77,7 @@ export default function Configuracoes() {
         }
         setWebhookToken(webhook_token || "");
         setBaseUrl(base_url || "");
+        setTelefoneProprietario(response.data.telefone_proprietario || "");
       } catch (error) {
         console.error("Erro ao buscar configurações:", error);
       } finally {
@@ -98,7 +100,10 @@ export default function Configuracoes() {
     setSaved(false);
     
     try {
-      await api.put("dashboard/config", config);
+      await api.put("dashboard/config", {
+        config: config,
+        telefone_proprietario: telefoneProprietario
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
@@ -442,6 +447,21 @@ export default function Configuracoes() {
             <p className="text-xs text-[var(--color-foreground-muted)]">
               O relatório semanal é enviado automaticamente toda segunda-feira às 09:00 para o telefone do proprietário.
             </p>
+
+            <div className="space-y-1 pb-4">
+              <label className="text-[10px] font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Seu Telefone (WhatsApp)</label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-foreground-muted)]" size={16} />
+                <input 
+                  type="text" 
+                  value={telefoneProprietario}
+                  onChange={e => setTelefoneProprietario(e.target.value)}
+                  placeholder="Ex: 5511999999999"
+                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-[var(--color-brand-500)]"
+                />
+              </div>
+            </div>
+
             <button 
               onClick={async () => {
                 try {

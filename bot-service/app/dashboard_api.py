@@ -280,18 +280,26 @@ def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(
     
     return {
         "config": config_data,
+        "telefone_proprietario": empresa.telefone_proprietario,
         "webhook_token": empresa.webhook_token,
         "base_url": os.getenv("BASE_URL", "http://localhost:8000"),
         "nicho": empresa.nicho or "generico"
     }
 
 @router.put("/config")
-def update_config(config_data: dict, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
-    if empresa.configuracoes:
-        empresa.configuracoes.config = config_data
-    else:
-        nova_config = Configuracao(empresa_id=empresa.id, config=config_data)
-        db.add(nova_config)
+def update_config(payload: dict, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    config_data = payload.get("config")
+    telefone = payload.get("telefone_proprietario")
+    
+    if config_data:
+        if empresa.configuracoes:
+            empresa.configuracoes.config = config_data
+        else:
+            nova_config = Configuracao(empresa_id=empresa.id, config=config_data)
+            db.add(nova_config)
+            
+    if telefone is not None:
+        empresa.telefone_proprietario = telefone
     
     db.commit()
     return {"status": "ok", "mensagem": "Configurações atualizadas com sucesso"}
