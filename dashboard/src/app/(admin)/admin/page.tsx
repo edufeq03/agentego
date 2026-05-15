@@ -14,8 +14,10 @@ import {
   ArrowRight,
   ShieldCheck,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Activity
 } from "lucide-react";
+import Link from "next/link";
 
 interface Empresa {
   id: string;
@@ -444,6 +446,13 @@ export default function AdminPage() {
                         >
                           <ExternalLink size={18} />
                         </button>
+                        <Link 
+                          href={`/admin/diagnostico/${empresa.id}`}
+                          className="p-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20"
+                          title="Diagnóstico de Integração"
+                        >
+                          <Activity size={18} />
+                        </Link>
                         <button 
                           onClick={() => toggleStatus(emp.id)}
                           className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}

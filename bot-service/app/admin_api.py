@@ -7,6 +7,8 @@ from typing import List, Optional
 from datetime import datetime
 import os
 import uuid
+from app import whatsapp_service
+from app.database import Evento
 
 router = APIRouter()
 
@@ -309,3 +311,65 @@ async def trigger_reports_manual():
     except Exception as e:
         logger.error(f"Erro ao disparar relatórios manuais: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/empresas/{empresa_id}/diagnostico", dependencies=[Depends(verify_admin)])
+def diagnostico_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # 1. Status de Conexão na Evolution
+    status_conexao = "desconhecido"
+    if empresa.evolution_instance:
+        status_conexao = whatsapp_service.get_connection_status(empresa.evolution_instance)
+    
+    # 2. Diagnóstico de Webhook
+    webhook_atual = None
+    if empresa.evolution_instance:
+        webhook_atual = whatsapp_service.find_webhook(empresa.evolution_instance)
+    
+    base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+    webhook_esperado = f"{base_url}/webhook/{empresa.webhook_token}"
+    
+    webhook_ok = (webhook_atual == webhook_esperado)
+    
+    # 3. Saúde da Configuração (AI)
+    config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+    ia_configurada = False
+    if config_obj and config_obj.config:
+        c = config_obj.config
+        # Verifica se tem o básico
+        if c.get("prompt_sistema") or (c.get("identidade") and c["identidade"].get("missao")):
+            ia_configurada = True
+            
+    # 4. Últimos Eventos (Log de Atividades)
+    eventos = db.query(Evento).filter(Evento.empresa_id == empresa.id).order_by(Evento.timestamp.desc()).limit(10).all()
+    log_atividades = []
+    for ev in eventos:
+        log_atividades.append({
+            "timestamp": ev.timestamp.isoformat(),
+            "tipo": ev.tipo,
+            "metadata": ev.metadata_
+        })
+        
+    return {
+        "empresa": {
+            "nome": empresa.nome,
+            "id": str(empresa.id),
+            "ativa": empresa.ativo,
+            "telefone": empresa.telefone_whatsapp
+        },
+        "integracao": {
+            "instancia": empresa.evolution_instance,
+            "status_conexao": status_conexao,
+            "webhook_atual": webhook_atual,
+            "webhook_esperado": webhook_esperado,
+            "webhook_ok": webhook_ok,
+            "base_url_configurada": base_url
+        },
+        "configuracao_ia": {
+            "ok": ia_configurada,
+            "nicho": empresa.nicho
+        },
+        "ultimos_eventos": log_atividades
+    }

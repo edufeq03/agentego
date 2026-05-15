@@ -121,6 +121,24 @@ def set_webhook(instance_name: str, webhook_url: str):
         logger.error(f"Erro ao configurar webhook para {instance_name}: {e}")
         return False, str(e)
 
+def find_webhook(instance_name: str) -> Optional[str]:
+    """Busca a URL do webhook atualmente configurada na instância."""
+    base_url = get_evolution_base_url()
+    url = f"{base_url}/webhook/find/{instance_name}"
+    
+    try:
+        response = requests.get(url, headers=get_headers(), timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            # A Evolution retorna uma lista de webhooks ou um objeto dependendo da versão
+            if isinstance(data, list) and len(data) > 0:
+                return data[0].get("url")
+            return data.get("url")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao buscar webhook para {instance_name}: {e}")
+        return None
+
 def logout_instance(instance_name: str) -> bool:
     """Desconecta o WhatsApp da instância."""
     base_url = get_evolution_base_url()
