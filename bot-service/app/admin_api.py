@@ -300,12 +300,12 @@ def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
     }
 
 @router.get("/debug/trigger-reports", dependencies=[Depends(verify_admin)])
-def trigger_reports_manual():
+async def trigger_reports_manual():
     """Gatilho manual para testar o envio de relatórios semanais."""
     try:
         from app.main import tarefa_relatorio_semanal
-        tarefa_relatorio_semanal()
-        return {"status": "ok", "message": "Disparo de relatórios iniciado com sucesso."}
+        await tarefa_relatorio_semanal()
+        return {"status": "ok", "message": "Disparo de relatórios finalizado com sucesso."}
     except Exception as e:
         logger.error(f"Erro ao disparar relatórios manuais: {e}")
         raise HTTPException(status_code=500, detail=str(e))

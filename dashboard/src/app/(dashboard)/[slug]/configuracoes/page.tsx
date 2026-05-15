@@ -433,6 +433,30 @@ export default function Configuracoes() {
               Dica: Use 0 para avisar no dia exato do vencimento.
             </p>
           </section>
+          {/* Relatório de Performance */}
+          <section className="glass-panel p-6 space-y-6">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <Users className="text-green-400" size={20} />
+              Relatório de Performance
+            </div>
+            <p className="text-xs text-[var(--color-foreground-muted)]">
+              O relatório semanal é enviado automaticamente toda segunda-feira às 09:00 para o telefone do proprietário.
+            </p>
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await api.post("dashboard/relatorio-semanal/enviar-agora");
+                  alert("Relatório enviado com sucesso para o seu WhatsApp!");
+                } catch (e) {
+                  alert("Erro ao enviar relatório. Verifique se o seu telefone de proprietário está configurado.");
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)] border border-[var(--color-border)] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+            >
+              <Users size={16} /> Enviar Relatório Agora (Teste)
+            </button>
+          </section>
+
           {/* Integração Técnica (Webhook) */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
