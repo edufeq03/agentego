@@ -447,7 +447,7 @@ export default function AdminPage() {
                           <ExternalLink size={18} />
                         </button>
                         <Link 
-                          href={`/admin/diagnostico/${empresa.id}`}
+                          href={`/admin/diagnostico/${emp.id}`}
                           className="p-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20"
                           title="Diagnóstico de Integração"
                         >
