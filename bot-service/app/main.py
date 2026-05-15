@@ -382,6 +382,10 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
             logger.info(f"[{telefone}] Número pausado (transbordo ativo). Mensagem ignorada.")
             return
 
+        if resultado["status"] == "ignorado":
+            logger.info(f"🚫 [{telefone}] MENSAGEM BLOQUEADA (Blacklist). Nenhuma resposta será enviada.")
+            return
+
         resposta = resultado["resposta"]
         logger.info(f"[{telefone}] Cliente: '{texto_combinado}' -> IA: '{resposta}'")
 
