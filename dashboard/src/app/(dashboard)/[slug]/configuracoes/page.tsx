@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck } from "lucide-react";
+import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck, Tag, DollarSign, Calendar, Info } from "lucide-react";
 
 interface Conhecimento {
   categoria: string;
@@ -349,72 +349,96 @@ export default function Configuracoes() {
               <button 
                 onClick={addPlano}
                 type="button"
-                className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
+                className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors bg-white/5 px-2 py-1 rounded-lg border border-white/10"
               >
                 <Plus size={14} /> Adicionar Plano
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {config.planos_detalhados?.map((plano, index) => (
-                <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group space-y-3">
+                <div key={index} className="bg-white/5 rounded-2xl p-5 border border-white/10 relative group hover:bg-white/10 transition-all">
                   <button 
                     onClick={() => removePlano(index)}
-                    className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-10"
+                    className="absolute top-4 right-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={16} />
                   </button>
                   
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <label className="text-[10px] text-slate-500 uppercase font-bold">Nome do Plano</label>
+                  <div className="space-y-4">
+                    {/* Nome do Plano */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <Tag size={12} className="text-orange-400" />
+                        Nome do Plano
+                      </div>
                       <input 
-                        placeholder="Ex: Semestral"
+                        placeholder="Ex: Plano Semestral VIP"
                         value={plano.nome}
                         onChange={e => updatePlano(index, 'nome', e.target.value)}
-                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2.5 px-4 text-white font-semibold focus:outline-none focus:border-orange-500/50 transition-colors"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] text-slate-500 uppercase font-bold">Valor (R$)</label>
-                      <input 
-                        type="number"
-                        value={plano.valor}
-                        onChange={e => updatePlano(index, 'valor', Number(e.target.value))}
-                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                      />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Valor */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          <DollarSign size={12} className="text-green-400" />
+                          Valor
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">R$</span>
+                          <input 
+                            type="number"
+                            value={plano.valor}
+                            onChange={e => updatePlano(index, 'valor', Number(e.target.value))}
+                            className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-white font-bold focus:outline-none focus:border-green-500/50 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Ciclo */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          <Calendar size={12} className="text-blue-400" />
+                          Ciclo
+                        </div>
+                        <select 
+                          value={plano.periodicidade}
+                          onChange={e => updatePlano(index, 'periodicidade', e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-blue-500/50 transition-colors appearance-none cursor-pointer"
+                        >
+                          <option value="mensal">Mensal</option>
+                          <option value="trimestral">Trimestral</option>
+                          <option value="semestral">Semestral</option>
+                          <option value="anual">Anual</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] text-slate-500 uppercase font-bold">Ciclo</label>
-                      <select 
-                        value={plano.periodicidade}
-                        onChange={e => updatePlano(index, 'periodicidade', e.target.value)}
-                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-xs text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                      >
-                        <option value="mensal">Mensal</option>
-                        <option value="trimestral">Trimestral</option>
-                        <option value="semestral">Semestral</option>
-                        <option value="anual">Anual</option>
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] text-slate-500 uppercase font-bold">Observação / Destaque</label>
+
+                    {/* Observação */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <Info size={12} className="text-purple-400" />
+                        Destaque / Observação
+                      </div>
                       <input 
-                        placeholder="Ex: Recorrência no cartão"
+                        placeholder="Ex: Recorrência no cartão (Sem ocupar limite)"
                         value={plano.descricao}
                         onChange={e => updatePlano(index, 'descricao', e.target.value)}
-                        className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1 px-2 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl py-2.5 px-4 text-sm text-slate-300 focus:outline-none focus:border-purple-500/50 transition-colors"
                       />
                     </div>
                   </div>
                 </div>
               ))}
+              
               {(!config.planos_detalhados || config.planos_detalhados.length === 0) && (
-                <div className="col-span-full py-8 text-center text-slate-500 text-sm italic glass-panel border-dashed">
-                  Nenhum plano cadastrado. Clique em "Adicionar Plano" para começar.
+                <div className="flex flex-col items-center justify-center py-12 px-4 rounded-2xl border-2 border-dashed border-white/5 bg-white/[0.02]">
+                  <CreditCard className="text-slate-700 mb-3" size={40} />
+                  <p className="text-slate-500 text-sm font-medium">Nenhum plano cadastrado</p>
+                  <p className="text-slate-600 text-[10px] uppercase tracking-widest mt-1">Adicione planos para seu agente oferecer</p>
                 </div>
               )}
             </div>
