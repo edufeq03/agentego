@@ -103,10 +103,17 @@ def gerar_contexto_tempo(config: dict) -> str:
     horarios = config.get('horarios', {})
     status = esta_aberto(agora, horarios)
     
-    contexto = f"Hoje é {dia_str}, e a hora atual é {hora_str}."
-    contexto += f"\nStatus do estabelecimento agora: {status}."
+    contexto = f"=== CONTEXTO DE TEMPO (CRÍTICO) ===\n"
+    contexto += f"Data/Hora Atual: {dia_str}, às {hora_str}.\n"
+    contexto += f"Fuso Horário Configurado: {tz_name}.\n"
+    contexto += f"Status de Funcionamento AGORA: {status}.\n"
     
     if status == "FECHADO" or status == "INTERVALO":
-        contexto += "\n(IMPORTANTE: O estabelecimento está fechado ou em intervalo agora. Avise o cliente se necessário, mas continue o atendimento normalmente.)"
+        contexto += "(IMPORTANTE: Você deve informar ao cliente que o estabelecimento está fechado no momento se ele perguntar ou tentar agendar algo para agora, mas pode continuar tirando dúvidas normalmente.)"
+    else:
+        contexto += "(O estabelecimento está aberto. Você pode incentivar o cliente a vir conhecer o espaço agora mesmo!)"
+        
+    logger.info(f"Contexto gerado: {dia_str} {hora_str} - Status: {status}")
+    return contexto
         
     return contexto

@@ -13,7 +13,7 @@ interface ConfigData {
   nome_agente: string;
   nome_empresa: string;
   endereco: string;
-  horarios: { semana: string; sabado: string };
+  horarios: { semana: string; sabado: string; domingo?: string };
   faq: { pergunta: string; resposta: string }[];
   conhecimento: Conhecimento[];
   planos_detalhados: { nome: string; valor: number; periodicidade: string; descricao: string }[];
@@ -31,7 +31,7 @@ export default function Configuracoes() {
     nome_agente: "",
     nome_empresa: "",
     endereco: "",
-    horarios: { semana: "", sabado: "" },
+    horarios: { semana: "", sabado: "", domingo: "" },
     faq: [],
     conhecimento: [],
     planos_detalhados: [],
@@ -66,7 +66,8 @@ export default function Configuracoes() {
             endereco: configData.endereco || "",
             horarios: {
               semana: configData.horarios?.semana || "",
-              sabado: configData.horarios?.sabado || ""
+              sabado: configData.horarios?.sabado || "",
+              domingo: configData.horarios?.domingo || ""
             },
             faq: Array.isArray(configData.faq) ? configData.faq : [],
             conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
@@ -171,6 +172,19 @@ export default function Configuracoes() {
     const newItems = [...config.planos_detalhados];
     newItems[index] = { ...newItems[index], [field]: value };
     setConfig({ ...config, planos_detalhados: newItems });
+  };
+
+  const parseTime = (val: string) => {
+    if (!val || !val.includes(' as ')) return { start: "", end: "" };
+    const [start, end] = val.split(' as ');
+    return { start, end };
+  };
+
+  const updateTime = (day: 'semana' | 'sabado' | 'domingo', type: 'start' | 'end', val: string) => {
+    const current = parseTime(config.horarios[day] || "");
+    const updated = { ...current, [type]: val };
+    const newStr = updated.start && updated.end ? `${updated.start} as ${updated.end}` : "";
+    setConfig(prev => ({ ...prev, horarios: { ...prev.horarios, [day]: newStr } }));
   };
 
   if (loading) {
@@ -451,27 +465,67 @@ export default function Configuracoes() {
               Horário de Funcionamento
             </div>
             <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Segunda a Sexta</label>
-                <input 
-                  type="text" 
-                  value={config.horarios?.semana || ""}
-                  onChange={e => setConfig({...config, horarios: { semana: e.target.value, sabado: config.horarios?.sabado || "" }})}
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  placeholder="Ex: 08:00 as 18:00"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Segunda a Sexta</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="time" 
+                      value={parseTime(config.horarios?.semana || "").start}
+                      onChange={e => updateTime('semana', 'start', e.target.value)}
+                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    />
+                    <span className="text-slate-500">as</span>
+                    <input 
+                      type="time" 
+                      value={parseTime(config.horarios?.semana || "").end}
+                      onChange={e => updateTime('semana', 'end', e.target.value)}
+                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Sábados</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="time" 
+                      value={parseTime(config.horarios?.sabado || "").start}
+                      onChange={e => updateTime('sabado', 'start', e.target.value)}
+                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    />
+                    <span className="text-slate-500">as</span>
+                    <input 
+                      type="time" 
+                      value={parseTime(config.horarios?.sabado || "").end}
+                      onChange={e => updateTime('sabado', 'end', e.target.value)}
+                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)]">Sábados / Feriados</label>
-                <input 
-                  type="text" 
-                  value={config.horarios?.sabado || ""}
-                  onChange={e => setConfig({...config, horarios: { semana: config.horarios?.semana || "", sabado: e.target.value }})}
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  placeholder="Ex: 08:00 as 14:00"
-                />
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Domingos / Feriados</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.domingo || "").start}
+                    onChange={e => updateTime('domingo', 'start', e.target.value)}
+                    className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <span className="text-slate-500">as</span>
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.domingo || "").end}
+                    onChange={e => updateTime('domingo', 'end', e.target.value)}
+                    className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 italic leading-tight">Deixe em branco ou coloque horários iguais se estiver fechado.</p>
               </div>
-              <div className="space-y-1">
+
+              <div className="space-y-1 pt-2">
                 <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Fuso Horário (Timezone)</label>
                 <select 
                   value={config.timezone}
