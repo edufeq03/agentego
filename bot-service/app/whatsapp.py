@@ -96,11 +96,10 @@ def enviar_imagem_whatsapp(numero, imagem_url_ou_base64, legenda, instance_name)
     
     payload = {
         "number": numero,
-        "mediaMessage": {
-            "mediatype": "image",
-            "caption": legenda,
-            "media": imagem_url_ou_base64
-        }
+        "mediatype": "image",
+        "mimetype": "image/jpeg",
+        "caption": legenda,
+        "media": imagem_url_ou_base64
     }
     
     headers = {
