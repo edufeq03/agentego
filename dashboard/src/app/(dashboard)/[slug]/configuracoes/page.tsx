@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock } from "lucide-react";
+import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck } from "lucide-react";
 
 interface Conhecimento {
   categoria: string;
@@ -20,6 +20,9 @@ interface ConfigData {
   timezone: string;
   // Campos legados mantidos para compatibilidade durante migração
   planos?: { basico: number; vip: number };
+  aviso_vencimento_1?: number;
+  aviso_vencimento_2?: number;
+  aviso_vencimento_3?: number;
 }
 
 export default function Configuracoes() {
@@ -31,7 +34,10 @@ export default function Configuracoes() {
     faq: [],
     conhecimento: [],
     regras_comportamento: [],
-    timezone: "America/Sao_Paulo"
+    timezone: "America/Sao_Paulo",
+    aviso_vencimento_1: 7,
+    aviso_vencimento_2: 3,
+    aviso_vencimento_3: 0
   });
   
   const [webhookToken, setWebhookToken] = useState("");
@@ -62,7 +68,10 @@ export default function Configuracoes() {
             faq: Array.isArray(configData.faq) ? configData.faq : [],
             conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
             regras_comportamento: Array.isArray(configData.regras_comportamento) ? configData.regras_comportamento : [],
-            timezone: configData.timezone || "America/Sao_Paulo"
+            timezone: configData.timezone || "America/Sao_Paulo",
+            aviso_vencimento_1: configData.aviso_vencimento_1 ?? 7,
+            aviso_vencimento_2: configData.aviso_vencimento_2 ?? 3,
+            aviso_vencimento_3: configData.aviso_vencimento_3 ?? 0
           });
         }
         setWebhookToken(webhook_token || "");
@@ -373,11 +382,57 @@ export default function Configuracoes() {
                 </select>
               </div>
             </div>
+          </section>          {/* Avisos de Vencimento */}
+          <section className="glass-panel p-6 space-y-6">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <CalendarCheck className="text-blue-400" size={20} />
+              Avisos de Vencimento
+            </div>
+            <p className="text-xs text-[var(--color-foreground-muted)]">
+              Configure com quantos dias de antecedência o sistema deve avisar o aluno sobre o vencimento.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-[var(--color-foreground-muted)] uppercase">Aviso 1</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={config.aviso_vencimento_1}
+                    onChange={e => setConfig({...config, aviso_vencimento_1: Number(e.target.value)})}
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white text-center focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[var(--color-foreground-muted)]">dias</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-[var(--color-foreground-muted)] uppercase">Aviso 2</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={config.aviso_vencimento_2}
+                    onChange={e => setConfig({...config, aviso_vencimento_2: Number(e.target.value)})}
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white text-center focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[var(--color-foreground-muted)]">dias</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-[var(--color-foreground-muted)] uppercase">Aviso 3</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={config.aviso_vencimento_3}
+                    onChange={e => setConfig({...config, aviso_vencimento_3: Number(e.target.value)})}
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-white text-center focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[var(--color-foreground-muted)]">dias</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] italic text-[var(--color-foreground-muted)]">
+              Dica: Use 0 para avisar no dia exato do vencimento.
+            </p>
           </section>
-
-
-
-
           {/* Integração Técnica (Webhook) */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">

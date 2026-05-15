@@ -218,39 +218,49 @@ async def tarefa_avisos_vencimento():
             if not empresa:
                 continue
 
-            config = empresa.configuracoes.config if empresa.configuracoes else {}
-            nome_empresa = config.get("nome_empresa", empresa.nome)
-            nome_agente = config.get("nome_agente", "Assistente")
+            config_data = empresa.configuracoes.config if empresa.configuracoes else {}
+            nome_empresa = config_data.get("nome_empresa", empresa.nome)
+            nome_agente = config_data.get("nome_agente", "Assistente")
+            
+            # Dias configurados
+            dia_aviso_1 = int(config_data.get("aviso_vencimento_1", 7))
+            dia_aviso_2 = int(config_data.get("aviso_vencimento_2", 3))
+            dia_aviso_3 = int(config_data.get("aviso_vencimento_3", 0))
 
             mensagem = None
 
-            if dias == 7 and not membro.aviso_7_dias_enviado:
+            if dias == dia_aviso_1 and not membro.aviso_7_dias_enviado:
                 mensagem = (
                     f"Olá, *{membro.nome}*! 👋\n\n"
                     f"Aqui é o(a) {nome_agente} da *{nome_empresa}*.\n\n"
                     f"Passando para lembrar que seu plano "
                     f"*{membro.plano_nome or 'atual'}* vence em "
-                    f"*7 dias* (dia {membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
+                    f"*{dia_aviso_1} dias* (dia {membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
                     f"Para renovar ou tirar dúvidas, é só falar aqui! 😊"
                 )
                 membro.aviso_7_dias_enviado = True
 
-            elif dias == 3 and not membro.aviso_3_dias_enviado:
+            elif dias == dia_aviso_2 and not membro.aviso_3_dias_enviado:
                 mensagem = (
                     f"Olá, *{membro.nome}*! ⚠️\n\n"
                     f"Seu plano *{membro.plano_nome or 'atual'}* na "
-                    f"*{nome_empresa}* vence em *3 dias* "
+                    f"*{nome_empresa}* vence em *{dia_aviso_2} dias* "
                     f"(dia {membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
                     f"Não deixe sua matrícula vencer! Renove agora e "
                     f"continue treinando. 💪"
                 )
                 membro.aviso_3_dias_enviado = True
 
-            elif dias < 0 and not membro.aviso_vencido_enviado:
+            elif dias <= dia_aviso_3 and not membro.aviso_vencido_enviado:
+                # Caso o aviso 3 seja "no dia" (0) ou já tenha vencido
+                texto_dias = "hoje" if dia_aviso_3 == 0 else f"em {dia_aviso_3} dias"
+                if dias < 0:
+                    texto_dias = "recentemente"
+                    
                 mensagem = (
                     f"Olá, *{membro.nome}*! 😊\n\n"
-                    f"Seu plano na *{nome_empresa}* venceu em "
-                    f"{membro.data_vencimento.strftime('%d/%m/%Y')}.\n\n"
+                    f"Seu plano na *{nome_empresa}* vence {texto_dias} "
+                    f"({membro.data_vencimento.strftime('%d/%m/%Y')}).\n\n"
                     f"Sentimos sua falta! Fale com a gente para renovar "
                     f"e voltar a treinar. 🏋️"
                 )
