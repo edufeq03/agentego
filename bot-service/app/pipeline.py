@@ -49,7 +49,17 @@ def atualizar_status_transbordo(db, empresa_id, telefone, novo_status, lead_id=N
 
 def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     db = SessionLocal()
+    configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
+    telefones_ignorados = configuracao.get('telefones_ignorados', [])
     
+    # Normaliza o telefone recebido (remove caracteres não numéricos)
+    tel_limpo = "".join(filter(str.isdigit, telefone))
+    
+    if tel_limpo in telefones_ignorados or telefone in telefones_ignorados:
+        logger.info(f"Mensagem de {telefone} ignorada (Blacklist)")
+        db.close()
+        return {"status": "ignorado", "motivo": "blacklist"}
+
     status_transbordo = obter_status_transbordo(db, empresa.id, telefone)
     
     if status_transbordo == "pausado":

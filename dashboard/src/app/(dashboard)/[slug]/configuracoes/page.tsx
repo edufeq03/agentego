@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck, Tag, DollarSign, Calendar, Info } from "lucide-react";
+import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck, Tag, DollarSign, Calendar, Info, ShieldAlert, X } from "lucide-react";
 
 interface Conhecimento {
   categoria: string;
@@ -19,6 +19,7 @@ interface ConfigData {
   planos_detalhados: { nome: string; valor: number; periodicidade: string; descricao: string }[];
   regras_comportamento: string[];
   timezone: string;
+  telefones_ignorados?: string[];
   // Campos legados mantidos para compatibilidade
   planos?: { basico: number; vip: number };
   aviso_vencimento_1?: number;
@@ -37,11 +38,13 @@ export default function Configuracoes() {
     planos_detalhados: [],
     regras_comportamento: [],
     timezone: "America/Sao_Paulo",
+    telefones_ignorados: [],
     aviso_vencimento_1: 7,
     aviso_vencimento_2: 3,
     aviso_vencimento_3: 0
   });
   
+  const [newIgnoredPhone, setNewIgnoredPhone] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [telefoneProprietario, setTelefoneProprietario] = useState("");
@@ -74,6 +77,7 @@ export default function Configuracoes() {
             planos_detalhados: Array.isArray(configData.planos_detalhados) ? configData.planos_detalhados : [],
             regras_comportamento: Array.isArray(configData.regras_comportamento) ? configData.regras_comportamento : [],
             timezone: configData.timezone || "America/Sao_Paulo",
+            telefones_ignorados: Array.isArray(configData.telefones_ignorados) ? configData.telefones_ignorados : [],
             aviso_vencimento_1: configData.aviso_vencimento_1 ?? 7,
             aviso_vencimento_2: configData.aviso_vencimento_2 ?? 3,
             aviso_vencimento_3: configData.aviso_vencimento_3 ?? 0
@@ -185,6 +189,22 @@ export default function Configuracoes() {
     const updated = { ...current, [type]: val };
     const newStr = updated.start && updated.end ? `${updated.start} as ${updated.end}` : "";
     setConfig(prev => ({ ...prev, horarios: { ...prev.horarios, [day]: newStr } }));
+  };
+
+  const addIgnoredPhone = () => {
+    if (!newIgnoredPhone.trim()) return;
+    const phone = newIgnoredPhone.trim().replace(/\D/g, ""); // Apenas números
+    if (!phone) return;
+    const current = config.telefones_ignorados || [];
+    if (!current.includes(phone)) {
+      setConfig({ ...config, telefones_ignorados: [...current, phone] });
+    }
+    setNewIgnoredPhone("");
+  };
+
+  const removeIgnoredPhone = (phone: string) => {
+    const current = config.telefones_ignorados || [];
+    setConfig({ ...config, telefones_ignorados: current.filter(p => p !== phone) });
   };
 
   if (loading) {
@@ -549,7 +569,53 @@ export default function Configuracoes() {
                 </select>
               </div>
             </div>
-          </section>          {/* Avisos de Vencimento */}
+          </section>          {/* Telefones Ignorados (Blacklist) */}
+          <section className="glass-panel p-6 space-y-6">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <ShieldAlert className="text-red-400" size={20} />
+              Telefones Ignorados (Blacklist)
+            </div>
+            <div className="space-y-4">
+              <p className="text-xs text-slate-500 italic">
+                O robô ignorará qualquer mensagem vinda destes números. Útil para spam, testes ou números internos.
+              </p>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Ex: 5511999999999"
+                  value={newIgnoredPhone}
+                  onChange={e => setNewIgnoredPhone(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && addIgnoredPhone()}
+                  className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-red-500/50"
+                />
+                <button 
+                  onClick={addIgnoredPhone}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                >
+                  Adicionar
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(config.telefones_ignorados || []).map(phone => (
+                  <div key={phone} className="flex items-center gap-2 bg-slate-900 border border-white/5 rounded-full px-3 py-1 text-xs text-slate-300">
+                    <span>{phone}</span>
+                    <button 
+                      onClick={() => removeIgnoredPhone(phone)}
+                      className="text-slate-500 hover:text-red-400 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {(config.telefones_ignorados || []).length === 0 && (
+                  <span className="text-[10px] text-slate-600">Nenhum número na lista negra.</span>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Avisos de Vencimento */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <CalendarCheck className="text-blue-400" size={20} />
