@@ -580,12 +580,14 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
 
         from app.whatsapp import enviar_whatsapp
         import asyncio
+        import random
 
         for membro in membros:
             try:
                 enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
-                # Atualiza progresso no DB (opcional, para feedback em tempo real)
-                await asyncio.sleep(5) 
+                # Delay dinâmico: 5s fixos + 0 a 5s aleatórios (total 5-10s)
+                delay = 5 + random.uniform(0, 5)
+                await asyncio.sleep(delay) 
             except Exception as e:
                 logger.error(f"Erro ao enviar comunicado para {membro.telefone}: {e}")
     finally:

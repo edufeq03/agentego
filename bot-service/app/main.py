@@ -251,6 +251,10 @@ async def tarefa_avisos_vencimento():
                 try:
                     enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
                     logger.info(f"Aviso enviado para {membro.nome} ({membro.telefone})")
+                    # Delay dinâmico para segurança
+                    import asyncio
+                    import random
+                    await asyncio.sleep(5 + random.uniform(0, 5))
                 except Exception as e:
                     logger.error(f"Falha ao enviar aviso para {membro.telefone}: {e}")
 
@@ -299,6 +303,10 @@ async def tarefa_avisos_obrigacoes():
                 enviar_whatsapp(empresa.telefone_proprietario, msg, empresa.evolution_instance)
                 ob.aviso_enviado = True
                 logger.info(f"Aviso de obrigação enviado para {empresa.nome}")
+                # Delay dinâmico para segurança
+                import asyncio
+                import random
+                await asyncio.sleep(5 + random.uniform(0, 5))
             except Exception as e:
                 logger.error(f"Falha ao enviar aviso de obrigação para {empresa.nome}: {e}")
 
