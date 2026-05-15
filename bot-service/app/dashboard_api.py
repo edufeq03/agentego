@@ -567,7 +567,7 @@ def remover_membro(
 
 # --- BROADCAST (NICHO ACADEMIA) ---
 
-async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
+async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, imagem_url: Optional[str] = None):
     db = SessionLocal()
     try:
         empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
@@ -578,13 +578,17 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
             MembroAcademia.ativo == True
         ).all()
 
-        from app.whatsapp import enviar_whatsapp
+        from app.whatsapp import enviar_whatsapp, enviar_imagem_whatsapp
         import asyncio
         import random
 
         for membro in membros:
             try:
-                enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
+                if imagem_url:
+                    enviar_imagem_whatsapp(membro.telefone, imagem_url, mensagem, empresa.evolution_instance)
+                else:
+                    enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
+                
                 # Delay dinâmico: 5s fixos + 0 a 5s aleatórios (total 5-10s)
                 delay = 5 + random.uniform(0, 5)
                 await asyncio.sleep(delay) 
@@ -595,6 +599,7 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
 
 class ComunicadoRequest(BaseModel):
     mensagem: str
+    imagem_url: Optional[str] = None
     data_programada: Optional[datetime] = None
 
 @router.get("/comunicados")
@@ -619,6 +624,7 @@ async def criar_comunicado(
     novo = Comunicado(
         empresa_id=empresa.id,
         mensagem=req.mensagem,
+        imagem_url=req.imagem_url,
         data_programada=req.data_programada,
         status="pendente" if req.data_programada else "enviado", # Se não tem data, assume que vai enviar agora
         total_membros=total
@@ -628,7 +634,7 @@ async def criar_comunicado(
 
     if not req.data_programada:
         # Disparo imediato em background
-        background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem)
+        background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem, req.imagem_url)
     
     return {"status": "ok", "message": "Comunicado agendado/enviado com sucesso."}
 

@@ -174,7 +174,7 @@ def tarefa_disparo_agendado():
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                loop.run_until_complete(disparar_comunicado_background(com.empresa_id, com.mensagem))
+                loop.run_until_complete(disparar_comunicado_background(com.empresa_id, com.mensagem, com.imagem_url))
                 com.status = "enviado"
                 com.enviado_em = datetime.now()
             except Exception as e:

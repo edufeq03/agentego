@@ -194,6 +194,7 @@ class Comunicado(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
     mensagem = Column(Text, nullable=False)
+    imagem_url = Column(Text, nullable=True)
     data_programada = Column(DateTime, nullable=True)
     status = Column(String, default="pendente") # rascunho, pendente, enviando, enviado, erro
     total_membros = Column(Integer, default=0)
@@ -291,6 +292,7 @@ def init_db():
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
                     mensagem TEXT NOT NULL,
+                    imagem_url TEXT,
                     data_programada TIMESTAMP,
                     status VARCHAR DEFAULT 'pendente',
                     total_membros INTEGER DEFAULT 0,

@@ -12,7 +12,8 @@ import {
   Calendar,
   History,
   Trash2,
-  Clock
+  Clock,
+  Image as ImageIcon
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -21,6 +22,7 @@ export default function ComunicadosPage() {
   const slug = params?.slug as string;
   
   const [mensagem, setMensagem] = useState("");
+  const [imagemUrl, setImagemUrl] = useState("");
   const [dataProgramada, setDataProgramada] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -63,10 +65,12 @@ export default function ComunicadosPage() {
     try {
       await api.post('dashboard/comunicados/enviar', { 
         mensagem,
+        imagem_url: imagemUrl,
         data_programada: dataProgramada ? new Date(dataProgramada).toISOString() : null
       });
       setStatus('success');
       setMensagem("");
+      setImagemUrl("");
       setDataProgramada("");
       fetchHistorico();
     } catch (error) {
@@ -96,45 +100,85 @@ export default function ComunicadosPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-6 rounded-2xl">
-            <form onSubmit={handleSend} className="space-y-4">
-              <label className="block text-sm font-medium text-white">
-                Sua Mensagem
-              </label>
-              <textarea 
-                rows={8}
-                value={mensagem}
-                onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Ex: Olá pessoal! Amanhã teremos um horário especial devido ao feriado..."
-                className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all resize-none"
-              />
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white flex items-center gap-2">
-                  <Calendar size={16} className="text-[var(--color-brand-400)]" />
-                  Programar Envio (Opcional)
-                </label>
-                <input 
-                  type="datetime-local"
-                  value={dataProgramada}
-                  onChange={(e) => setDataProgramada(e.target.value)}
-                  className="w-full md:w-64 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
-                />
-                <p className="text-[10px] text-[var(--color-foreground-muted)] italic">
-                  Deixe em branco para disparar imediatamente.
-                </p>
+      <div className="grid grid-cols-1 gap-6">
+        <div className="space-y-6">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-6 rounded-2xl shadow-xl">
+            <form onSubmit={handleSend} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-white">
+                    Sua Mensagem
+                  </label>
+                  <textarea 
+                    rows={10}
+                    value={mensagem}
+                    onChange={(e) => setMensagem(e.target.value)}
+                    placeholder="Ex: Olá pessoal! Amanhã teremos um horário especial devido ao feriado..."
+                    className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all resize-none"
+                  />
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white flex items-center gap-2">
+                      <ImageIcon size={16} className="text-[var(--color-brand-400)]" />
+                      Imagem (URL)
+                    </label>
+                    <input 
+                      type="text"
+                      value={imagemUrl}
+                      onChange={(e) => setImagemUrl(e.target.value)}
+                      placeholder="https://exemplo.com/imagem.jpg"
+                      className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
+                    />
+                    <p className="text-[10px] text-[var(--color-foreground-muted)] italic">
+                      Insira o link de uma imagem (JPG/PNG) para enviar junto com a mensagem.
+                    </p>
+                  </div>
+
+                  {imagemUrl && (
+                    <div className="relative aspect-video w-full bg-[var(--color-background)] rounded-xl overflow-hidden border border-[var(--color-border)] group">
+                      <img 
+                        src={imagemUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-xs text-white font-medium">Prévia da Imagem</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white flex items-center gap-2">
+                      <Calendar size={16} className="text-[var(--color-brand-400)]" />
+                      Programar Envio (Opcional)
+                    </label>
+                    <input 
+                      type="datetime-local"
+                      value={dataProgramada}
+                      onChange={(e) => setDataProgramada(e.target.value)}
+                      className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
+                    />
+                  </div>
+                </div>
               </div>
               
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-[var(--color-foreground-muted)] mb-2 md:mb-0">
-                  Use com moderação para evitar bloqueios de SPAM.
-                </p>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-[var(--color-border)]">
+                <div className="flex items-center gap-4 text-[var(--color-foreground-muted)]">
+                   <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)]">
+                      <Users size={14} className="text-[var(--color-brand-400)]" />
+                      <span className="text-xs font-medium text-white">{totalMembros !== null ? totalMembros : '...'} Alunos Ativos</span>
+                   </div>
+                   <p className="text-xs hidden md:block">
+                    Intervalo dinâmico ativado para maior segurança.
+                  </p>
+                </div>
                 <button 
                   type="submit"
                   disabled={loading || !mensagem.trim()}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
+                  className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
                 >
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                   Disparar para todos
@@ -142,62 +186,17 @@ export default function ComunicadosPage() {
               </div>
             </form>
           </div>
-
-          {status === 'success' && (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-center gap-3 text-emerald-500 animate-in slide-in-from-top-2">
-              <CheckCircle2 size={20} />
-              <p className="text-sm font-medium">Comunicado enviado com sucesso para a fila de disparo!</p>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-red-500 animate-in slide-in-from-top-2">
-              <AlertCircle size={20} />
-              <p className="text-sm font-medium">Erro ao processar o disparo. Tente novamente mais tarde.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-6 rounded-2xl">
-            <h4 className="font-bold text-white mb-4 flex items-center gap-2">
-              <Users size={18} className="text-[var(--color-brand-400)]" />
-              Público Alvo
-            </h4>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--color-foreground-muted)]">Alunos Ativos</span>
-                <span className="text-white font-medium">{totalMembros !== null ? totalMembros : '...'}</span>
-              </div>
-              <div className="h-1 bg-[var(--color-background)] rounded-full overflow-hidden">
-                <div className="h-full bg-[var(--color-brand-500)] w-full" />
-              </div>
-              <p className="text-[10px] text-[var(--color-foreground-muted)] leading-relaxed">
-                Mensagens serão enviadas individualmente respeitando um intervalo de segurança para evitar banimento.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-amber-500/5 border border-amber-500/10 p-6 rounded-2xl">
-            <h4 className="font-bold text-amber-500 mb-2 flex items-center gap-2 text-sm">
-              <AlertCircle size={16} />
-              Dica de Ouro
-            </h4>
-            <p className="text-xs text-amber-500/80 leading-relaxed">
-              Mensagens curtas e personalizadas convertem mais e reduzem as chances de o usuário denunciar como spam.
-            </p>
-          </div>
         </div>
       </div>
 
       {/* Tabela de Histórico */}
-      <div className="space-y-4">
+      <div className="space-y-4 pb-20">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <History size={20} className="text-[var(--color-brand-400)]" />
           Histórico e Agendamentos
         </h3>
         
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden overflow-x-auto">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden overflow-x-auto shadow-lg">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]">
