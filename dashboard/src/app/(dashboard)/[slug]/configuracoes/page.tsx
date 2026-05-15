@@ -579,21 +579,23 @@ export default function Configuracoes() {
               <p className="text-xs text-slate-500 italic">
                 O robô ignorará qualquer mensagem vinda destes números. Útil para spam, testes ou números internos.
               </p>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <input 
                   type="text" 
                   placeholder="Ex: 5511999999999"
                   value={newIgnoredPhone}
                   onChange={e => setNewIgnoredPhone(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && addIgnoredPhone()}
-                  className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-red-500/50"
+                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-red-500/50"
                 />
-                <button 
-                  onClick={addIgnoredPhone}
-                  className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                >
-                  Adicionar
-                </button>
+                <div className="flex justify-end">
+                  <button 
+                    onClick={addIgnoredPhone}
+                    className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-6 py-2 rounded-lg text-sm font-medium transition-all"
+                  >
+                    Adicionar Número
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
