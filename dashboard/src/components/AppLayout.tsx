@@ -16,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [temConversaPausada, setTemConversaPausada] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [nicho, setNicho] = useState<string | null>(null);
+  const [empresa, setEmpresa] = useState<{ nome: string; plano: string } | null>(null);
 
   const navigation = [
     { name: "Visão Geral", href: `/${slug}`, icon: LayoutDashboard },
@@ -38,7 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
     { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
     { name: "Configurações", href: `/${slug}/configuracoes`, icon: Settings },
-    { name: "Configurações de Fala", href: `/${slug}/configuracoes-fala`, icon: Mic },
+    { name: "Voz e Fala", href: `/${slug}/configuracoes-fala`, icon: Mic },
   ];
 
   // Fecha o menu ao mudar de rota no mobile
@@ -96,6 +97,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const response = await api.get('dashboard/config');
         setNicho(response.data.nicho || 'generico');
+        setEmpresa({
+          nome: response.data.nome_empresa || response.data.nome || 'Minha Empresa',
+          plano: response.data.plano || 'Pro'
+        });
       } catch (error) {
         console.error("Erro ao carregar nicho:", error);
       }
@@ -178,15 +183,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </div>
 
-          <div className="p-4 border-t border-[var(--color-border)]">
+          {/* Sidebar Footer (Only Mobile) */}
+          <div className="p-4 border-t border-[var(--color-border)] md:hidden">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white font-bold">
-                  S
+                  {empresa?.nome.charAt(0).toUpperCase() || 'E'}
                 </div>
                 <div className="truncate">
-                  <p className="text-sm font-medium text-white truncate">SaaS</p>
-                  <p className="text-xs text-[var(--color-foreground-muted)] truncate">Plano Pro</p>
+                  <p className="text-sm font-medium text-white truncate">{empresa?.nome || 'Carregando...'}</p>
+                  <p className="text-xs text-[var(--color-foreground-muted)] truncate">Plano {empresa?.plano || '...'}</p>
                 </div>
               </div>
               <button 
@@ -211,7 +217,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Menu size={24} />
           </button>
-          <h1 className="text-lg md:text-xl font-semibold tracking-tight text-white truncate">Dashboard do Agente</h1>
+          <div className="flex-1 flex items-center justify-between">
+            <h1 className="text-lg md:text-xl font-semibold tracking-tight text-white truncate">Dashboard do Agente</h1>
+            
+            {/* Desktop Profile Info */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-white">{empresa?.nome || '...'}</p>
+                <p className="text-[10px] text-[var(--color-foreground-muted)] uppercase tracking-wider">Plano {empresa?.plano || '...'}</p>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white font-bold shadow-lg shadow-[var(--color-brand-500)]/20">
+                {empresa?.nome.charAt(0).toUpperCase() || 'E'}
+              </div>
+              <div className="h-8 w-px bg-[var(--color-border)] mx-2" />
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                title="Sair"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
         </header>
         
         {/* Page Content */}
