@@ -32,10 +32,22 @@ export default function Conversas() {
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const conversaAtivaRef = useRef(conversaAtiva);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (force = false) => {
+    if (force || autoScrollEnabled) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    // Se estiver a menos de 100px do fundo, habilita o auto-scroll
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setAutoScrollEnabled(isAtBottom);
   };
 
   useEffect(() => {
@@ -101,6 +113,9 @@ export default function Conversas() {
       console.error("Erro ao carregar mensagens:", error);
     } finally {
       setLoadingMensagens(false);
+      // Ao abrir nova conversa, força o scroll pro fundo
+      setTimeout(() => scrollToBottom(true), 100);
+      setAutoScrollEnabled(true);
     }
   }
 
@@ -272,7 +287,12 @@ export default function Conversas() {
                 </div>
               )}
               
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" id="chat-messages">
+              <div 
+                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 relative" 
+                id="chat-messages"
+                ref={chatContainerRef}
+                onScroll={handleScroll}
+              >
                 {loadingMensagens ? (
                   <div className="flex justify-center py-10">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand-500)]"></div>
@@ -304,6 +324,20 @@ export default function Conversas() {
                     })}
                     <div ref={messagesEndRef} />
                   </>
+                )}
+
+                {/* Botão flutuante para voltar ao fundo se houver novas mensagens */}
+                {!autoScrollEnabled && (
+                  <button 
+                    onClick={() => {
+                      setAutoScrollEnabled(true);
+                      scrollToBottom(true);
+                    }}
+                    className="absolute bottom-24 right-8 bg-[var(--color-brand-500)] text-white p-2 rounded-full shadow-lg hover:bg-[var(--color-brand-600)] transition-all animate-bounce flex items-center gap-2 px-4 text-xs font-bold"
+                  >
+                    <ChevronLeft size={16} className="-rotate-90" />
+                    Novas mensagens
+                  </button>
                 )}
               </div>
 
