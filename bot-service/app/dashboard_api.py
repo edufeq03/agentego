@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import pytz
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario, MembroAcademia
