@@ -189,6 +189,21 @@ class DocumentoLegal(Base):
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
+class Comunicado(Base):
+    __tablename__ = "comunicados"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    mensagem = Column(Text, nullable=False)
+    data_programada = Column(DateTime, nullable=True)
+    status = Column(String, default="pendente") # rascunho, pendente, enviando, enviado, erro
+    total_membros = Column(Integer, default=0)
+    enviados = Column(Integer, default=0)
+    erros = Column(Integer, default=0)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    enviado_em = Column(DateTime, nullable=True)
+
+    empresa = relationship("Empresa")
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -268,6 +283,21 @@ def init_db():
                     fonte VARCHAR,
                     ativo BOOLEAN DEFAULT TRUE,
                     criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS comunicados (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    mensagem TEXT NOT NULL,
+                    data_programada TIMESTAMP,
+                    status VARCHAR DEFAULT 'pendente',
+                    total_membros INTEGER DEFAULT 0,
+                    enviados INTEGER DEFAULT 0,
+                    erros INTEGER DEFAULT 0,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    enviado_em TIMESTAMP
                 )
             '''))
 

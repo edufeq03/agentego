@@ -584,7 +584,7 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
         for membro in membros:
             try:
                 enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
-                # Delay de segurança para evitar banimento (3-7 segundos)
+                # Atualiza progresso no DB (opcional, para feedback em tempo real)
                 await asyncio.sleep(5) 
             except Exception as e:
                 logger.error(f"Erro ao enviar comunicado para {membro.telefone}: {e}")
@@ -593,15 +593,57 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str):
 
 class ComunicadoRequest(BaseModel):
     mensagem: str
+    data_programada: Optional[datetime] = None
+
+@router.get("/comunicados")
+async def listar_comunicados(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.database import Comunicado
+    return db.query(Comunicado).filter(Comunicado.empresa_id == empresa.id).order_by(Comunicado.criado_em.desc()).all()
 
 @router.post("/comunicados/enviar")
-async def enviar_comunicado(
+async def criar_comunicado(
     req: ComunicadoRequest,
     background_tasks: BackgroundTasks,
-    empresa: Empresa = Depends(obter_empresa)
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
 ):
+    from app.database import Comunicado, MembroAcademia
     if not req.mensagem.strip():
         raise HTTPException(status_code=400, detail="Mensagem vazia")
     
-    background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem)
-    return {"status": "ok", "mensagem": "Disparo iniciado em segundo plano."}
+    # Conta membros ativos para o resumo
+    total = db.query(MembroAcademia).filter(MembroAcademia.empresa_id == empresa.id, MembroAcademia.ativo == True).count()
+
+    novo = Comunicado(
+        empresa_id=empresa.id,
+        mensagem=req.mensagem,
+        data_programada=req.data_programada,
+        status="pendente" if req.data_programada else "enviado", # Se não tem data, assume que vai enviar agora
+        total_membros=total
+    )
+    db.add(novo)
+    db.commit()
+
+    if not req.data_programada:
+        # Disparo imediato em background
+        background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem)
+    
+    return {"status": "ok", "message": "Comunicado agendado/enviado com sucesso."}
+
+@router.delete("/comunicados/{comunicado_id}")
+async def excluir_comunicado(
+    comunicado_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import Comunicado
+    com = db.query(Comunicado).filter(Comunicado.id == comunicado_id, Comunicado.empresa_id == empresa.id).first()
+    if not com:
+        raise HTTPException(status_code=404, detail="Não encontrado")
+    
+    if com.status == "enviando":
+        raise HTTPException(status_code=400, detail="Não é possível excluir um disparo em andamento")
+        
+    db.delete(com)
+    db.commit()
+    return {"status": "ok"}

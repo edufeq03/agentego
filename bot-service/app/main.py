@@ -151,6 +151,40 @@ async def tarefa_manutencao_diaria():
     finally:
         db.close()
 
+def tarefa_disparo_agendado():
+    """Verifica e dispara comunicados agendados."""
+    from app.database import SessionLocal, Comunicado, Empresa
+    from app.dashboard_api import disparar_comunicado_background
+    from datetime import datetime
+    import asyncio
+    
+    db = SessionLocal()
+    try:
+        agora = datetime.now()
+        pendentes = db.query(Comunicado).filter(
+            Comunicado.status == 'pendente',
+            Comunicado.data_programada <= agora
+        ).all()
+        
+        for com in pendentes:
+            logger.info(f"Disparando comunicado agendado {com.id} para empresa {com.empresa_id}")
+            com.status = "enviando"
+            db.commit()
+            
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(disparar_comunicado_background(com.empresa_id, com.mensagem))
+                com.status = "enviado"
+                com.enviado_em = datetime.now()
+            except Exception as e:
+                logger.error(f"Erro no disparo agendado {com.id}: {e}")
+                com.status = "erro"
+            finally:
+                db.commit()
+    finally:
+        db.close()
+
 async def tarefa_avisos_vencimento():
     """Roda diariamente às 09:00 e envia avisos de vencimento de plano."""
     logger.info("Iniciando tarefa de avisos de vencimento...")
@@ -282,9 +316,9 @@ def on_startup():
     # Agenda manutenção diária à meia-noite
     scheduler.add_job(tarefa_manutencao_diaria, 'cron', hour=0, minute=0)
     # Agenda avisos de academia às 09:00
-    scheduler.add_job(tarefa_avisos_vencimento, 'cron', hour=9, minute=0)
-    # Agenda avisos de contabilidade às 08:00
-    scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0)
+    scheduler.add_job(tarefa_avisos_vencimento, 'cron', hour=9, minute=0, id="tarefa_avisos_vencimento")
+    scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0, id="tarefa_avisos_obrigacoes")
+    scheduler.add_job(tarefa_disparo_agendado, 'interval', minutes=10, id="tarefa_disparo_agendado")
     scheduler.start()
     logger.info("Scheduler iniciado: Relatórios semanais (Seg 09h) e Manutenção (00h).")
 

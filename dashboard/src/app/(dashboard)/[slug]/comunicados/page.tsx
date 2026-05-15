@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   Megaphone, 
@@ -8,7 +8,11 @@ import {
   Users, 
   AlertCircle, 
   CheckCircle2,
-  Loader2
+  Loader2,
+  Calendar,
+  History,
+  Trash2,
+  Clock
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -17,8 +21,35 @@ export default function ComunicadosPage() {
   const slug = params?.slug as string;
   
   const [mensagem, setMensagem] = useState("");
+  const [dataProgramada, setDataProgramada] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [historico, setHistorico] = useState<any[]>([]);
+  const [totalMembros, setTotalMembros] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchHistorico();
+    fetchStats();
+  }, []);
+
+  async function fetchStats() {
+    try {
+      const res = await api.get('dashboard/membros');
+      const ativos = res.data.filter((m: any) => m.ativo).length;
+      setTotalMembros(ativos);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function fetchHistorico() {
+    try {
+      const res = await api.get('dashboard/comunicados');
+      setHistorico(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -30,17 +61,29 @@ export default function ComunicadosPage() {
     setStatus('idle');
 
     try {
-      // Endpoint a ser implementado no backend se necessário, 
-      // ou podemos usar um loop aqui chamando o envio individual (não recomendado para grandes listas)
-      // Por enquanto, vamos simular o envio ou disparar para um endpoint de broadcast
-      await api.post('dashboard/comunicados/enviar', { mensagem });
+      await api.post('dashboard/comunicados/enviar', { 
+        mensagem,
+        data_programada: dataProgramada ? new Date(dataProgramada).toISOString() : null
+      });
       setStatus('success');
       setMensagem("");
+      setDataProgramada("");
+      fetchHistorico();
     } catch (error) {
       console.error("Erro ao enviar comunicado:", error);
       setStatus('error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Deseja cancelar este agendamento?")) return;
+    try {
+      await api.delete(`dashboard/comunicados/${id}`);
+      fetchHistorico();
+    } catch (e) {
+      alert("Erro ao excluir.");
     }
   }
 
@@ -67,6 +110,22 @@ export default function ComunicadosPage() {
                 placeholder="Ex: Olá pessoal! Amanhã teremos um horário especial devido ao feriado..."
                 className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all resize-none"
               />
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white flex items-center gap-2">
+                  <Calendar size={16} className="text-[var(--color-brand-400)]" />
+                  Programar Envio (Opcional)
+                </label>
+                <input 
+                  type="datetime-local"
+                  value={dataProgramada}
+                  onChange={(e) => setDataProgramada(e.target.value)}
+                  className="w-full md:w-64 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
+                />
+                <p className="text-[10px] text-[var(--color-foreground-muted)] italic">
+                  Deixe em branco para disparar imediatamente.
+                </p>
+              </div>
               
               <div className="flex items-center justify-between">
                 <p className="text-xs text-[var(--color-foreground-muted)]">
@@ -108,7 +167,7 @@ export default function ComunicadosPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-[var(--color-foreground-muted)]">Alunos Ativos</span>
-                <span className="text-white font-medium">Carregando...</span>
+                <span className="text-white font-medium">{totalMembros !== null ? totalMembros : '...'}</span>
               </div>
               <div className="h-1 bg-[var(--color-background)] rounded-full overflow-hidden">
                 <div className="h-full bg-[var(--color-brand-500)] w-full" />
@@ -128,6 +187,80 @@ export default function ComunicadosPage() {
               Mensagens curtas e personalizadas convertem mais e reduzem as chances de o usuário denunciar como spam.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Tabela de Histórico */}
+      <div className="space-y-4">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <History size={20} className="text-[var(--color-brand-400)]" />
+          Histórico e Agendamentos
+        </h3>
+        
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]">
+                <th className="p-4 text-xs font-bold text-[var(--color-foreground-muted)] uppercase tracking-wider">Data</th>
+                <th className="p-4 text-xs font-bold text-[var(--color-foreground-muted)] uppercase tracking-wider">Mensagem</th>
+                <th className="p-4 text-xs font-bold text-[var(--color-foreground-muted)] uppercase tracking-wider">Público</th>
+                <th className="p-4 text-xs font-bold text-[var(--color-foreground-muted)] uppercase tracking-wider">Status</th>
+                <th className="p-4 text-xs font-bold text-[var(--color-foreground-muted)] uppercase tracking-wider text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {historico.map((com) => (
+                <tr key={com.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="p-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-white">
+                        {new Date(com.data_programada || com.criado_em).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="text-[10px] text-[var(--color-foreground-muted)]">
+                        {new Date(com.data_programada || com.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4 min-w-[200px]">
+                    <p className="text-sm text-white line-clamp-2">{com.mensagem}</p>
+                  </td>
+                  <td className="p-4">
+                    <span className="text-xs text-white">{com.total_membros} alunos</span>
+                  </td>
+                  <td className="p-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                      com.status === 'enviado' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      com.status === 'pendente' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                      com.status === 'enviando' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      'bg-red-500/10 text-red-500 border-red-500/20'
+                    }`}>
+                      {com.status === 'pendente' && <Clock size={10} />}
+                      {com.status === 'enviado' && <CheckCircle2 size={10} />}
+                      {com.status === 'enviando' && <Loader2 className="animate-spin" size={10} />}
+                      {com.status}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    {com.status === 'pendente' && (
+                      <button 
+                        onClick={() => handleDelete(com.id)}
+                        className="p-2 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {historico.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-[var(--color-foreground-muted)] text-sm italic">
+                    Nenhum comunicado enviado ou agendado ainda.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
