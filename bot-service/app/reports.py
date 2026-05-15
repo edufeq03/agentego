@@ -50,7 +50,7 @@ def formatar_relatorio_whatsapp(empresa_nome: str, slug: str, dados: dict):
     Cria a string formatada com emojis para o WhatsApp.
     """
     import os
-    dashboard_base = os.getenv("DASHBOARD_URL", "https://agente-go.com.br")
+    dashboard_base = os.getenv("DASHBOARD_URL", "https://agentego.com.br")
     dashboard_url = f"{dashboard_base}/{slug}"
 
     msg = (
