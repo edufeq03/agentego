@@ -239,6 +239,9 @@ def init_db():
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
             conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
             
+            # Migração para Comunicados (Imagem)
+            conn.execute(text('ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS imagem_url TEXT'))
+            
             # Tabelas específicas (manualmente se create_all falhar por algum motivo)
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS membros_academia (
