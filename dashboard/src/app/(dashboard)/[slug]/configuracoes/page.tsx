@@ -464,11 +464,21 @@ export default function Configuracoes() {
 
             <button 
               onClick={async () => {
+                if (!telefoneProprietario) {
+                  alert("Por favor, preencha o seu telefone de WhatsApp primeiro.");
+                  return;
+                }
                 try {
+                  // Salva automaticamente antes de disparar, para garantir que o número atualizado seja usado
+                  await api.put("dashboard/config", {
+                    config: config,
+                    telefone_proprietario: telefoneProprietario
+                  });
+                  
                   const res = await api.post("dashboard/relatorio-semanal/enviar-agora");
                   alert("Relatório enviado com sucesso para o seu WhatsApp!");
                 } catch (e) {
-                  alert("Erro ao enviar relatório. Verifique se o seu telefone de proprietário está configurado.");
+                  alert("Erro ao enviar relatório. Verifique se o seu telefone de proprietário está configurado corretamente.");
                 }
               }}
               className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)] border border-[var(--color-border)] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all"

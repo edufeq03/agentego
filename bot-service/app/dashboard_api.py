@@ -276,6 +276,7 @@ def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(
     config_data = config_obj.config if config_obj else {}
     
     # Log apenas da ação, sem expor o conteúdo sensível de config_data em INFO
+    logger.info(f"Config solicitada: Empresa={empresa.nome} ID={empresa.id} Telefone={empresa.telefone_proprietario}")
     logger.debug(f"Config enviada para {empresa.nome}")
     
     return {
