@@ -52,7 +52,16 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"]
 from app.admin_api import router as admin_router
 from app.middleware import security_middleware
 
+from fastapi.staticfiles import StaticFiles
+
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
+# Criar pasta de uploads se não existir
+if not os.path.exists("app/uploads"):
+    os.makedirs("app/uploads")
+
+# Monta pasta de uploads para acesso via URL
+app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
 
 @app.middleware("http")
 async def security_check(request: Request, call_next):
@@ -174,7 +183,7 @@ def tarefa_disparo_agendado():
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                loop.run_until_complete(disparar_comunicado_background(com.empresa_id, com.mensagem, com.imagem_url))
+                loop.run_until_complete(disparar_comunicado_background(com.empresa_id, com.mensagem, com.imagem_url, com.id))
                 com.status = "enviado"
                 com.enviado_em = datetime.now()
             except Exception as e:

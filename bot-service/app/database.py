@@ -205,6 +205,17 @@ class Comunicado(Base):
 
     empresa = relationship("Empresa")
 
+class ComunicadoLog(Base):
+    __tablename__ = "comunicado_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    comunicado_id = Column(UUID(as_uuid=True), ForeignKey("comunicados.id"), nullable=False)
+    telefone = Column(String, nullable=False)
+    status = Column(String, nullable=False) # sucesso, erro
+    erro = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    comunicado = relationship("Comunicado")
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -300,6 +311,17 @@ def init_db():
                     erros INTEGER DEFAULT 0,
                     criado_em TIMESTAMP DEFAULT NOW(),
                     enviado_em TIMESTAMP
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS comunicado_logs (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    comunicado_id UUID REFERENCES comunicados(id) ON DELETE CASCADE,
+                    telefone VARCHAR NOT NULL,
+                    status VARCHAR NOT NULL,
+                    erro TEXT,
+                    criado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
 

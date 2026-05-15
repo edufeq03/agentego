@@ -567,7 +567,7 @@ def remover_membro(
 
 # --- BROADCAST (NICHO ACADEMIA) ---
 
-async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, imagem_url: Optional[str] = None):
+async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, imagem_url: Optional[str] = None, comunicado_id: Optional[uuid.UUID] = None):
     db = SessionLocal()
     try:
         empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
@@ -579,21 +579,45 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, i
         ).all()
 
         from app.whatsapp import enviar_whatsapp, enviar_imagem_whatsapp
+        from app.database import ComunicadoLog, Comunicado
         import asyncio
         import random
 
+        logger.info(f"Iniciando disparo em massa para empresa {empresa.nome} ({len(membros)} membros)")
+
         for membro in membros:
             try:
-                if imagem_url:
-                    enviar_imagem_whatsapp(membro.telefone, imagem_url, mensagem, empresa.evolution_instance)
+                final_image_url = imagem_url
+                if imagem_url and imagem_url.startswith("/uploads/"):
+                    base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+                    final_image_url = f"{base_url}{imagem_url}"
+
+                if final_image_url:
+                    enviar_imagem_whatsapp(membro.telefone, final_image_url, mensagem, empresa.evolution_instance)
                 else:
                     enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
                 
-                # Delay dinâmico: 5s fixos + 0 a 5s aleatórios (total 5-10s)
+                # Log de sucesso
+                if comunicado_id:
+                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=membro.telefone, status="sucesso")
+                    db.add(log)
+                    db.query(Comunicado).filter(Comunicado.id == comunicado_id).update({
+                        "enviados": Comunicado.enviados + 1
+                    })
+                    db.commit()
+
+                # Delay dinâmico
                 delay = 5 + random.uniform(0, 5)
                 await asyncio.sleep(delay) 
             except Exception as e:
                 logger.error(f"Erro ao enviar comunicado para {membro.telefone}: {e}")
+                if comunicado_id:
+                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=membro.telefone, status="erro", erro=str(e))
+                    db.add(log)
+                    db.query(Comunicado).filter(Comunicado.id == comunicado_id).update({
+                        "erros": Comunicado.erros + 1
+                    })
+                    db.commit()
     finally:
         db.close()
 
@@ -634,9 +658,47 @@ async def criar_comunicado(
 
     if not req.data_programada:
         # Disparo imediato em background
-        background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem, req.imagem_url)
+        background_tasks.add_task(disparar_comunicado_background, empresa.id, req.mensagem, req.imagem_url, novo.id)
     
     return {"status": "ok", "message": "Comunicado agendado/enviado com sucesso."}
+
+@router.get("/comunicados/{comunicado_id}/logs")
+async def listar_logs_comunicado(
+    comunicado_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import ComunicadoLog, Comunicado
+    com = db.query(Comunicado).filter(Comunicado.id == comunicado_id, Comunicado.empresa_id == empresa.id).first()
+    if not com:
+        raise HTTPException(status_code=404, detail="Não encontrado")
+    
+    return db.query(ComunicadoLog).filter(ComunicadoLog.comunicado_id == comunicado_id).order_by(ComunicadoLog.criado_em.asc()).all()
+
+@router.post("/upload")
+async def upload_arquivo(
+    file: UploadFile = File(...),
+    empresa: Empresa = Depends(obter_empresa)
+):
+    # Pasta de uploads
+    upload_dir = "app/uploads"
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
+        raise HTTPException(status_code=400, detail="Formato de imagem não suportado")
+        
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join(upload_dir, filename)
+    
+    with open(file_path, "wb") as buffer:
+        buffer.write(await file.read())
+        
+    # Retorna a URL baseada no host da requisição (assumindo que o bot serve static)
+    # Em produção, isso pode precisar de ajuste dependendo do reverse proxy
+    # Vamos retornar um caminho relativo ou tentar deduzir a URL base
+    return {"status": "ok", "url": f"/uploads/{filename}"}
 
 @router.delete("/comunicados/{comunicado_id}")
 async def excluir_comunicado(

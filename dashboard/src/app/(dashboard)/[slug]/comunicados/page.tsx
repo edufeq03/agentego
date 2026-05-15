@@ -23,16 +23,50 @@ export default function ComunicadosPage() {
   
   const [mensagem, setMensagem] = useState("");
   const [imagemUrl, setImagemUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [dataProgramada, setDataProgramada] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [historico, setHistorico] = useState<any[]>([]);
   const [totalMembros, setTotalMembros] = useState<number | null>(null);
+  const [logsAbertos, setLogsAbertos] = useState<string | null>(null);
+  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
     fetchHistorico();
     fetchStats();
   }, []);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('dashboard/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImagemUrl(res.data.url);
+    } catch (e) {
+      alert("Erro ao subir imagem.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function fetchLogs(id: string) {
+    setLogsAbertos(id);
+    setLogs([]);
+    try {
+      const res = await api.get(`dashboard/comunicados/${id}/logs`);
+      setLogs(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function fetchStats() {
     try {
@@ -122,18 +156,35 @@ export default function ComunicadosPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white flex items-center gap-2">
                       <ImageIcon size={16} className="text-[var(--color-brand-400)]" />
-                      Imagem (URL)
+                      Imagem / Anexo
                     </label>
-                    <input 
-                      type="text"
-                      value={imagemUrl}
-                      onChange={(e) => setImagemUrl(e.target.value)}
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
-                    />
-                    <p className="text-[10px] text-[var(--color-foreground-muted)] italic">
-                      Insira o link de uma imagem (JPG/PNG) para enviar junto com a mensagem.
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[var(--color-background)] border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-brand-500)]/50 rounded-xl cursor-pointer transition-all">
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={handleUpload}
+                        />
+                        {uploading ? (
+                          <Loader2 className="animate-spin text-[var(--color-brand-400)]" size={20} />
+                        ) : (
+                          <ImageIcon size={20} className="text-[var(--color-foreground-muted)]" />
+                        )}
+                        <span className="text-sm text-[var(--color-foreground-muted)]">
+                          {imagemUrl ? "Alterar imagem" : "Clique para anexar imagem"}
+                        </span>
+                      </label>
+                      {imagemUrl && (
+                        <button 
+                          type="button"
+                          onClick={() => setImagemUrl("")}
+                          className="p-3 text-red-400 hover:bg-red-400/10 rounded-xl transition-colors"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {imagemUrl && (
@@ -240,14 +291,22 @@ export default function ComunicadosPage() {
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    {com.status === 'pendente' && (
+                    <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => handleDelete(com.id)}
-                        className="p-2 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                        onClick={() => fetchLogs(com.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--color-foreground-muted)] hover:text-white hover:bg-white/10 rounded-lg transition-all"
                       >
-                        <Trash2 size={18} />
+                        Auditoria
                       </button>
-                    )}
+                      {com.status === 'pendente' && (
+                        <button 
+                          onClick={() => handleDelete(com.id)}
+                          className="p-2 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -262,6 +321,60 @@ export default function ComunicadosPage() {
           </table>
         </div>
       </div>
+      {/* Modal de Auditoria */}
+      {logsAbertos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-background)]">
+              <div>
+                <h3 className="text-xl font-bold text-white">Relatório de Entrega</h3>
+                <p className="text-xs text-[var(--color-foreground-muted)]">Detalhamento por número de telefone</p>
+              </div>
+              <button 
+                onClick={() => setLogsAbertos(null)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <Trash2 size={20} className="text-[var(--color-foreground-muted)]" />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
+              {logs.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <Loader2 className="animate-spin mx-auto text-[var(--color-brand-400)]" size={32} />
+                  <p className="text-[var(--color-foreground-muted)] text-sm">Processando registros...</p>
+                </div>
+              ) : (
+                logs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${log.status === 'sucesso' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                        {log.status === 'sucesso' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{log.telefone}</p>
+                        {log.erro && <p className="text-[10px] text-red-400 mt-1">{log.erro}</p>}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-[var(--color-foreground-muted)] font-mono">
+                      {new Date(log.criado_em).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="p-4 bg-[var(--color-background)] border-t border-[var(--color-border)] flex justify-end">
+               <button 
+                onClick={() => setLogsAbertos(null)}
+                className="px-6 py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-white rounded-xl text-sm font-bold transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
