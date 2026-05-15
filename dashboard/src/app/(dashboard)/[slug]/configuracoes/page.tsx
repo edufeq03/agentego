@@ -487,36 +487,6 @@ export default function Configuracoes() {
             </button>
           </section>
 
-          {/* Integração Técnica (Webhook) */}
-          <section className="glass-panel p-6 space-y-6">
-            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
-              <Plus className="text-brand-400 rotate-45" size={20} />
-              Integração Técnica
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Webhook URL (Evolution API)</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    readOnly
-                    value={`${baseUrl}/webhook/${webhookToken}`}
-                    className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs text-[var(--color-foreground-muted)] focus:outline-none"
-                  />
-                  <button 
-                    onClick={copyWebhook}
-                    className="bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)] border border-[var(--color-border)] rounded-lg px-3 text-xs text-white transition-colors min-w-[80px]"
-                  >
-                    {copied ? "Copiado!" : "Copiar"}
-                  </button>
-                </div>
-                <p className="text-[10px] text-[var(--color-foreground-muted)] leading-relaxed">
-                  Cole esta URL na configuração de Webhook da sua instância na Evolution API para habilitar o robô.
-                </p>
-              </div>
-            </div>
-          </section>
-
           {/* Save Mobile */}
           <button 
             onClick={handleSave}
@@ -524,7 +494,7 @@ export default function Configuracoes() {
             className="w-full md:hidden flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--color-brand-600)] to-[var(--color-brand-400)] text-white px-8 py-4 rounded-xl font-medium transition-all shadow-lg"
           >
             {saving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" /> : <Save size={20} />}
-            {saving ? "Salvando..." : "Salvar Configurações"}
+            {saving ? "Salvando..." : "Salvar Tudo"}
           </button>
         </div>
       </div>

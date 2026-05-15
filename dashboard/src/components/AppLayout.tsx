@@ -98,8 +98,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const response = await api.get('dashboard/config');
         setNicho(response.data.nicho || 'generico');
         setEmpresa({
-          nome: response.data.nome_empresa || response.data.nome || 'Minha Empresa',
-          plano: response.data.plano || 'Pro'
+          nome: response.data.config?.nome_empresa || response.data.nome || 'Minha Empresa',
+          plano: response.data.plano?.toUpperCase() || 'PRO'
         });
       } catch (error) {
         console.error("Erro ao carregar nicho:", error);

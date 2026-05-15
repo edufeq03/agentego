@@ -281,6 +281,8 @@ def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(
     
     return {
         "config": config_data,
+        "nome": empresa.nome,
+        "plano": empresa.plano,
         "telefone_proprietario": empresa.telefone_proprietario,
         "webhook_token": empresa.webhook_token,
         "base_url": os.getenv("BASE_URL", "http://localhost:8000"),
