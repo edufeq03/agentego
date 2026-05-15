@@ -55,6 +55,11 @@ class Empresa(Base):
     mensagens = relationship("Mensagem", back_populates="empresa", cascade="all, delete-orphan")
     eventos = relationship("Evento", back_populates="empresa", cascade="all, delete-orphan")
     transbordos = relationship("Transbordo", back_populates="empresa", cascade="all, delete-orphan")
+    membros_academia = relationship("MembroAcademia", back_populates="empresa", cascade="all, delete-orphan")
+    empresas_clientes = relationship("EmpresaCliente", back_populates="empresa", cascade="all, delete-orphan")
+    obrigacoes_fiscais = relationship("ObrigacaoFiscal", back_populates="empresa", cascade="all, delete-orphan")
+    documentos_legais = relationship("DocumentoLegal", back_populates="empresa", cascade="all, delete-orphan")
+    comunicados = relationship("Comunicado", back_populates="empresa", cascade="all, delete-orphan")
 
 class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
@@ -71,7 +76,7 @@ class PromptTemplate(Base):
 class Usuario(Base):
     __tablename__ = "usuarios"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     email = Column(String, unique=True, nullable=False)
     senha_hash = Column(String, nullable=False)
     role = Column(String, default="client") # "client" ou "admin" (franqueador)
@@ -82,7 +87,7 @@ class Usuario(Base):
 class Configuracao(Base):
     __tablename__ = "configuracoes"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False, unique=True)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, unique=True)
     config = Column(JSONB, nullable=False, default=dict)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -91,7 +96,7 @@ class Configuracao(Base):
 class Lead(Base):
     __tablename__ = "leads"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     telefone = Column(String, nullable=False)
     nome = Column(String, nullable=True)
     stage = Column(String, default='novo') # novo, curioso, interessado, quente, agendado, perdido
@@ -105,7 +110,7 @@ class Lead(Base):
 class Mensagem(Base):
     __tablename__ = "mensagens"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False)
     tipo = Column(String, nullable=False) # 'usuario' ou 'agente'
     mensagem = Column(Text, nullable=False)
@@ -118,7 +123,7 @@ class Mensagem(Base):
 class Evento(Base):
     __tablename__ = "eventos"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=True)
     tipo = Column(String, nullable=False)
     metadata_ = Column("metadata", JSONB, default=dict) # 'metadata' é reservado em sqlalchemy
@@ -130,7 +135,7 @@ class Evento(Base):
 class Transbordo(Base):
     __tablename__ = "transbordo"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     telefone = Column(String, nullable=False)
     status = Column(String, default="aguardando") # aguardando, pausado
     criado_em = Column(DateTime, default=datetime.utcnow)
@@ -140,7 +145,7 @@ class Transbordo(Base):
 class MembroAcademia(Base):
     __tablename__ = "membros_academia"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     nome = Column(String, nullable=False)
     telefone = Column(String, nullable=False)
     data_vencimento = Column(DateTime, nullable=False)
@@ -157,7 +162,7 @@ class MembroAcademia(Base):
 class EmpresaCliente(Base):
     __tablename__ = "empresas_clientes"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     nome_empresa = Column(String, nullable=False)
     cnpj = Column(String, nullable=True)
     regime_tributario = Column(String, nullable=True)
@@ -165,11 +170,13 @@ class EmpresaCliente(Base):
     contato_telefone = Column(String, nullable=True)
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="empresas_clientes")
 
 class ObrigacaoFiscal(Base):
     __tablename__ = "obrigacoes_fiscais"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     empresa_cliente_id = Column(UUID(as_uuid=True), ForeignKey("empresas_clientes.id"), nullable=True)
     titulo = Column(String, nullable=False)
     descricao = Column(Text, nullable=True)
@@ -177,22 +184,26 @@ class ObrigacaoFiscal(Base):
     status = Column(String, default="pendente")
     aviso_enviado = Column(Boolean, default=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="obrigacoes_fiscais")
 
 class DocumentoLegal(Base):
     __tablename__ = "documentos_legais"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     titulo = Column(String, nullable=False)
     categoria = Column(String, nullable=True)
     conteudo = Column(Text, nullable=False)
     fonte = Column(String, nullable=True)
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa", back_populates="documentos_legais")
 
 class Comunicado(Base):
     __tablename__ = "comunicados"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
     mensagem = Column(Text, nullable=False)
     imagem_url = Column(Text, nullable=True)
     data_programada = Column(DateTime, nullable=True)
@@ -208,7 +219,7 @@ class Comunicado(Base):
 class ComunicadoLog(Base):
     __tablename__ = "comunicado_logs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    comunicado_id = Column(UUID(as_uuid=True), ForeignKey("comunicados.id"), nullable=False)
+    comunicado_id = Column(UUID(as_uuid=True), ForeignKey("comunicados.id", ondelete="CASCADE"), nullable=False)
     telefone = Column(String, nullable=False)
     status = Column(String, nullable=False) # sucesso, erro
     erro = Column(Text, nullable=True)
@@ -241,6 +252,43 @@ def init_db():
             
             # Migração para Comunicados (Imagem)
             conn.execute(text('ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS imagem_url TEXT'))
+            
+            # Garantir ON DELETE CASCADE em tabelas existentes
+            try:
+                conn.execute(text('ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE usuarios ADD CONSTRAINT usuarios_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+                
+                conn.execute(text('ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE leads ADD CONSTRAINT leads_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+                
+                conn.execute(text('ALTER TABLE mensagens DROP CONSTRAINT IF EXISTS mensagens_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE mensagens ADD CONSTRAINT mensagens_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+                
+                conn.execute(text('ALTER TABLE eventos DROP CONSTRAINT IF EXISTS eventos_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE eventos ADD CONSTRAINT eventos_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+                
+                conn.execute(text('ALTER TABLE transbordo DROP CONSTRAINT IF EXISTS transbordo_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE transbordo ADD CONSTRAINT transbordo_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE configuracoes DROP CONSTRAINT IF EXISTS configuracoes_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE configuracoes ADD CONSTRAINT configuracoes_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE membros_academia DROP CONSTRAINT IF EXISTS membros_academia_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE membros_academia ADD CONSTRAINT membros_academia_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE empresas_clientes DROP CONSTRAINT IF EXISTS empresas_clientes_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE empresas_clientes ADD CONSTRAINT empresas_clientes_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE obrigacoes_fiscais DROP CONSTRAINT IF EXISTS obrigacoes_fiscais_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE obrigacoes_fiscais ADD CONSTRAINT obrigacoes_fiscais_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE documentos_legais DROP CONSTRAINT IF EXISTS documentos_legais_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE documentos_legais ADD CONSTRAINT documentos_legais_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+
+                conn.execute(text('ALTER TABLE comunicados DROP CONSTRAINT IF EXISTS comunicados_empresa_id_fkey'))
+                conn.execute(text('ALTER TABLE comunicados ADD CONSTRAINT comunicados_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
+            except Exception as e:
+                logger.warning(f"Erro ao aplicar migração de cascade (pode já existir): {e}")
             
             # Tabelas específicas (manualmente se create_all falhar por algum motivo)
             conn.execute(text('''
