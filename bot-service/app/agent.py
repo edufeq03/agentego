@@ -29,46 +29,47 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
     
     # 2. Base de Conhecimento (Dinâmica)
     secoes_conhecimento = ""
-    conhecimento = config.get('conhecimento', {})
+    conhecimento_raw = config.get('conhecimento', [])
     
-    # Garantir que conhecimento seja um dicionário
-    if not isinstance(conhecimento, dict):
-        conhecimento = {}
-
-    # Se não houver 'conhecimento' estruturado, tenta converter o formato antigo de academia
-    if not conhecimento and ('planos' in config or 'horarios' in config):
-        # Fallback para compatibilidade com o nicho de academia legado
-        planos = config.get('planos', {})
-        horarios = config.get('horarios', {})
-        aulas_vip = config.get('aulas_vip', [])
-        professores = config.get('professores', [])
-        
-        secoes_conhecimento += f"=== INFORMAÇÕES DA ACADEMIA ===\n"
-        secoes_conhecimento += f"Planos: {planos}\n"
-        secoes_conhecimento += f"Horários: {horarios}\n"
-        if isinstance(aulas_vip, list):
-            secoes_conhecimento += f"Aulas VIP: {', '.join([str(x) for x in aulas_vip])}\n"
-        if isinstance(professores, list):
-            professores_str = "\n".join([f"- {p.get('nome', 'N/A')}: {p.get('especialidade', 'N/A')}" for p in professores if isinstance(p, dict)])
-            if professores_str:
-                secoes_conhecimento += "\nPROFESSORES:\n" + professores_str
-    else:
-        # Novo formato flexível
-        for titulo, conteudo in conhecimento.items():
+    # Processa o conhecimento independente se for lista ou dicionário
+    if isinstance(conhecimento_raw, list):
+        # Formato moderno do Dashboard: [{"categoria": "...", "conteudo": "..."}]
+        for item in conhecimento_raw:
+            if isinstance(item, dict):
+                titulo = item.get('categoria') or item.get('titulo') or 'Informação'
+                conteudo = item.get('conteudo') or item.get('resposta') or ''
+                if conteudo:
+                    secoes_conhecimento += f"\n=== {titulo.upper()} ===\n{conteudo}\n"
+            elif isinstance(item, str) and item:
+                secoes_conhecimento += f"- {item}\n"
+                
+    elif isinstance(conhecimento_raw, dict):
+        # Formato de dicionário (legado ou específico)
+        for titulo, conteudo in conhecimento_raw.items():
+            if not conteudo: continue
             secoes_conhecimento += f"\n=== {titulo.replace('_', ' ').upper()} ===\n"
             if isinstance(conteudo, list):
-                for item in conteudo:
-                    if isinstance(item, dict):
-                        # Tenta formatar dicionário de forma legível
-                        linha = " | ".join([f"{k}: {v}" for k, v in item.items()])
-                        secoes_conhecimento += f"- {linha}\n"
-                    else:
-                        secoes_conhecimento += f"- {item}\n"
-            elif isinstance(conteudo, dict):
-                for k, v in conteudo.items():
-                    secoes_conhecimento += f"- {k}: {v}\n"
+                for subitem in conteudo:
+                    secoes_conhecimento += f"- {subitem}\n"
             else:
                 secoes_conhecimento += f"{conteudo}\n"
+
+    # Fallback para nicho de academia legado (planos/horários em campos separados)
+    if not secoes_conhecimento and ('planos' in config or 'horarios' in config):
+        planos = config.get('planos', {})
+        horarios = config.get('horarios', {})
+        secoes_conhecimento += f"=== INFORMAÇÕES DA ACADEMIA ===\nPlanos: {planos}\nHorários: {horarios}\n"
+
+    # 2.0.1 - Prioridade para FAQ e Conhecimento Geral (se existirem como campos planos)
+    faq = config.get('faq', [])
+    if isinstance(faq, list) and faq:
+        secoes_conhecimento += "\n=== PERGUNTAS FREQUENTES (FAQ) ===\n"
+        for item in faq:
+            if isinstance(item, dict):
+                pergunta = item.get('pergunta') or item.get('question')
+                resposta = item.get('resposta') or item.get('answer')
+                if pergunta and resposta:
+                    secoes_conhecimento += f"P: {pergunta}\nR: {resposta}\n\n"
 
     # 2.1 Documentos Legais (Específico Contabilidade)
     if nicho == 'contabilidade' and documentos:
@@ -78,13 +79,15 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
             secoes_conhecimento += f"\n- {doc.get('titulo', 'Documento')}:\n{doc.get('conteudo', '')}\n"
 
     # 3. Regras e Guardrails
-    regras = config.get('regras', [
-        "Identificar a necessidade do usuário com clareza.",
-        "Ser direto, objetivo e empático.",
-        "Nunca inventar informações que não estão listadas na base de conhecimento.",
-        "Utilizar emojis com moderação para manter um tom amigável.",
-        "Se o usuário estiver frustrado ou pedir explicitamente, ofereça atendimento humano."
-    ])
+    regras = config.get('regras_comportamento') or config.get('regras')
+    if not regras or not isinstance(regras, list):
+        regras = [
+            "Identificar a necessidade do usuário com clareza.",
+            "Ser direto, objetivo e empático.",
+            "Nunca inventar informações que não estão listadas na base de conhecimento.",
+            "Utilizar emojis com moderação para manter um tom amigável.",
+            "Se o usuário estiver frustrado ou pedir explicitamente, ofereça atendimento humano."
+        ]
     regras_str = "\n".join([f"{i+1}. {regra}" for i, regra in enumerate(regras)])
 
     return f"""
