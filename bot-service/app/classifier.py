@@ -39,16 +39,17 @@ def classificar_intencao(texto: str) -> str:
         return "plano"
     return "duvida"
 
-def calcular_stage(stage_atual: str, intencao: str) -> str:
+def calcular_stage(stage_atual: str, intencao: str, etapas_disponiveis: list = None) -> str:
     """
     Atualiza o funil de vendas baseado na intenção.
-    Estágios: novo -> curioso -> interessado -> (quente/agendado tratado separadamente)
+    Se etapas_disponiveis for fornecido, tenta mapear para uma das etapas da lista.
     """
+    # Mapa de progressão base (simplificado)
     progressao = {
         "novo": {
             "preco": "curioso",
             "horario": "curioso",
-            "aulas": "curioso",
+            "servicos": "curioso",
             "plano": "curioso",
             "visita": "interessado"
         },
@@ -56,6 +57,24 @@ def calcular_stage(stage_atual: str, intencao: str) -> str:
             "visita": "interessado",
             "plano": "interessado",
         },
-        "interessado": {}
+        "interessado": {
+            "visita": "agendado"
+        }
     }
-    return progressao.get(stage_atual, {}).get(intencao, stage_atual)
+    
+    # Se não temos etapas customizadas, usa o padrão
+    if not etapas_disponiveis:
+        return progressao.get(stage_atual.lower(), {}).get(intencao, stage_atual)
+        
+    # Tenta encontrar o próximo estágio lógico
+    proximo_simplificado = progressao.get(stage_atual.lower(), {}).get(intencao)
+    
+    if not proximo_simplificado:
+        return stage_atual
+        
+    # Mapeia o proximo_simplificado para uma das etapas reais da empresa
+    for etapa_real in etapas_disponiveis:
+        if proximo_simplificado in etapa_real.lower():
+            return etapa_real
+            
+    return stage_atual

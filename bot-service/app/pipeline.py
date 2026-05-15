@@ -110,8 +110,9 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     elif sentimento == "positivo":
         registrar_evento(db, empresa.id, lead.id, "sentimento_positivo")
 
-    # Atualiza o funil de vendas (stage)
-    novo_stage = calcular_stage(lead.stage, intencao)
+    # Atualiza o funil de vendas (stage) baseado nas etapas da empresa
+    etapas_empresa = empresa.etapas_funil or ["novo", "curioso", "interessado", "agendado"]
+    novo_stage = calcular_stage(lead.stage, intencao, etapas_empresa)
     if novo_stage != lead.stage:
         lead.stage = novo_stage
         db.commit()

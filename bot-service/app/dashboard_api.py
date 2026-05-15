@@ -150,18 +150,27 @@ def funil(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_d
     # Usa as etapas dinâmicas da empresa
     etapas = empresa.etapas_funil or ["novo", "curioso", "interessado", "agendado"]
     
-    # Contagem de leads por stage
+    # Contagem de leads por stage (normaliza para bater com as labels se necessário)
     counts = db.query(Lead.stage, func.count(Lead.id)).filter(Lead.empresa_id == empresa.id).group_by(Lead.stage).all()
-    counts_dict = {stage: count for stage, count in counts}
+    counts_dict = {str(stage).lower().strip(): count for stage, count in counts if stage}
     
     grafico_funil = []
     colors = ["#8884d8", "#83a6ed", "#8dd1e1", "#82ca9d", "#a4de6c", "#d0ed57", "#ffc658"]
     
     for i, etapa in enumerate(etapas):
-        # Para cada etapa, somamos ela e todas as seguintes (valor acumulado para o funil)
-        valor = sum(counts_dict.get(e, 0) for e in etapas[i:])
+        # Mapeamento inteligente: se a etapa for "Novo lead" e no banco estiver "novo", somamos.
+        # Vamos buscar por correspondência de prefixo ou igualdade exata (normalizada)
+        etapa_key = etapa.lower().strip()
+        
+        # Para o funil acumulado, somamos esta etapa e todas as posteriores
+        valor = 0
+        for e_posterior in etapas[i:]:
+            e_post_key = e_posterior.lower().strip()
+            # Soma se bater exatamente ou se a etapa do banco estiver contida na label (ex: "novo" em "novo lead")
+            valor += sum(count for k, count in counts_dict.items() if k == e_post_key or k in e_post_key)
+            
         grafico_funil.append({
-            "name": etapa.capitalize(),
+            "name": etapa.capitalize() if " " not in etapa else etapa, # Mantém capitalização se tiver espaços
             "value": valor,
             "fill": colors[i % len(colors)]
         })

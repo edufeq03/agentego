@@ -55,34 +55,37 @@ export default function Funil() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart */}
-        <div className="glass-panel p-4 h-[400px]">
+        <div className="glass-panel p-4 h-[380px]">
           <h3 className="text-lg font-semibold text-white mb-4">Visualização do Funil</h3>
-          <ResponsiveContainer width="100%" height="80%">
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-              <XAxis type="number" stroke="var(--color-foreground-muted)" fontSize={12} />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                stroke="var(--color-foreground-muted)" 
-                fontSize={12}
-                width={100}
-              />
-              <Tooltip
-                cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
-                contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '0.5rem', color: 'white' }}
-              />
-              <Bar dataKey="value" barSize={30} radius={[0, 4, 4, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                <XAxis type="number" stroke="var(--color-foreground-muted)" fontSize={10} hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  stroke="var(--color-foreground-muted)" 
+                  fontSize={11}
+                  width={140}
+                  tick={{ fill: 'white' }}
+                />
+                <Tooltip
+                  cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
+                  contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '0.5rem', color: 'white' }}
+                />
+                <Bar dataKey="value" barSize={24} radius={[0, 4, 4, 0]}>
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Tabela de Conversão */}
