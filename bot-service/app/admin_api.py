@@ -235,6 +235,42 @@ def excluir_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok", "message": "Empresa excluída com sucesso"}
 
+@router.put("/empresas/{empresa_id}", dependencies=[Depends(verify_admin)])
+def atualizar_empresa(empresa_id: uuid.UUID, data: EmpresaCreate, db: Session = Depends(get_db)):
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # Atualiza campos básicos
+    empresa.nome = data.nome
+    empresa.slug = data.slug
+    empresa.valor_mensalidade = data.valor_mensalidade
+    empresa.plano = data.plano
+    empresa.limite_conversas_mes = data.limite_conversas_mes
+    empresa.nicho = data.nicho
+    
+    # Se mudar o template, atualiza a configuração (opcional/decisão de design)
+    if data.template_id:
+        template = db.query(PromptTemplate).filter(PromptTemplate.id == data.template_id).first()
+        if template:
+            empresa.etapas_funil = template.etapas_funil
+            empresa.nicho = template.nicho
+            
+            # Atualiza o prompt na tabela de configuracoes
+            config = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+            if config:
+                new_config = config.config.copy()
+                new_config.update({
+                    "prompt_sistema": template.prompt_sistema,
+                    "tom_voz": template.tom_voz,
+                    "missao": template.missao,
+                    "objetivo": template.objetivo
+                })
+                config.config = new_config
+
+    db.commit()
+    return {"status": "ok", "message": "Empresa atualizada com sucesso"}
+
 @router.post("/empresas/{empresa_id}/impersonate", dependencies=[Depends(verify_admin)])
 def impersonate_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()

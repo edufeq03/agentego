@@ -31,6 +31,7 @@ interface Empresa {
   tokens_input_mes: number;
   tokens_output_mes: number;
   custo_estimado_usd: number;
+  nicho: string;
 }
 
 interface Template {
@@ -41,6 +42,7 @@ interface Template {
   missao: string;
   objetivo: string;
   etapas_funil?: string[];
+  nicho: string;
 }
 
 export default function AdminPage() {
@@ -55,6 +57,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -69,7 +72,8 @@ export default function AdminPage() {
     email_admin: "",
     senha_admin: "",
     plano: "trial",
-    limite_conversas_mes: 100
+    limite_conversas_mes: 100,
+    nicho: "generico"
   });
 
   const [templateData, setTemplateData] = useState({
@@ -78,7 +82,8 @@ export default function AdminPage() {
     tom_voz: "",
     missao: "",
     objetivo: "",
-    etapas_funil: "novo, curioso, interessado, agendado"
+    etapas_funil: "novo, curioso, interessado, agendado",
+    nicho: "generico"
   });
 
   async function fetchData() {
@@ -99,14 +104,25 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("admin/empresas", formData, {
-        headers: { "X-Admin-Token": adminToken }
-      });
-      alert("Empresa cadastrada com sucesso!");
+      if (editingEmpresa) {
+        // Precisamos de um endpoint PUT /admin/empresas/{id} no backend se quisermos editar tudo.
+        // Como o backend ainda não tem, vamos avisar ou implementar.
+        // Por enquanto, vamos assumir que o backend suporta PATCH ou PUT similar ao template.
+        await api.put(`admin/empresas/${editingEmpresa.id}`, formData, {
+          headers: { "X-Admin-Token": adminToken }
+        });
+        alert("Empresa atualizada com sucesso!");
+      } else {
+        await api.post("admin/empresas", formData, {
+          headers: { "X-Admin-Token": adminToken }
+        });
+        alert("Empresa cadastrada com sucesso!");
+      }
       setShowModal(false);
+      setEditingEmpresa(null);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Erro ao cadastrar.");
+      alert(err.response?.data?.detail || "Erro ao processar.");
     } finally {
       setLoading(false);
     }
@@ -269,7 +285,8 @@ export default function AdminPage() {
                     tom_voz: "",
                     missao: "",
                     objetivo: "",
-                    etapas_funil: "novo, curioso, interessado, agendado"
+                    etapas_funil: "novo, curioso, interessado, agendado",
+                    nicho: "generico"
                   });
                   setShowTemplateModal(true);
                 }}
@@ -396,6 +413,31 @@ export default function AdminPage() {
                     <td className="p-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
+                          onClick={() => {
+                            setEditingEmpresa(emp);
+                            setFormData({
+                              nome: emp.nome,
+                              slug: emp.slug,
+                              telefone_whatsapp: "", // Backend não expõe por segurança na listagem básica
+                              telefone_proprietario: "",
+                              valor_mensalidade: emp.valor_mensalidade,
+                              dias_teste: 0,
+                              cupom_vendedor: "",
+                              template_id: "", 
+                              email_admin: "",
+                              senha_admin: "",
+                              plano: emp.plano,
+                              limite_conversas_mes: emp.limite_conversas_mes,
+                              nicho: emp.nicho || "generico"
+                            });
+                            setShowModal(true);
+                          }}
+                          className="p-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg hover:bg-purple-500/20"
+                          title="Editar Dados da Empresa"
+                        >
+                          <Settings size={18} />
+                        </button>
+                        <button 
                           onClick={() => handleImpersonate(emp.id)}
                           className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20"
                           title="Acessar Dashboard como Cliente"
@@ -440,7 +482,8 @@ export default function AdminPage() {
                           tom_voz: t.tom_voz,
                           missao: t.missao,
                           objetivo: t.objetivo,
-                          etapas_funil: t.etapas_funil ? t.etapas_funil.join(", ") : "novo, curioso, interessado, agendado"
+                          etapas_funil: t.etapas_funil ? t.etapas_funil.join(", ") : "novo, curioso, interessado, agendado",
+                          nicho: t.nicho || "generico"
                         });
                         setShowTemplateModal(true);
                       }}
@@ -488,9 +531,9 @@ export default function AdminPage() {
             <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-blue-600/10">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Plus className="text-blue-400" />
-                Novo Cliente
+                {editingEmpresa ? `Editando: ${editingEmpresa.nome}` : "Novo Cliente"}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">Fechar</button>
+              <button onClick={() => { setShowModal(false); setEditingEmpresa(null); }} className="text-slate-400 hover:text-white">Fechar</button>
             </div>
             
             <form onSubmit={handleCreateEmpresa} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -508,6 +551,21 @@ export default function AdminPage() {
                   ))}
                 </select>
                 <p className="text-[10px] text-slate-500">A IA deste cliente será inicializada com as regras deste template.</p>
+              </div>
+
+              <div className="col-span-full space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nicho de Mercado</label>
+                <select 
+                  required
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                  value={formData.nicho}
+                  onChange={(e) => setFormData({...formData, nicho: e.target.value})}
+                >
+                  <option value="generico">Genérico / Outros</option>
+                  <option value="academia">Academia (Gestão de Alunos)</option>
+                  <option value="contabilidade">Contabilidade (Obrigações)</option>
+                </select>
+                <p className="text-[10px] text-slate-500">Isso define quais ferramentas aparecerão no Dashboard do cliente.</p>
               </div>
 
               <div className="space-y-2">
@@ -622,6 +680,21 @@ export default function AdminPage() {
                 <input required placeholder="Ex: Lead, Qualificado, Visita, Proposta, Venda" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
                   value={templateData.etapas_funil} onChange={(e) => setTemplateData({...templateData, etapas_funil: e.target.value})} />
                 <p className="text-[10px] text-slate-500 italic">Essas serão as fases que aparecerão no gráfico do cliente.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nicho Padrão do Template</label>
+                <select 
+                  required
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
+                  value={templateData.nicho}
+                  onChange={(e) => setTemplateData({...templateData, nicho: e.target.value})}
+                >
+                  <option value="generico">Genérico / Outros</option>
+                  <option value="academia">Academia</option>
+                  <option value="contabilidade">Contabilidade</option>
+                </select>
+                <p className="text-[10px] text-slate-500">Novas empresas criadas com este template herdarão este nicho.</p>
               </div>
 
               <button type="submit" disabled={loading} className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
