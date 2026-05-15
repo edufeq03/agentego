@@ -32,6 +32,8 @@ export default function ComunicadosPage() {
   const [logsAbertos, setLogsAbertos] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
 
+  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+
   useEffect(() => {
     fetchHistorico();
     fetchStats();
@@ -190,7 +192,7 @@ export default function ComunicadosPage() {
                   {imagemUrl && (
                     <div className="relative aspect-video w-full bg-[var(--color-background)] rounded-xl overflow-hidden border border-[var(--color-border)] group">
                       <img 
-                        src={imagemUrl} 
+                        src={imagemUrl.startsWith('http') ? imagemUrl : `${apiBaseUrl}${imagemUrl}`} 
                         alt="Preview" 
                         className="w-full h-full object-cover"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
