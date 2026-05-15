@@ -106,6 +106,17 @@ async def root():
         "docs": "/docs"
     }
 
+@app.post("/webhook/{token}")
+@limiter.limit("60/minute")
+async def webhook(request: Request, token: str, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+        await processar_webhook(token, data, db)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Erro no webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     try:
