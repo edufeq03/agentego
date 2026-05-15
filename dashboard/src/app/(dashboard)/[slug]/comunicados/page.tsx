@@ -127,14 +127,14 @@ export default function ComunicadosPage() {
                 </p>
               </div>
               
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-[var(--color-foreground-muted)]">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <p className="text-xs text-[var(--color-foreground-muted)] mb-2 md:mb-0">
                   Use com moderação para evitar bloqueios de SPAM.
                 </p>
                 <button 
                   type="submit"
                   disabled={loading || !mensagem.trim()}
-                  className="flex items-center gap-2 px-6 py-3 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
+                  className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
                 >
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                   Disparar para todos

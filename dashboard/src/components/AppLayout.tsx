@@ -242,7 +242,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
         
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[var(--color-background)]">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 bg-[var(--color-background)]">
           <div className="max-w-6xl mx-auto h-full">
             {children}
           </div>
