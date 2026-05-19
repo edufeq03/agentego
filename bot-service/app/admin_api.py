@@ -150,6 +150,13 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
     existente = db.query(Empresa).filter(Empresa.slug == data.slug).first()
     if existente:
         raise HTTPException(status_code=400, detail="Este slug já está em uso")
+        
+    # Verifica se o e-mail do usuário já existe no sistema (case-insensitive)
+    from sqlalchemy import func
+    email_check = data.email_admin.strip().lower()
+    email_existente = db.query(Usuario).filter(func.lower(Usuario.email) == email_check).first()
+    if email_existente:
+        raise HTTPException(status_code=400, detail="Este e-mail de administrador já está cadastrado no sistema")
     
     # Calcula data de expiração
     expiracao = None
@@ -250,6 +257,46 @@ def atualizar_empresa(empresa_id: uuid.UUID, data: EmpresaCreate, db: Session = 
     empresa.plano = data.plano
     empresa.limite_conversas_mes = data.limite_conversas_mes
     empresa.nicho = data.nicho
+
+    # Atualiza telefone de WhatsApp se fornecido e modificado (evitando duplicidades)
+    if data.telefone_whatsapp and data.telefone_whatsapp.strip():
+        tel_clean = data.telefone_whatsapp.strip()
+        tel_existente = db.query(Empresa).filter(
+            Empresa.telefone_whatsapp == tel_clean,
+            Empresa.id != empresa.id
+        ).first()
+        if tel_existente:
+            raise HTTPException(status_code=400, detail="Já existe outra empresa cadastrada com este número de WhatsApp")
+        empresa.telefone_whatsapp = tel_clean
+
+    if data.telefone_proprietario and data.telefone_proprietario.strip():
+        empresa.telefone_proprietario = data.telefone_proprietario.strip()
+
+    # Atualiza o usuário administrador associado (se fornecido)
+    usuario = db.query(Usuario).filter(Usuario.empresa_id == empresa_id).first()
+    if usuario:
+        if data.email_admin and data.email_admin.strip():
+            email_clean = data.email_admin.strip().lower()
+            # Verifica se o email já está em uso por outro usuário
+            from sqlalchemy import func
+            email_existente = db.query(Usuario).filter(
+                func.lower(Usuario.email) == email_clean,
+                Usuario.id != usuario.id
+            ).first()
+            if email_existente:
+                raise HTTPException(status_code=400, detail="Este e-mail de administrador já está em uso por outra empresa")
+            usuario.email = data.email_admin.strip()
+        if data.senha_admin and data.senha_admin.strip():
+            usuario.senha_hash = get_password_hash(data.senha_admin)
+    else:
+        # Se por algum motivo o usuário não existia, cria um novo
+        if data.email_admin and data.email_admin.strip() and data.senha_admin and data.senha_admin.strip():
+            novo_usuario = Usuario(
+                email=data.email_admin.strip(),
+                senha_hash=get_password_hash(data.senha_admin),
+                empresa_id=empresa.id
+            )
+            db.add(novo_usuario)
     
     # Se mudar o template, atualiza a configuração (opcional/decisão de design)
     if data.template_id:

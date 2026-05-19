@@ -11,7 +11,9 @@ if (!rawBaseURL && typeof window !== 'undefined') {
     rawBaseURL = 'http://localhost:8000';
   } else if (hostname.includes('-dashboard-')) {
     // Para padrões de subdomínio do Easypanel (ex: agentego-dashboard-homolog -> agentego-bot-homolog)
-    rawBaseURL = `${protocol}//${hostname.replace('-dashboard-', '-bot-')}`;
+    // Se o hostname contiver "sites-academia" ou "agente", substitui por "-agente-" em vez de "-bot-"
+    const isAgente = hostname.includes('sites-academia') || hostname.includes('agente');
+    rawBaseURL = `${protocol}//${hostname.replace('-dashboard-', isAgente ? '-agente-' : '-bot-')}`;
   } else if (hostname.startsWith('dashboard.')) {
     // Se usar subdomínio padrão 'dashboard.dominio.com' -> 'api.dominio.com'
     rawBaseURL = `${protocol}//api.${hostname.substring(10)}`;

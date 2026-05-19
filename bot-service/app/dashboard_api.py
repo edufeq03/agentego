@@ -28,7 +28,9 @@ class LoginRequest(BaseModel):
 @router.post("/login")
 @limiter.limit("10/minute")
 def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email == req.email).first()
+    # Limpa espaços em branco e faz busca case-insensitive
+    email_clean = req.email.strip().lower()
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email_clean).first()
     if not usuario or not verify_password(req.password, usuario.senha_hash):
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
     
