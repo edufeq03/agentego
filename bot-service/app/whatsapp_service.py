@@ -98,7 +98,9 @@ def set_webhook(instance_name: str, webhook_url: str):
             "enabled": True,
             "url": webhook_url,
             "webhookByEvents": False,
+            "byEvents": False,
             "webhookBase64": True,
+            "base64": True,
             "events": [
                 "MESSAGES_UPSERT",
                 "MESSAGES_UPDATE",
