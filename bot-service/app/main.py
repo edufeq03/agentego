@@ -725,9 +725,13 @@ async def webhook(token: str, request: Request):
                     doc_db = DocumentoSeguro(
                         id=uuid.uuid4(),
                         lead_id=lead.id,
+                        empresa_id=empresa.id,
                         tipo=tipo_doc,
-                        url_arquivo="", 
-                        extraidos=dados_doc
+                        arquivo_url=image_msg.get("url", ""),
+                        mimetype=mimetype,
+                        ocr_processado=True,
+                        ocr_resultado=dados_doc,
+                        ocr_confianca=ocr_res.get("confianca", 1.0)
                     )
                     db.add(doc_db)
                     db.commit()
