@@ -61,10 +61,13 @@ def run_seed():
     tel_academia = "5511999990000"
     emp_academia = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_academia).first()
     if not emp_academia:
-        emp_academia = Empresa(nome="Prime Fit", telefone_whatsapp=tel_academia, webhook_token="primefit-token-123")
+        emp_academia = Empresa(nome="Prime Fit", telefone_whatsapp=tel_academia, webhook_token="primefit-token-123", nicho="academia")
         db.add(emp_academia)
         db.commit()
         db.refresh(emp_academia)
+    else:
+        emp_academia.nicho = "academia"
+        db.commit()
     
     # Configuração Academia (Update ou Create)
     conf_academia = db.query(Configuracao).filter(Configuracao.empresa_id == emp_academia.id).first()
@@ -84,10 +87,13 @@ def run_seed():
     tel_imobiliaria = "5511988880000"
     emp_imob = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_imobiliaria).first()
     if not emp_imob:
-        emp_imob = Empresa(nome="Viver Bem Imóveis", telefone_whatsapp=tel_imobiliaria, webhook_token="viverbem-token-456")
+        emp_imob = Empresa(nome="Viver Bem Imóveis", telefone_whatsapp=tel_imobiliaria, webhook_token="viverbem-token-456", nicho="imobiliaria")
         db.add(emp_imob)
         db.commit()
         db.refresh(emp_imob)
+    else:
+        emp_imob.nicho = "imobiliaria"
+        db.commit()
     
     # Configuração Imobiliária (Update ou Create)
     conf_imob = db.query(Configuracao).filter(Configuracao.empresa_id == emp_imob.id).first()

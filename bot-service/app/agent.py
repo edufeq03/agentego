@@ -76,6 +76,38 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
         secoes_conhecimento += f"- Sábados: {horarios.get('sabado', 'Não informado')}\n"
         secoes_conhecimento += f"- Domingos e Feriados: {horarios.get('domingo', 'Fechado')}\n"
 
+    # 2.0.4 - Professores (Dinamizados)
+    professores = config.get('professores', [])
+    if isinstance(professores, list) and professores:
+        secoes_conhecimento += "\n=== PROFESSORES E EQUIPE ===\n"
+        for prof in professores:
+            if isinstance(prof, dict):
+                nome = prof.get('nome', '')
+                esp = prof.get('especialidade', '')
+                bio = prof.get('descricao', '') or prof.get('bio', '')
+                if nome:
+                    secoes_conhecimento += f"- Prof. {nome}"
+                    if esp: secoes_conhecimento += f" | Especialidade: {esp}"
+                    if bio: secoes_conhecimento += f" | Obs: {bio}"
+                    secoes_conhecimento += "\n"
+
+    # 2.0.5 - Grade de Aulas e Modalidades (Dinamizados)
+    aulas = config.get('aulas', [])
+    if isinstance(aulas, list) and aulas:
+        secoes_conhecimento += "\n=== GRADE DE AULAS / MODALIDADES ===\n"
+        for aula in aulas:
+            if isinstance(aula, dict):
+                nome = aula.get('nome', '')
+                dias_horarios = aula.get('dias_horarios', '') or aula.get('horario', '')
+                prof_nome = aula.get('professor', '') or aula.get('instrutor', '')
+                obs = aula.get('descricao', '') or aula.get('detalhes', '')
+                if nome:
+                    secoes_conhecimento += f"- {nome}"
+                    if dias_horarios: secoes_conhecimento += f" | Dias/Horários: {dias_horarios}"
+                    if prof_nome: secoes_conhecimento += f" | Professor: {prof_nome}"
+                    if obs: secoes_conhecimento += f" | Obs: {obs}"
+                    secoes_conhecimento += "\n"
+
     # Fallback para nicho de academia legado (apenas planos se ainda não houver seções)
     if not secoes_conhecimento and 'planos' in config:
         planos = config.get('planos', {})
@@ -105,10 +137,20 @@ def montar_prompt(config: dict, intencao: str, stage: str, contexto_tempo: str, 
         regras = [
             "Identificar a necessidade do usuário com clareza.",
             "Ser direto, objetivo e empático.",
-            "Nunca inventar informações que não estão listadas na base de conhecimento.",
+            "Nunca inventar informações que não estão listadas na base de conhecimento (como preços, horários, planos, professores ou modalidades).",
+            "Se o usuário perguntar sobre professores, equipe, modalidades ou grade de aulas e essa informação não estiver descrita explicitamente na base de conhecimento, diga educadamente que não sabe e ofereça encaminhar para o atendimento humano.",
             "Utilizar emojis com moderação para manter um tom amigável.",
             "Se o usuário estiver frustrado ou pedir explicitamente, ofereça atendimento humano."
         ]
+    else:
+        # Garante que as regras de segurança fundamentais estão sempre presentes
+        regras_seguranca = [
+            "Nunca inventar informações que não estão listadas na base de conhecimento (como preços, horários, planos, professores ou modalidades).",
+            "Se o usuário perguntar sobre professores, equipe, modalidades ou grade de aulas e essa informação não estiver descrita explicitamente na base de conhecimento, diga educadamente que não sabe e ofereça encaminhar para o atendimento humano."
+        ]
+        for r_seg in regras_seguranca:
+            if not any(r_seg[:30] in r for r in regras):
+                regras.append(r_seg)
     regras_str = "\n".join([f"{i+1}. {regra}" for i, regra in enumerate(regras)])
 
     return f"""

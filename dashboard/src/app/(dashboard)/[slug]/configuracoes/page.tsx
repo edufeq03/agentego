@@ -9,6 +9,19 @@ interface Conhecimento {
   conteudo: string;
 }
 
+interface Professor {
+  nome: string;
+  especialidade: string;
+  descricao: string;
+}
+
+interface Aula {
+  nome: string;
+  dias_horarios: string;
+  professor: string;
+  descricao: string;
+}
+
 interface ConfigData {
   nome_agente: string;
   nome_empresa: string;
@@ -20,6 +33,8 @@ interface ConfigData {
   regras_comportamento: string[];
   timezone: string;
   telefones_ignorados?: string[];
+  professores?: Professor[];
+  aulas?: Aula[];
   // Campos legados mantidos para compatibilidade
   planos?: { basico: number; vip: number };
   aviso_vencimento_1?: number;
@@ -41,13 +56,16 @@ export default function Configuracoes() {
     telefones_ignorados: [],
     aviso_vencimento_1: 7,
     aviso_vencimento_2: 3,
-    aviso_vencimento_3: 0
+    aviso_vencimento_3: 0,
+    professores: [],
+    aulas: []
   });
   
   const [newIgnoredPhone, setNewIgnoredPhone] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [telefoneProprietario, setTelefoneProprietario] = useState("");
+  const [nicho, setNicho] = useState("generico");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -60,6 +78,7 @@ export default function Configuracoes() {
         const { config: configData, webhook_token, base_url } = response.data;
         
         console.log("DADOS RECEBIDOS DA API:", configData);
+        setNicho(response.data.nicho || "generico");
 
         if (configData && Object.keys(configData).length > 0) {
           setConfig({
@@ -80,7 +99,9 @@ export default function Configuracoes() {
             telefones_ignorados: Array.isArray(configData.telefones_ignorados) ? configData.telefones_ignorados : [],
             aviso_vencimento_1: configData.aviso_vencimento_1 ?? 7,
             aviso_vencimento_2: configData.aviso_vencimento_2 ?? 3,
-            aviso_vencimento_3: configData.aviso_vencimento_3 ?? 0
+            aviso_vencimento_3: configData.aviso_vencimento_3 ?? 0,
+            professores: Array.isArray(configData.professores) ? configData.professores : [],
+            aulas: Array.isArray(configData.aulas) ? configData.aulas : []
           });
         }
         setWebhookToken(webhook_token || "");
@@ -156,7 +177,46 @@ export default function Configuracoes() {
 
   const updateFAQ = (index: number, field: 'pergunta' | 'resposta', value: string) => {
     const newItems = [...config.faq];
+    newItems[index] = { ...newItems[index], [field]: value };
     setConfig({ ...config, faq: newItems });
+  };
+
+  const addProfessor = () => {
+    setConfig({
+      ...config,
+      professores: [...(config.professores || []), { nome: "", especialidade: "", descricao: "" }]
+    });
+  };
+
+  const removeProfessor = (index: number) => {
+    const newItems = [...(config.professores || [])];
+    newItems.splice(index, 1);
+    setConfig({ ...config, professores: newItems });
+  };
+
+  const updateProfessor = (index: number, field: keyof Professor, value: string) => {
+    const newItems = [...(config.professores || [])];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setConfig({ ...config, professores: newItems });
+  };
+
+  const addAula = () => {
+    setConfig({
+      ...config,
+      aulas: [...(config.aulas || []), { nome: "", dias_horarios: "", professor: "", descricao: "" }]
+    });
+  };
+
+  const removeAula = (index: number) => {
+    const newItems = [...(config.aulas || [])];
+    newItems.splice(index, 1);
+    setConfig({ ...config, aulas: newItems });
+  };
+
+  const updateAula = (index: number, field: keyof Aula, value: string) => {
+    const newItems = [...(config.aulas || [])];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setConfig({ ...config, aulas: newItems });
   };
 
   const addPlano = () => {
@@ -369,6 +429,152 @@ export default function Configuracoes() {
               ))}
             </div>
           </section>
+
+          {/* Seção Condicional para Nicho Academia: Professores e Grade de Aulas */}
+          {nicho === "academia" && (
+            <>
+              {/* Gestão de Professores e Equipe */}
+              <section className="glass-panel p-6 space-y-6">
+                <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
+                  <div className="flex items-center gap-2 text-white font-semibold text-lg">
+                    <Users className="text-emerald-400" size={20} />
+                    Gestão de Professores e Equipe
+                  </div>
+                  <button 
+                    onClick={addProfessor}
+                    type="button"
+                    className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
+                  >
+                    <Plus size={14} /> Adicionar Professor
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {(config.professores || []).map((prof, index) => (
+                    <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group">
+                      <button 
+                        onClick={() => removeProfessor(index)}
+                        className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-10 animate-in fade-in"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nome Completo</label>
+                          <input 
+                            placeholder="Ex: Ricardo Silva"
+                            value={prof.nome}
+                            onChange={e => updateProfessor(index, 'nome', e.target.value)}
+                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white font-semibold focus:outline-none focus:border-[var(--color-brand-500)]"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Especialidade / Foco</label>
+                          <input 
+                            placeholder="Ex: Musculação e Hipertrofia"
+                            value={prof.especialidade}
+                            onChange={e => updateProfessor(index, 'especialidade', e.target.value)}
+                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Breve Descrição / Bio</label>
+                        <textarea 
+                          placeholder="Ex: Formado em Ed. Física pela UNICAMP, especialista em reabilitação."
+                          value={prof.descricao}
+                          onChange={e => updateProfessor(index, 'descricao', e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-16 resize-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {(config.professores || []).length === 0 && (
+                    <p className="text-center text-sm text-[var(--color-foreground-muted)] py-4">Nenhum professor cadastrado. Adicione professores para o agente saber quem são!</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Grade de Aulas e Modalidades */}
+              <section className="glass-panel p-6 space-y-6">
+                <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
+                  <div className="flex items-center gap-2 text-white font-semibold text-lg">
+                    <CalendarCheck className="text-cyan-400" size={20} />
+                    Grade de Aulas e Modalidades
+                  </div>
+                  <button 
+                    onClick={addAula}
+                    type="button"
+                    className="text-xs flex items-center gap-1 text-[var(--color-brand-400)] hover:text-[var(--color-brand-300)] transition-colors"
+                  >
+                    <Plus size={14} /> Adicionar Aula
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {(config.aulas || []).map((aula, index) => (
+                    <div key={index} className="bg-white/5 rounded-xl p-4 border border-[var(--color-border)] relative group">
+                      <button 
+                        onClick={() => removeAula(index)}
+                        className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all z-10 animate-in fade-in"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nome da Aula / Modalidade</label>
+                          <input 
+                            placeholder="Ex: Crossfit, Zumba, Pilates"
+                            value={aula.nome}
+                            onChange={e => updateAula(index, 'nome', e.target.value)}
+                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white font-semibold focus:outline-none focus:border-[var(--color-brand-500)]"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dias e Horários</label>
+                          <input 
+                            placeholder="Ex: Ter e Qui às 19h, Sáb às 10h"
+                            value={aula.dias_horarios}
+                            onChange={e => updateAula(index, 'dias_horarios', e.target.value)}
+                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Professor / Instrutor</label>
+                          <select 
+                            value={aula.professor}
+                            onChange={e => updateAula(index, 'professor', e.target.value)}
+                            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] appearance-none cursor-pointer"
+                          >
+                            <option value="">Selecione um professor...</option>
+                            {(config.professores || []).filter(p => p.nome).map((p, i) => (
+                              <option key={i} value={p.nome}>{p.nome}</option>
+                            ))}
+                            {/* Fallback caso digite um nome livre */}
+                            {aula.professor && !(config.professores || []).some(p => p.nome === aula.professor) && (
+                              <option value={aula.professor}>{aula.professor}</option>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Detalhes Adicionais (Requisitos, vagas, etc.)</label>
+                        <textarea 
+                          placeholder="Ex: Necessário agendamento prévio. Capacidade máxima: 15 alunos."
+                          value={aula.descricao}
+                          onChange={e => updateAula(index, 'descricao', e.target.value)}
+                          className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] h-16 resize-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {(config.aulas || []).length === 0 && (
+                    <p className="text-center text-sm text-[var(--color-foreground-muted)] py-4">Nenhuma aula cadastrada. Adicione modalidades para o robô poder apresentá-las!</p>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
         </div>
 
         {/* Sidebar: Configurações Rápidas */}

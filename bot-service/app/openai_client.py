@@ -13,7 +13,8 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None):
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=mensagens
+        messages=mensagens,
+        temperature=0.2
     )
     texto = response.choices[0].message.content
     t_in = response.usage.prompt_tokens
