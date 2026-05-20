@@ -31,6 +31,7 @@ export default function AlunosPage() {
   const slug = params?.slug as string;
   
   const [membros, setMembros] = useState<Membro[]>([]);
+  const [nicho, setNicho] = useState<string>("academia");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -39,6 +40,15 @@ export default function AlunosPage() {
   const [importResult, setImportResult] = useState<any>(null);
 
   useEffect(() => {
+    async function fetchNicho() {
+      try {
+        const response = await api.get("dashboard/config");
+        setNicho(response.data.nicho || "generico");
+      } catch (error) {
+        console.error("Erro ao carregar nicho:", error);
+      }
+    }
+    fetchNicho();
     fetchMembros();
   }, []);
 
@@ -54,12 +64,14 @@ export default function AlunosPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Tem certeza que deseja remover este aluno?")) return;
+    const isCorretora = nicho === "corretora";
+    const msg = isCorretora ? "Tem certeza que deseja remover este lead?" : "Tem certeza que deseja remover este aluno?";
+    if (!confirm(msg)) return;
     try {
       await api.delete(`dashboard/membros/${id}`);
       setMembros(membros.filter(m => m.id !== id));
     } catch (error) {
-      alert("Erro ao remover aluno.");
+      alert(isCorretora ? "Erro ao remover lead." : "Erro ao remover aluno.");
     }
   }
 
@@ -89,13 +101,19 @@ export default function AlunosPage() {
     m.telefone.includes(searchTerm)
   );
 
+  const isCorretora = nicho === "corretora";
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Gestão de Alunos</h2>
+          <h2 className="text-3xl font-bold text-white tracking-tight">
+            {isCorretora ? "Gestão de Leads (Seguros)" : "Gestão de Alunos"}
+          </h2>
           <p className="text-[var(--color-foreground-muted)] mt-1">
-            Gerencie sua base de alunos e automatize avisos de vencimento.
+            {isCorretora 
+              ? "Gerencie sua base de leads, acompanhe cotações e documentos pendentes." 
+              : "Gerencie sua base de alunos e automatize avisos de vencimento."}
           </p>
         </div>
         <button 
@@ -107,7 +125,7 @@ export default function AlunosPage() {
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white rounded-xl font-semibold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
         >
           <Upload size={18} />
-          Importar CSV
+          {isCorretora ? "Importar Leads" : "Importar CSV"}
         </button>
       </div>
 
@@ -119,7 +137,7 @@ export default function AlunosPage() {
               <CheckCircle2 size={24} />
             </div>
             <div>
-              <p className="text-sm text-[var(--color-foreground-muted)]">Ativos</p>
+              <p className="text-sm text-[var(--color-foreground-muted)]">{isCorretora ? "Documentos OK" : "Ativos"}</p>
               <p className="text-2xl font-bold text-white">{membros.filter(m => m.status === 'ativo').length}</p>
             </div>
           </div>
@@ -130,7 +148,7 @@ export default function AlunosPage() {
               <Clock size={24} />
             </div>
             <div>
-              <p className="text-sm text-[var(--color-foreground-muted)]">Vencendo (7 dias)</p>
+              <p className="text-sm text-[var(--color-foreground-muted)]">{isCorretora ? "Com Pendências" : "Vencendo (7 dias)"}</p>
               <p className="text-2xl font-bold text-white">{membros.filter(m => m.status === 'vencendo').length}</p>
             </div>
           </div>
@@ -141,7 +159,7 @@ export default function AlunosPage() {
               <AlertCircle size={24} />
             </div>
             <div>
-              <p className="text-sm text-[var(--color-foreground-muted)]">Vencidos</p>
+              <p className="text-sm text-[var(--color-foreground-muted)]">{isCorretora ? "Sem Documentos" : "Vencidos"}</p>
               <p className="text-2xl font-bold text-white">{membros.filter(m => m.status === 'vencido').length}</p>
             </div>
           </div>
@@ -167,11 +185,11 @@ export default function AlunosPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[var(--color-surface-hover)]/50 text-[var(--color-foreground-muted)] text-sm font-medium">
-                <th className="px-6 py-4">Aluno</th>
+                <th className="px-6 py-4">{isCorretora ? "Lead / Contato" : "Aluno"}</th>
                 <th className="px-6 py-4">Telefone</th>
-                <th className="px-6 py-4">Plano</th>
-                <th className="px-6 py-4">Vencimento</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">{isCorretora ? "Produto / Seguro" : "Plano"}</th>
+                <th className="px-6 py-4">{isCorretora ? "Atualização" : "Vencimento"}</th>
+                <th className="px-6 py-4">{isCorretora ? "Documentos" : "Status"}</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -179,13 +197,13 @@ export default function AlunosPage() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-[var(--color-foreground-muted)]">
-                    Carregando alunos...
+                    {isCorretora ? "Carregando leads..." : "Carregando alunos..."}
                   </td>
                 </tr>
               ) : filteredMembros.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-[var(--color-foreground-muted)]">
-                    Nenhum aluno encontrado.
+                    {isCorretora ? "Nenhum lead encontrado." : "Nenhum aluno encontrado."}
                   </td>
                 </tr>
               ) : (
@@ -222,7 +240,7 @@ export default function AlunosPage() {
                           membro.status === 'vencendo' ? 'bg-amber-500' :
                           'bg-red-500'
                         }`} />
-                        {membro.status.toUpperCase()}
+                        {isCorretora ? (membro.status === 'ativo' ? 'OK' : membro.status === 'vencendo' ? 'PENDENTE' : 'SEM DOCS') : membro.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">

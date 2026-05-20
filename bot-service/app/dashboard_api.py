@@ -134,6 +134,7 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
     total_pausados = db.query(Transbordo).filter(Transbordo.empresa_id == empresa.id, Transbordo.status == "pausado").count()
     
     return {
+        "nicho": empresa.nicho or "generico",
         "cards": {
             "total_leads": total_leads,
             "leads_recentes": leads_recentes,
@@ -509,6 +510,42 @@ async def importar_membros_csv(
                 continue
 
             # Upsert
+            if empresa.nicho == "corretora":
+                lead = db.query(Lead).filter(
+                    Lead.empresa_id == empresa.id,
+                    Lead.telefone == telefone
+                ).first()
+                if not lead:
+                    lead = Lead(
+                        empresa_id=empresa.id,
+                        telefone=telefone,
+                        nome=nome,
+                        stage="primeiro_contato"
+                    )
+                    db.add(lead)
+                    db.commit()
+                    db.refresh(lead)
+                else:
+                    lead.nome = nome
+                    
+                lead_seg = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
+                if not lead_seg:
+                    lead_seg = LeadSeguro(
+                        id=lead.id,
+                        empresa_id=empresa.id,
+                        telefone=telefone,
+                        canal_entrada="csv",
+                        tipo_seguro=plano or "saude",
+                        stage=lead.stage
+                    )
+                    db.add(lead_seg)
+                else:
+                    lead_seg.tipo_seguro = plano or lead_seg.tipo_seguro
+                
+                db.commit()
+                importados += 1
+                continue
+
             membro = db.query(MembroAcademia).filter(
                 MembroAcademia.empresa_id == empresa.id,
                 MembroAcademia.telefone == telefone
@@ -550,6 +587,34 @@ def listar_membros(
     empresa: Empresa = Depends(obter_empresa),
     db: Session = Depends(get_db)
 ):
+    if empresa.nicho == "corretora":
+        from app.database import LeadSeguro
+        leads = db.query(LeadSeguro).filter(LeadSeguro.empresa_id == empresa.id).order_by(LeadSeguro.criado_em.desc()).all()
+        resultado = []
+        for l in leads:
+            lead = db.query(Lead).filter(Lead.id == l.id).first()
+            nome = lead.nome if lead else None
+            
+            plano_nome = f"{str(l.tipo_seguro).capitalize() if l.tipo_seguro else 'Não inf.'}"
+            if l.marca_modelo:
+                plano_nome += f" ({l.marca_modelo})"
+            elif l.plano_anterior_nome:
+                plano_nome += f" ({l.plano_anterior_nome})"
+                
+            data_venc = l.atualizado_em or l.criado_em or datetime.utcnow()
+            status = "vencendo" if l.docs_pendentes else "ativo"
+            
+            resultado.append({
+                "id": str(l.id),
+                "nome": nome or l.telefone or "Lead de Seguros",
+                "telefone": l.telefone,
+                "plano_nome": plano_nome,
+                "data_vencimento": data_venc.strftime("%d/%m/%Y"),
+                "dias_restantes": len(l.docs_pendentes) if l.docs_pendentes else 0,
+                "status": status
+            })
+        return resultado
+
     membros = db.query(MembroAcademia).filter(
         MembroAcademia.empresa_id == empresa.id
     ).order_by(MembroAcademia.data_vencimento.asc()).all()
@@ -577,6 +642,19 @@ def remover_membro(
     empresa: Empresa = Depends(obter_empresa),
     db: Session = Depends(get_db)
 ):
+    if empresa.nicho == "corretora":
+        from app.database import LeadSeguro, Evento, Mensagem
+        lead_seg = db.query(LeadSeguro).filter(LeadSeguro.id == membro_id, LeadSeguro.empresa_id == empresa.id).first()
+        if not lead_seg:
+            raise HTTPException(status_code=404, detail="Lead não encontrado")
+        
+        db.query(Evento).filter(Evento.lead_id == membro_id).delete()
+        db.query(Mensagem).filter(Mensagem.lead_id == membro_id).delete()
+        db.query(LeadSeguro).filter(LeadSeguro.id == membro_id).delete()
+        db.query(Lead).filter(Lead.id == membro_id).delete()
+        db.commit()
+        return {"status": "ok"}
+
     membro = db.query(MembroAcademia).filter(
         MembroAcademia.id == membro_id,
         MembroAcademia.empresa_id == empresa.id

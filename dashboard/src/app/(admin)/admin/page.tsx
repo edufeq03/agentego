@@ -34,6 +34,10 @@ interface Empresa {
   tokens_output_mes: number;
   custo_estimado_usd: number;
   nicho: string;
+  telefone_proprietario?: string;
+  telefone_whatsapp?: string;
+  template_id?: string;
+  email_admin?: string;
 }
 
 interface Template {
@@ -419,15 +423,15 @@ export default function AdminPage() {
                             setEditingEmpresa(emp);
                             setFormData({
                               nome: emp.nome,
-                              slug: emp.slug,
-                              telefone_whatsapp: "", // Backend não expõe por segurança na listagem básica
-                              telefone_proprietario: "",
+                              slug: emp.slug || "",
+                              telefone_whatsapp: emp.telefone_whatsapp || "", // Agora retorna da API!
+                              telefone_proprietario: emp.telefone_proprietario || "",
                               valor_mensalidade: emp.valor_mensalidade,
                               dias_teste: 0,
                               cupom_vendedor: "",
-                              template_id: "", 
-                              email_admin: "",
-                              senha_admin: "",
+                              template_id: emp.template_id || "", 
+                              email_admin: emp.email_admin || "",
+                              senha_admin: "", // A senha não é retornada por segurança, se vazia, não altera no backend.
                               plano: emp.plano,
                               limite_conversas_mes: emp.limite_conversas_mes,
                               nicho: emp.nicho || "generico"
@@ -573,6 +577,7 @@ export default function AdminPage() {
                   <option value="generico">Genérico / Outros</option>
                   <option value="academia">Academia (Gestão de Alunos)</option>
                   <option value="contabilidade">Contabilidade (Obrigações)</option>
+                  <option value="corretora">Corretora de Seguros (Gestão de Leads)</option>
                 </select>
                 <p className="text-[10px] text-slate-500">Isso define quais ferramentas aparecerão no Dashboard do cliente.</p>
               </div>
@@ -627,9 +632,10 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Senha Inicial</label>
-                <input type="password" required placeholder="••••••••" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{editingEmpresa ? "Nova Senha (opcional)" : "Senha Inicial"}</label>
+                <input type="password" required={!editingEmpresa} placeholder="••••••••" className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
                   value={formData.senha_admin} onChange={(e) => setFormData({...formData, senha_admin: e.target.value})} />
+                {editingEmpresa && <p className="text-[10px] text-slate-500">Deixe em branco para não alterar a senha atual.</p>}
               </div>
 
               <button type="submit" disabled={loading} className="col-span-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
@@ -702,6 +708,7 @@ export default function AdminPage() {
                   <option value="generico">Genérico / Outros</option>
                   <option value="academia">Academia</option>
                   <option value="contabilidade">Contabilidade</option>
+                  <option value="corretora">Corretora de Seguros</option>
                 </select>
                 <p className="text-[10px] text-slate-500">Novas empresas criadas com este template herdarão este nicho.</p>
               </div>

@@ -39,7 +39,7 @@ class EmpresaCreate(BaseModel):
     slug: str
     telefone_whatsapp: str
     email_admin: str
-    senha_admin: str
+    senha_admin: Optional[str] = None
     telefone_proprietario: Optional[str] = None
     valor_mensalidade: Optional[float] = 0.0
     dias_teste: Optional[int] = 30
@@ -65,6 +65,12 @@ class EmpresaResponse(BaseModel):
     tokens_input_mes: int
     tokens_output_mes: int
     custo_estimado_usd: Optional[float] = 0.0
+    
+    nicho: Optional[str] = "generico"
+    telefone_proprietario: Optional[str] = None
+    telefone_whatsapp: Optional[str] = None
+    template_id: Optional[uuid.UUID] = None
+    email_admin: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -113,6 +119,11 @@ def listar_empresas(db: Session = Depends(get_db)):
             emp.slug = re.sub(r'[^a-z0-9]+', '-', emp.nome.lower()).strip('-')
         # Calcula custo estimado USD (gpt-4o-mini pricing)
         emp.custo_estimado_usd = ((emp.tokens_input_mes or 0) * 0.00000015) + ((emp.tokens_output_mes or 0) * 0.0000006)
+        
+        # Popula o email do admin
+        usuario = db.query(Usuario).filter(Usuario.empresa_id == emp.id).first()
+        emp.email_admin = usuario.email if usuario else None
+    
     db.commit()
     return empresas
 

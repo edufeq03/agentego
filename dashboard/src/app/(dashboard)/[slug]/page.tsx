@@ -6,6 +6,7 @@ import { Users, UserPlus, Flame, CalendarCheck, Clock, Moon, PauseCircle } from 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface VisaoGeralData {
+  nicho: string;
   cards: {
     total_leads: number;
     leads_recentes: number;
@@ -47,11 +48,12 @@ export default function Home() {
 
   if (!data) return <div>Erro ao carregar dados.</div>;
 
+  const isCorretora = data.nicho === "corretora";
   const stats = [
     { name: "Total de Leads", value: data.cards.total_leads, icon: Users, color: "text-blue-400" },
     { name: "Novos (7 dias)", value: data.cards.leads_recentes, icon: UserPlus, color: "text-green-400" },
-    { name: "Interessados", value: data.cards.leads_interessados, icon: Flame, color: "text-orange-400" },
-    { name: "Visitas", value: data.cards.visitas, icon: CalendarCheck, color: "text-purple-400" },
+    { name: isCorretora ? "Leads Triados" : "Interessados", value: data.cards.leads_interessados, icon: Flame, color: "text-orange-400" },
+    { name: isCorretora ? "Cotações / Triagem" : "Visitas", value: data.cards.visitas, icon: CalendarCheck, color: "text-purple-400" },
     { name: "Aguardando Humano", value: data.cards.pausados, icon: PauseCircle, color: "text-red-400" },
   ];
 

@@ -37,6 +37,18 @@ def seed():
         imobiliaria.objetivo = "Agendar visitas a imóveis."
         imobiliaria.etapas_funil = ["novo", "curioso", "qualificado", "visita_marcada"]
 
+        # 4. Template Corretora de Seguros
+        corretora = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Corretora de Seguros").first()
+        if not corretora:
+            corretora = PromptTemplate(nome_nicho="Corretora de Seguros")
+            db.add(corretora)
+        corretora.prompt_sistema = "Você é um corretor de seguros digital de alta performance. Seu tom é consultivo, profissional e que passa segurança. Seu objetivo é entender as necessidades do cliente, qualificar o lead (coletando dados para cotação) e solicitar o envio de documentos (CNH, CRLV, carteirinha atual) para preparar a melhor proposta de plano de saúde, odonto ou seguro auto/moto."
+        corretora.tom_voz = "Consultivo e Seguro"
+        corretora.missao = "Proteger o que é mais importante para nossos clientes com transparência e agilidade."
+        corretora.objetivo = "Coletar dados para cotação de seguros e solicitar documentos."
+        corretora.etapas_funil = ["novo_lead", "em_atendimento", "documentos_pendentes", "em_cotacao"]
+        corretora.nicho = "corretora"
+
         db.commit()
         print("Templates de nicho semeados com sucesso!")
     except Exception as e:

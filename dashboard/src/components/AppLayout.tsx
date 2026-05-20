@@ -28,6 +28,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
     ] : []),
 
+    // Nicho Corretora
+    ...(nicho === 'corretora' ? [
+      { name: "Gestão de Leads", href: `/${slug}/alunos`, icon: Users },
+      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
+    ] : []),
+
     // Nicho Contabilidade
     ...(nicho === 'contabilidade' ? [
       { name: "Empresas Clientes", href: `/${slug}/clientes`, icon: Briefcase },

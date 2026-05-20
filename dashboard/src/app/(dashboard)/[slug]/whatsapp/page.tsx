@@ -68,6 +68,18 @@ export default function WhatsAppConnection() {
     }
   }
 
+  async function handleSync() {
+    setLoading(true);
+    try {
+      const response = await api.post("dashboard/whatsapp/sync");
+      alert(response.data?.mensagem || "Configurações sincronizadas com sucesso!");
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Erro ao sincronizar configurações do WhatsApp.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -149,6 +161,13 @@ export default function WhatsAppConnection() {
                 >
                   <RefreshCw size={18} />
                   Atualizar Status
+                </button>
+                <button 
+                  onClick={handleSync}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
+                >
+                  <RefreshCw size={18} />
+                  Sincronizar Eventos
                 </button>
               </div>
             </div>

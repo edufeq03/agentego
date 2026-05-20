@@ -581,6 +581,161 @@ async def webhook(token: str, request: Request):
                     logger.info(f"[{telefone}] Webhook ignorado: Áudio recebido mas sem conteúdo legível.")
                     return {"status": "ignorado", "motivo": "audio_sem_conteudo"}
 
+        # 2.5 Tratar Imagens e OCR se for corretora
+        if (message_type == "imageMessage" or "imageMessage" in msg_obj) and empresa.nicho == "corretora":
+            logger.info(f"[{telefone}] Imagem recebida para corretora! Iniciando OCR...")
+            base64_imagem = msg_obj.get("base64") or event_data.get("base64")
+            image_msg = msg_obj.get("imageMessage") or msg_obj
+            
+            # Se não tiver base64, tenta fazer download via downloadMedia
+            if not base64_imagem:
+                webhook_server_url = data.get("server_url")
+                if webhook_server_url:
+                    base_url_evolution = webhook_server_url.rstrip('/')
+                else:
+                    from app.whatsapp_service import get_evolution_base_url
+                    base_url_evolution = get_evolution_base_url().rstrip('/')
+
+                webhook_apikey = data.get("apikey")
+                headers = {"apikey": webhook_apikey or os.getenv("EVOLUTION_API_KEY"), "Content-Type": "application/json"}
+                
+                webhook_instance_id = data.get("instanceId") or data.get("data", {}).get("instanceId")
+                inst_ref = webhook_instance_id or empresa.evolution_instance
+                
+                endpoints_tentar = [
+                    f"{base_url_evolution}/chat/downloadMedia",
+                    f"{base_url_evolution}/v2/chat/downloadMedia",
+                    f"{base_url_evolution}/message/getBase64FromMedia/{inst_ref}",
+                    f"{base_url_evolution}/v2/message/getBase64FromMedia/{inst_ref}",
+                    f"{base_url_evolution}/chat/getBase64FromMedia/{inst_ref}",
+                ]
+                
+                payload_dl = {
+                    "instance": empresa.evolution_instance,
+                    "mediaKey": image_msg.get("mediaKey"),
+                    "directPath": image_msg.get("directPath"),
+                    "mimetype": image_msg.get("mimetype", "image/jpeg"),
+                    "url": image_msg.get("url"),
+                    "type": "image"
+                }
+                
+                for url_dl in endpoints_tentar:
+                    try:
+                        res_dl = requests.post(url_dl, json=payload_dl, headers=headers, timeout=15)
+                        if res_dl.status_code in [200, 201]:
+                            base64_imagem = res_dl.json().get("base64")
+                            if base64_imagem:
+                                logger.info(f"[{telefone}] Imagem descriptografada via Evolution API.")
+                                break
+                    except Exception:
+                        continue
+
+            if base64_imagem:
+                if "," in base64_imagem:
+                    base64_imagem = base64_imagem.split(",")[1]
+                mimetype = image_msg.get("mimetype", "image/jpeg") if "imageMessage" in msg_obj else "image/jpeg"
+                
+                try:
+                    from app.ocr_service import classificar_e_processar_ocr
+                    from datetime import datetime
+                    from app.database import LeadSeguro
+                    ocr_res = classificar_e_processar_ocr(base64_imagem, mimetype)
+                    logger.info(f"[{telefone}] OCR processado: {ocr_res}")
+                    tipo_doc = ocr_res.get("tipo", "outro")
+                    dados_doc = ocr_res.get("dados", {})
+                    
+                    # Procurar ou criar lead/lead_seguro correspondente
+                    lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
+                    if not lead:
+                        lead = Lead(empresa_id=empresa.id, telefone=telefone, stage="primeiro_contato")
+                        db.add(lead)
+                        db.commit()
+                        db.refresh(lead)
+                    
+                    lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
+                    if not lead_seguro:
+                        lead_seguro = LeadSeguro(
+                            id=lead.id,
+                            empresa_id=empresa.id,
+                            telefone=telefone,
+                            canal_entrada="organico",
+                            stage=lead.stage
+                        )
+                        db.add(lead_seguro)
+                        db.commit()
+                        db.refresh(lead_seguro)
+                    
+                    # Salvar no BD baseado no tipo
+                    if tipo_doc == "cnh":
+                        lead_seguro.nome_segurado = dados_doc.get("nome") or lead_seguro.nome_segurado
+                        lead.nome = dados_doc.get("nome") or lead.nome
+                        if dados_doc.get("cpf") and hasattr(lead, "cpf"):
+                            lead.cpf = dados_doc.get("cpf")
+                        
+                        docs_r = lead_seguro.docs_recebidos or []
+                        if "cnh_ou_rg" not in [d.get("tipo") for d in docs_r]:
+                            docs_r.append({"tipo": "cnh_ou_rg", "recebido_em": str(datetime.utcnow())})
+                            lead_seguro.docs_recebidos = docs_r
+                        
+                        docs_p = lead_seguro.docs_pendentes or []
+                        if "cnh_ou_rg" in docs_p:
+                            docs_p.remove("cnh_ou_rg")
+                            lead_seguro.docs_pendentes = docs_p
+                            
+                    elif tipo_doc == "crlv":
+                        lead_seguro.placa = dados_doc.get("placa") or lead_seguro.placa
+                        lead_seguro.marca_modelo = f"{dados_doc.get('marca', '')} {dados_doc.get('modelo', '')}".strip() or lead_seguro.marca_modelo
+                        try:
+                            if dados_doc.get("ano_fabricacao"):
+                                lead_seguro.ano_fabricacao = int(dados_doc.get("ano_fabricacao"))
+                            if dados_doc.get("ano_modelo"):
+                                lead_seguro.ano_modelo = int(dados_doc.get("ano_modelo"))
+                        except Exception:
+                            pass
+                            
+                        docs_r = lead_seguro.docs_recebidos or []
+                        if "crlv" not in [d.get("tipo") for d in docs_r]:
+                            docs_r.append({"tipo": "crlv", "recebido_em": str(datetime.utcnow())})
+                            lead_seguro.docs_recebidos = docs_r
+                        
+                        docs_p = lead_seguro.docs_pendentes or []
+                        if "crlv" in docs_p:
+                            docs_p.remove("crlv")
+                            lead_seguro.docs_pendentes = docs_p
+                            
+                    elif tipo_doc == "carteirinha_plano":
+                        lead_seguro.plano_anterior_nome = dados_doc.get("plano_nome") or dados_doc.get("operadora") or lead_seguro.plano_anterior_nome
+                        lead_seguro.tem_plano_anterior = True
+                        
+                        docs_r = lead_seguro.docs_recebidos or []
+                        if "carteirinha" not in [d.get("tipo") for d in docs_r]:
+                            docs_r.append({"tipo": "carteirinha", "recebido_em": str(datetime.utcnow())})
+                            lead_seguro.docs_recebidos = docs_r
+                        
+                        docs_p = lead_seguro.docs_pendentes or []
+                        if "carteirinha" in docs_p:
+                            docs_p.remove("carteirinha")
+                            lead_seguro.docs_pendentes = docs_p
+                    
+                    db.commit()
+                    
+                    # Criar registro DocumentoSeguro
+                    from app.database import DocumentoSeguro
+                    import uuid
+                    doc_db = DocumentoSeguro(
+                        id=uuid.uuid4(),
+                        lead_id=lead.id,
+                        tipo=tipo_doc,
+                        url_arquivo="", 
+                        extraidos=dados_doc
+                    )
+                    db.add(doc_db)
+                    db.commit()
+                    
+                    mensagem = f"[DOCUMENTO_RECEBIDO: tipo={tipo_doc}]"
+                except Exception as ocr_ex:
+                    logger.error(f"Erro ao processar OCR da imagem: {ocr_ex}")
+
         if not mensagem:
             logger.info(f"[{telefone}] Webhook ignorado: Mensagem sem texto ou tipo não suportado.")
             return {"status": "ignorado", "motivo": "sem_texto"}
