@@ -243,6 +243,7 @@ class Campanha(Base):
     codigo_ref = Column(String(50), unique=True, nullable=False, index=True)
     nome = Column(String(100), nullable=False)
     origem = Column(String(50), nullable=False)
+    descricao = Column(Text, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa", back_populates="campanhas")
@@ -376,9 +377,11 @@ def init_db():
                     codigo_ref VARCHAR(50) UNIQUE NOT NULL,
                     nome VARCHAR(100) NOT NULL,
                     origem VARCHAR(50) NOT NULL,
+                    descricao TEXT,
                     criado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
+            conn.execute(text('ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS descricao TEXT'))
             
             # Migração para Comunicados (Imagem)
             conn.execute(text('ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS imagem_url TEXT'))

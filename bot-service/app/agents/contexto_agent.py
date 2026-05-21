@@ -27,6 +27,24 @@ class ContextoAgent:
         utm_source = getattr(lead, "utm_source", None)
         utm_campaign = getattr(lead, "utm_campaign", None)
         canal_entrada = getattr(lead, "canal_entrada", "organico")
+        campanha_nome = None
+        campanha_desc = None
+
+        if lead and utm_campaign:
+            from app.database import SessionLocal, Campanha
+            db_session = SessionLocal()
+            try:
+                camp_obj = db_session.query(Campanha).filter(
+                    Campanha.empresa_id == empresa.id,
+                    Campanha.codigo_ref == utm_campaign
+                ).first()
+                if camp_obj:
+                    campanha_nome = camp_obj.nome
+                    campanha_desc = camp_obj.descricao
+            except Exception:
+                pass
+            finally:
+                db_session.close()
         
         recorrente = False
         if lead and getattr(lead, "id", None):
@@ -60,7 +78,9 @@ class ContextoAgent:
             "campanha": {
                 "codigo": utm_campaign,
                 "origem": utm_source,
-                "canal": canal_entrada
+                "canal": canal_entrada,
+                "nome": campanha_nome,
+                "descricao": campanha_desc
             },
             "lead_recorrente": recorrente,
 

@@ -31,6 +31,8 @@ class EspecialistaCorretora(BaseAgent):
         campanha_info = ctx.get("campanha", {})
         campanha_cod = campanha_info.get("codigo") or "Nenhuma"
         campanha_orig = campanha_info.get("origem") or "Orgânico"
+        campanha_nome = campanha_info.get("nome") or "Nenhum"
+        campanha_desc = campanha_info.get("descricao") or "Nenhuma instrução especial de foco cadastrada."
         recorrente_str = "Sim" if ctx.get("lead_recorrente") else "Não"
 
         return f"""Você é {nome_agente}, assistente virtual especializado em seguros da corretora {nome_empresa}.
@@ -41,10 +43,12 @@ CLIENTE RECORRENTE: {recorrente_str} (Se "Sim", ele já conversou com você ante
 === INFORMAÇÕES DE ANÚNCIO (CAMPANHA) ===
 Origem do Anúncio (UTM Source): {campanha_orig}
 Código da Campanha (UTM Campaign): {campanha_cod}
+Nome da Campanha: {campanha_nome}
+Descrição/Foco da Campanha: {campanha_desc}
 
 === PERSONALIDADE E TOM ===
 - SAUDAÇÃO INTELIGENTE E DIRETRIZES DE ANÚNCIOS (MANDATÓRIO):
-  * RECONHECIMENTO DE ANÚNCIO (Para cliente novo com Campanha ativa): Se o cliente for novo (CLIENTE RECORRENTE = Não) e houver uma Campanha ativa (diferente de 'Nenhuma'), você DEVE iniciar sua primeira resposta contextualizando o anúncio que ele viu! Exemplo: "Olá! Que ótimo que você viu nosso anúncio sobre o Seguro de Moto no Facebook! Vamos fazer uma cotação rápida?" ou "Olá! Vi que você se interessou pelo nosso plano de saúde exclusivo do Instagram!..."
+  * RECONHECIMENTO DE ANÚNCIO (Para cliente novo com Campanha ativa): Se o cliente for novo (CLIENTE RECORRENTE = Não) e houver uma Campanha ativa (diferente de 'Nenhuma'), você DEVE iniciar sua primeira resposta contextualizando o anúncio que ele viu com base no Nome e na Descrição/Foco da Campanha fornecidos acima! Adapte a recepção do lead e seu pitch inicial exatamente conforme as diretrizes descritas na Descrição/Foco da Campanha!
   * RECONHECIMENTO DE RETORNO (Para cliente recorrente): Se o CLIENTE RECORRENTE for "Sim", NÃO se apresente novamente (não diga "Eu sou a Alice, assistente..."). Cumprimente-o pessoalmente pelo nome que consta em "DADOS JÁ COLETADOS" (ex: "Olá, Eduardo! Que bom falar com você novamente! Como posso te ajudar hoje?") e vá direto ao ponto sem repetir apresentações formais.
 - Profissional, mas acolhedor, prestativo e empático.
 - Nunca use jargões técnicos sem explicá-los brevemente.

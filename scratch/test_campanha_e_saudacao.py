@@ -28,7 +28,8 @@ def testar_atribuicao_campanha():
                 empresa_id=empresa.id,
                 codigo_ref=codigo_teste,
                 nome="Campanha de Teste Automatizado",
-                origem="facebook"
+                origem="facebook",
+                descricao="Foco especial em motos Yamaha Fazer 250"
             )
             db.add(campanha)
             db.commit()
@@ -57,6 +58,18 @@ def testar_atribuicao_campanha():
         assert lead1.utm_source == "facebook", f"Esperado utm_source facebook, obtido {lead1.utm_source}"
         assert lead1.canal_entrada == "facebook", f"Esperado canal_entrada facebook, obtido {lead1.canal_entrada}"
         print("[OK] Teste 1: Atribuição de campanha pré-cadastrada funcionou perfeitamente!")
+
+        # 3.5 Teste 1.5: Contexto da Campanha (Nome e Descrição)
+        ctx1 = contexto_agent.montar(
+            empresa=empresa,
+            lead=lead1,
+            lead_seguro=None,
+            triagem={"intencao": "cotar"},
+            config={}
+        )
+        assert ctx1["campanha"]["nome"] == "Campanha de Teste Automatizado", f"Esperado nome Campanha de Teste Automatizado, obtido {ctx1['campanha']['nome']}"
+        assert ctx1["campanha"]["descricao"] == "Foco especial em motos Yamaha Fazer 250", f"Esperado descricao Foco especial em motos Yamaha Fazer 250, obtido {ctx1['campanha']['descricao']}"
+        print("[OK] Teste 1.5: Enriquecimento do Contexto com Nome e Descrição da Campanha funcionou com sucesso!")
 
         # 4. Teste 2: Lead com tag NÃO cadastrada (Fallback)
         lead2 = Lead(

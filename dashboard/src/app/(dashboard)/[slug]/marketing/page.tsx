@@ -9,6 +9,7 @@ interface Campanha {
   codigo_ref: string;
   nome: string;
   origem: string;
+  descricao?: string;
   criado_em: string;
   leads_gerados: number;
   leads_convertidos: number;
@@ -26,6 +27,7 @@ export default function MarketingPage() {
   const [nome, setNome] = useState("");
   const [codigoRef, setCodigoRef] = useState("");
   const [origem, setOrigem] = useState("facebook");
+  const [descricao, setDescricao] = useState("");
 
   // Link Generator State
   const [selectedCampaignCode, setSelectedCampaignCode] = useState("");
@@ -98,12 +100,14 @@ export default function MarketingPage() {
         nome: nome.trim(),
         codigo_ref: codigoRef.trim().toUpperCase(),
         origem: origem.trim(),
+        descricao: descricao.trim() || undefined,
       });
 
       if (response.data.status === "ok") {
         setSuccessMsg("Campanha criada com sucesso!");
         setNome("");
         setCodigoRef("");
+        setDescricao("");
         setOrigem("facebook");
         fetchCampanhas();
       }
@@ -269,6 +273,17 @@ export default function MarketingPage() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Foco / Instruções para o Robô (Opcional)</label>
+              <textarea
+                rows={2}
+                placeholder="Ex: Anúncio focado em seguro de moto Yamaha Fazer 250. Comece perguntando sobre a moto."
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] resize-none"
+              />
+            </div>
+
             <button
               type="submit"
               disabled={submitting}
@@ -375,6 +390,7 @@ export default function MarketingPage() {
             <thead>
               <tr className="bg-[var(--color-surface-hover)] border-b border-[var(--color-border)]">
                 <th className="p-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Campanha</th>
+                <th className="p-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Foco / Diretrizes</th>
                 <th className="p-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Código REF</th>
                 <th className="p-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Origem</th>
                 <th className="p-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-center">Leads Gerados</th>
@@ -387,6 +403,9 @@ export default function MarketingPage() {
               {campanhas.map((c) => (
                 <tr key={c.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition duration-150">
                   <td className="p-4 font-semibold text-white">{c.nome}</td>
+                  <td className="p-4 text-slate-300 max-w-[220px] truncate" title={c.descricao || "Nenhum"}>
+                    {c.descricao || <span className="text-slate-500 italic">Padrão</span>}
+                  </td>
                   <td className="p-4 font-mono text-xs"><span className="bg-slate-800 text-slate-300 py-1 px-2.5 rounded-md font-bold uppercase">{c.codigo_ref}</span></td>
                   <td className="p-4 capitalize">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -413,7 +432,7 @@ export default function MarketingPage() {
               ))}
               {campanhas.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[var(--color-foreground-muted)]">
+                  <td colSpan={8} className="p-8 text-center text-[var(--color-foreground-muted)]">
                     Nenhuma campanha cadastrada ainda. Utilize o formulário acima para criar sua primeira campanha!
                   </td>
                 </tr>

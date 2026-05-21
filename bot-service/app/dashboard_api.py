@@ -822,6 +822,7 @@ class CampanhaRequest(BaseModel):
     codigo_ref: str
     nome: str
     origem: str
+    descricao: Optional[str] = None
 
 @router.get("/marketing/campanhas")
 async def listar_campanhas(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
@@ -855,6 +856,7 @@ async def listar_campanhas(empresa: Empresa = Depends(obter_empresa), db: Sessio
             "codigo_ref": c.codigo_ref,
             "nome": c.nome,
             "origem": c.origem,
+            "descricao": c.descricao,
             "criado_em": c.criado_em.isoformat() if c.criado_em else None,
             "leads_gerados": total_leads,
             "leads_convertidos": leads_convertidos,
@@ -884,7 +886,8 @@ async def criar_campanha(
         empresa_id=empresa.id,
         codigo_ref=codigo_limpo,
         nome=req.nome.strip(),
-        origem=req.origem.lower().strip()
+        origem=req.origem.lower().strip(),
+        descricao=req.descricao.strip() if req.descricao else None
     )
     db.add(nova)
     db.commit()
@@ -894,7 +897,8 @@ async def criar_campanha(
         "id": str(nova.id),
         "codigo_ref": nova.codigo_ref,
         "nome": nova.nome,
-        "origem": nova.origem
+        "origem": nova.origem,
+        "descricao": nova.descricao
     }}
 
 @router.delete("/marketing/campanhas/{campanha_id}")
