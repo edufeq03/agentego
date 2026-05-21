@@ -126,128 +126,121 @@ def atualizar_status_transbordo(db, empresa_id, telefone, novo_status, lead_id=N
         db.add(novo)
         if lead_id:
             tipo = "transbordo_confirmado" if novo_status == "pausado" else "transbordo_sugerido"
-            registrar_evento(db, empresa_id, lead_id, tipo)
-    db.commit()
-
-def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
-    db = SessionLocal()
-    
-    # 1. Detectar template Piccolo Seguros se a empresa for corretora
-    if empresa.nicho == "corretora" and detectar_template_seguro(mensagem_texto):
-        logger.info("Template da Piccolo Seguros detectado! Iniciando extração e Modo A.")
-        try:
-            # Parsear template via IA
-            data = parsear_template_via_ia(mensagem_texto)
-            tel_lead = "".join(filter(str.isdigit, data.get("telefone", "")))
-            if not tel_lead:
-                tel_lead = "".join(filter(str.isdigit, telefone)) # fallback
-            if len(tel_lead) == 11:
-                tel_lead = "55" + tel_lead
-                
-            # Criar Lead base (upsert)
-            lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == tel_lead).first()
-            if not lead:
-                lead = Lead(empresa_id=empresa.id, telefone=tel_lead, stage="primeiro_contato")
-                db.add(lead)
-                db.commit()
-                db.refresh(lead)
-                registrar_evento(db, empresa.id, lead.id, "iniciou_conversa")
-            else:
-                lead.stage = "primeiro_contato"
-                db.commit()
-                
-            lead.nome = data.get("nome_contato") or data.get("nome_segurado") or lead.nome
+            registrar_evento(db, empresa_id, lead_id, tipodef _processar_modo_template(db, empresa, telefone, mensagem_texto):
+    logger.info("Template da Piccolo Seguros detectado! Iniciando extração e Modo A.")
+    try:
+        # Parsear template via IA
+        data = parsear_template_via_ia(mensagem_texto)
+        tel_lead = "".join(filter(str.isdigit, data.get("telefone", "")))
+        if not tel_lead:
+            tel_lead = "".join(filter(str.isdigit, telefone)) # fallback
+        if len(tel_lead) == 11:
+            tel_lead = "55" + tel_lead
+            
+        # Criar Lead base (upsert)
+        lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == tel_lead).first()
+        if not lead:
+            lead = Lead(empresa_id=empresa.id, telefone=tel_lead, stage="primeiro_contato")
+            db.add(lead)
+            db.commit()
+            db.refresh(lead)
+            registrar_evento(db, empresa.id, lead.id, "iniciou_conversa")
+        else:
+            lead.stage = "primeiro_contato"
             db.commit()
             
-            # Criar ou atualizar LeadSeguro
-            lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
-            if not lead_seguro:
-                lead_seguro = LeadSeguro(
-                    id=lead.id,
-                    empresa_id=empresa.id,
-                    telefone=tel_lead,
-                    canal_entrada="template",
-                    template_raw=mensagem_texto,
-                    stage="primeiro_contato"
-                )
-                db.add(lead_seguro)
-            else:
-                lead_seguro.canal_entrada = "template"
-                lead_seguro.template_raw = mensagem_texto
-                lead_seguro.stage = "primeiro_contato"
-            
-            # Salvar campos parseados do JSON
-            print(f"DEBUG PIPELINE: data parseada da IA = {data}")
-            for k, v in data.items():
-                if hasattr(lead_seguro, k) and v is not None:
-                    print(f"DEBUG PIPELINE: definindo {k} = {v}")
-                    setattr(lead_seguro, k, v)
-                    
-            lead_seguro.docs_pendentes = calcular_docs_pendentes(data.get("tipo_seguro"))
-            db.commit()
-            
-            # Salva o template recebido como mensagem do usuário no lead do cliente
-            msg_user_template = Mensagem(
+        lead.nome = data.get("nome_contato") or data.get("nome_segurado") or lead.nome
+        db.commit()
+        
+        # Criar ou atualizar LeadSeguro
+        lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
+        if not lead_seguro:
+            lead_seguro = LeadSeguro(
+                id=lead.id,
                 empresa_id=empresa.id,
-                lead_id=lead.id,
-                tipo="usuario",
-                mensagem=f"[Template Piccolo]: {mensagem_texto}",
-                intencao="preco"
+                telefone=tel_lead,
+                canal_entrada="template",
+                template_raw=mensagem_texto,
+                stage="primeiro_contato"
             )
-            db.add(msg_user_template)
-            db.commit()
-            
-            # Compor e enviar mensagem de boas-vindas
-            config = empresa.configuracoes.config if empresa.configuracoes else {}
-            nome_agente = config.get("nome_agente", "Rosana")
-            nome_empresa = config.get("nome_empresa", empresa.nome)
-            nome_cliente = (data.get("nome_contato") or "Olá").split()[0]
-            
-            produto = data.get("produto_especifico")
-            tipo_seguro = data.get("tipo_seguro", "saude")
-            mapa_tipo = {
-                "saude": "Plano de Saúde",
-                "odontologico": "Plano Odontológico",
-                "auto": "Seguro Auto",
-                "moto": "Seguro de Moto",
-                "residencial": "Seguro Residencial",
-            }
-            produto_str = produto or mapa_tipo.get(tipo_seguro, "seguro")
-            
-            saudacao = f"Olá, *{nome_cliente}*! 👋"
-            apresentacao = f"Sou o(a) *{nome_agente}*, assistente virtual da *{nome_empresa}*."
-            corpo = (
-                f"Recebi sua solicitação de cotação para *{produto_str}* e já estou com suas informações aqui. 😊\n\n"
-                f"Em breve nossa equipe vai entrar em contato com as melhores opções para você.\n\n"
-                f"Enquanto isso, posso te ajudar com qualquer dúvida sobre coberturas, carências ou funcionamento do plano. É só perguntar!"
-            )
-            
-            campos_pendentes = data.get("campos_nao_informados", [])
-            if campos_pendentes and tipo_seguro == "saude":
-                if any("mei" in c.lower() or "cnpj" in c.lower() for c in campos_pendentes):
-                    corpo += "\n\nPreciso de uma informação rápida: você possui CNPJ ou é MEI? Isso pode mudar as opções disponíveis para você."
-                    
-            mensagem_inicial = f"{saudacao}\n\n{apresentacao}\n\n{corpo}"
-            
-            # Enviar WhatsApp via Evolution API
-            enviar_whatsapp(tel_lead, mensagem_inicial, empresa.evolution_instance)
-            
-            # Salvar mensagem enviada
-            msg_bot = Mensagem(
-                empresa_id=empresa.id,
-                lead_id=lead.id,
-                tipo="agente",
-                mensagem=mensagem_inicial
-            )
-            db.add(msg_bot)
-            db.commit()
-            
-            db.close()
-            return {"status": "ok", "resposta": mensagem_inicial}
-        except Exception as ex:
-            logger.error(f"Erro ao processar template Piccolo: {ex}")
-            # fall through to normal execution if error
+            db.add(lead_seguro)
+        else:
+            lead_seguro.canal_entrada = "template"
+            lead_seguro.template_raw = mensagem_texto
+            lead_seguro.stage = "primeiro_contato"
+        
+        # Salvar campos parseados do JSON
+        print(f"DEBUG PIPELINE: data parseada da IA = {data}")
+        for k, v in data.items():
+            if hasattr(lead_seguro, k) and v is not None:
+                print(f"DEBUG PIPELINE: definindo {k} = {v}")
+                setattr(lead_seguro, k, v)
+                
+        lead_seguro.docs_pendentes = calcular_docs_pendentes(data.get("tipo_seguro"))
+        db.commit()
+        
+        # Salva o template recebido como mensagem do usuário no lead do cliente
+        msg_user_template = Mensagem(
+            empresa_id=empresa.id,
+            lead_id=lead.id,
+            tipo="usuario",
+            mensagem=f"[Template Piccolo]: {mensagem_texto}",
+            intencao="preco"
+        )
+        db.add(msg_user_template)
+        db.commit()
+        
+        # Compor e enviar mensagem de boas-vindas
+        config = empresa.configuracoes.config if empresa.configuracoes else {}
+        nome_agente = config.get("nome_agente", "Rosana")
+        nome_empresa = config.get("nome_empresa", empresa.nome)
+        nome_cliente = (data.get("nome_contato") or "Olá").split()[0]
+        
+        produto = data.get("produto_especifico")
+        tipo_seguro = data.get("tipo_seguro", "saude")
+        mapa_tipo = {
+            "saude": "Plano de Saúde",
+            "odontologico": "Plano Odontológico",
+            "auto": "Seguro Auto",
+            "moto": "Seguro de Moto",
+            "residencial": "Seguro Residencial",
+        }
+        produto_str = produto or mapa_tipo.get(tipo_seguro, "seguro")
+        
+        saudacao = f"Olá, *{nome_cliente}*! 👋"
+        apresentacao = f"Sou o(a) *{nome_agente}*, assistente virtual da *{nome_empresa}*."
+        corpo = (
+            f"Recebi sua solicitação de cotação para *{produto_str}* e já estou com suas informações aqui. 😊\n\n"
+            f"Em breve nossa equipe vai entrar em contato com as melhores opções para você.\n\n"
+            f"Enquanto isso, posso te ajudar com qualquer dúvida sobre coberturas, carências ou funcionamento do plano. É só perguntar!"
+        )
+        
+        campos_pendentes = data.get("campos_nao_informados", [])
+        if campos_pendentes and tipo_seguro == "saude":
+            if any("mei" in c.lower() or "cnpj" in c.lower() for c in campos_pendentes):
+                corpo += "\n\nPreciso de uma informação rápida: você possui CNPJ ou é MEI? Isso pode mudar as opções disponíveis para você."
+                
+        mensagem_inicial = f"{saudacao}\n\n{apresentacao}\n\n{corpo}"
+        
+        # Enviar WhatsApp via Evolution API
+        enviar_whatsapp(tel_lead, mensagem_inicial, empresa.evolution_instance)
+        
+        # Salvar mensagem enviada
+        msg_bot = Mensagem(
+            empresa_id=empresa.id,
+            lead_id=lead.id,
+            tipo="agente",
+            mensagem=mensagem_inicial
+        )
+        db.add(msg_bot)
+        db.commit()
+        
+        return {"status": "ok", "resposta": mensagem_inicial}
+    except Exception as ex:
+        logger.error(f"Erro ao processar template Piccolo: {ex}")
+        return None
 
+def _verificar_guardrails(db, empresa, telefone):
     configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
     telefones_ignorados = configuracao.get('telefones_ignorados', [])
     
@@ -256,15 +249,10 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     
     if tel_limpo in telefones_ignorados or telefone in telefones_ignorados:
         logger.info(f"Mensagem de {telefone} ignorada (Blacklist)")
-        db.close()
         return {"status": "ignorado", "motivo": "blacklist"}
+    return None
 
-    status_transbordo = obter_status_transbordo(db, empresa.id, telefone)
-    
-    if status_transbordo == "pausado":
-        db.close()
-        return {"status": "pausado", "motivo": "transbordo_ativo"}
-
+def _carregar_lead_com_billing(db, empresa, telefone):
     # --- CONTROLE DE USO (BILLING) ---
     # 1. Verifica reset mensal do contador
     agora = datetime.utcnow()
@@ -280,14 +268,10 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
     # 2. Verifica se o lead é novo no mês (contabiliza 1 conversa)
     lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
     
-    # Se o lead não existe ou foi criado antes do último reset, consideramos uma "conversa ativa" este mês
-    # No Modelo A, contamos "leads ativos no mês"
-    # Aqui usaremos uma lógica simplificada: se a última mensagem do lead foi antes do reset, ele conta como nova conversa
     ultima_msg = db.query(Mensagem).filter(Mensagem.lead_id == lead.id if lead else False).order_by(Mensagem.timestamp.desc()).first()
     if not lead or not ultima_msg or ultima_msg.timestamp < (empresa.data_reset_contador - timedelta(days=31)):
         # Só incrementa se não for ilimitado ou se estiver abaixo do limite
         if empresa.plano != "ilimitado" and empresa.conversas_mes_atual >= empresa.limite_conversas_mes:
-            db.close()
             return {
                 "status": "limite_atingido", 
                 "resposta": "Olá! No momento nosso atendimento automático atingiu o limite mensal. Por favor, aguarde que um atendente humano falará com você em breve. 🙏"
@@ -296,9 +280,9 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         db.commit()
 
     if not lead:
+        from app.pipeline import carregar_lead
         lead = carregar_lead(db, empresa.id, telefone)
-    # ---------------------------------
-    
+        
     if empresa.nicho == "corretora" and lead:
         lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
         if not lead_seguro:
@@ -311,54 +295,88 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
             )
             db.add(lead_seguro)
             db.commit()
-    
-    # Salva a mensagem recebida
-    intencao = classificar_intencao(mensagem_texto)
-    msg_user = Mensagem(empresa_id=empresa.id, lead_id=lead.id, tipo="usuario", mensagem=mensagem_texto, intencao=intencao)
-    db.add(msg_user)
-    db.commit()
+            
+    return lead
 
-    # Analisa sentimento (IA)
-    from app.classifier import analisar_sentimento_ia
-    sentimento, t_in, t_out = analisar_sentimento_ia(mensagem_texto)
+def _executar_triagem(db, empresa, mensagem_texto):
+    from app.agents.triagem_agent import triagem_agent
+    from app.classifier import classificar_intencao, analisar_sentimento_ia
     
-    # Registra tokens do sentimento
+    try:
+        triagem = triagem_agent.analisar(mensagem_texto)
+        logger.info(f"TriagemAgent executado com sucesso: intencao={triagem.get('intencao')}, sentimento={triagem.get('sentimento')}, urgente={triagem.get('urgente')}")
+    except Exception as e:
+        logger.warning(f"TriagemAgent falhou, usando fallback: {e}")
+        intencao = classificar_intencao(mensagem_texto)
+        sentimento, t_in, t_out = analisar_sentimento_ia(mensagem_texto)
+        triagem = {
+            "intencao": intencao,
+            "sentimento": sentimento,
+            "urgente": False,
+            "resumo_curto": "mensagem não classificada",
+            "tokens_in": t_in,
+            "tokens_out": t_out
+        }
+        
+    # Registra tokens consumidos
+    t_in = triagem.get("tokens_in", 0)
+    t_out = triagem.get("tokens_out", 0)
     empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
     empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
     db.commit()
     
+    return triagem
+
+def _salvar_mensagem_usuario(db, empresa, lead, mensagem_texto, triagem):
+    msg_user = Mensagem(
+        empresa_id=empresa.id, 
+        lead_id=lead.id, 
+        tipo="usuario", 
+        mensagem=mensagem_texto, 
+        intencao=triagem["intencao"]
+    )
+    db.add(msg_user)
+    db.commit()
+    
+    sentimento = triagem["sentimento"]
     if sentimento == "negativo":
         registrar_evento(db, empresa.id, lead.id, "sentimento_negativo", {"mensagem": mensagem_texto})
     elif sentimento == "positivo":
         registrar_evento(db, empresa.id, lead.id, "sentimento_positivo")
+        
+    return msg_user
 
-    # Atualiza o funil de vendas (stage) baseado nas etapas da empresa
+def _atualizar_stage(db, empresa, lead, intencao):
     etapas_empresa = empresa.etapas_funil or ["novo", "curioso", "interessado", "agendado"]
     novo_stage = calcular_stage(lead.stage, intencao, etapas_empresa)
     if novo_stage != lead.stage:
         lead.stage = novo_stage
+        
+        # Sincroniza LeadSeguro se aplicável
+        if empresa.nicho == "corretora":
+            lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
+            if lead_seguro:
+                lead_seguro.stage = novo_stage
+                
         db.commit()
         
-    # Registra o evento de intenção
+    # Registra evento de intenção
     registrar_evento(db, empresa.id, lead.id, f"perguntou_{intencao}" if intencao != "duvida" else "fez_pergunta")
 
-    # Recuperar histórico recente (limitado a 6)
-    historico_db = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.desc()).limit(6).all()
-    historico = []
-    for m in reversed(historico_db):
-        role = "user" if m.tipo == "usuario" else "assistant"
-        # Não adicionamos a mensagem que acabamos de receber porque ela já é passada para a IA separadamente
-        if m.id != msg_user.id:
-            historico.append({"role": role, "content": m.mensagem})
-
+def _montar_contexto(db, empresa, lead, triagem):
     configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
     contexto_tempo = gerar_contexto_tempo(configuracao)
     
-    # Injeta nicho e documentos no config para o Agente
+    # Injeta nicho e documentos no config para compatibilidade
     configuracao["nicho"] = empresa.nicho or "generico"
+    documentos_legais = None
+    
     if configuracao["nicho"] == "contabilidade":
-        docs = db.query(DocumentoLegal).filter(DocumentoLegal.empresa_id == empresa.id, DocumentoLegal.ativo == True).all()
-        configuracao["documentos"] = [{"titulo": d.titulo, "conteudo": d.conteudo} for d in docs]
+        documentos_legais = db.query(DocumentoLegal).filter(
+            DocumentoLegal.empresa_id == empresa.id, 
+            DocumentoLegal.ativo == True
+        ).all()
+        configuracao["documentos"] = [{"titulo": d.titulo, "conteudo": d.conteudo} for d in documentos_legais]
     elif configuracao["nicho"] == "corretora":
         lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
         configuracao["dados_lead"] = formatar_dados_lead(lead_seguro)
@@ -366,88 +384,190 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         configuracao["documentos"] = []
     else:
         configuracao["documentos"] = []
+        
+    return {
+        "configuracao": configuracao,
+        "contexto_tempo": contexto_tempo,
+        "documentos_legais": documentos_legais
+    }
 
+def _gerar_resposta(db, empresa, lead, mensagem_texto, ctx, status_transbordo, historico):
     if status_transbordo == "aguardando":
-        resposta_raw, t_in, t_out = processar_confirmacao_transbordo(mensagem_texto, historico=historico)
-        if "[CONFIRMAR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
-        elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, None, lead_id=lead.id)
+        return processar_confirmacao_transbordo(mensagem_texto, historico=historico)
     else:
-        resposta_raw, t_in, t_out = processar_mensagem_dinamica(mensagem_texto, configuracao, intencao, lead.stage, contexto_tempo, historico=historico, sentimento=sentimento)
-        if "[SUGERIR_TRANSBORDO]" in resposta_raw:
-            atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
-
-        # Processar tags customizadas para corretora
+        configuracao = ctx["configuracao"]
+        contexto_tempo = ctx["contexto_tempo"]
+        intencao = ctx["intencao"]
+        sentimento = ctx["sentimento"]
+        documentos_legais = ctx.get("documentos_legais")
+        
+        lead_seguro = None
         if empresa.nicho == "corretora":
             lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
-            if lead_seguro:
-                # 1. Processar [ATUALIZAR_LEAD: campo=valor]
-                tags_atualizacao = re.findall(r'\[ATUALIZAR_LEAD:\s*([^\]]+)\]', resposta_raw)
-                for tag in tags_atualizacao:
-                    try:
-                        if '=' in tag:
-                            campo, valor = tag.split('=', 1)
-                            campo = campo.strip()
-                            valor = valor.strip()
-                            
-                            if valor.lower() == 'true':
-                                valor = True
-                            elif valor.lower() == 'false':
-                                valor = False
-                            elif valor.lower() in ('null', 'none'):
-                                valor = None
-                            elif valor.isdigit():
-                                valor = int(valor)
-                            
-                            if hasattr(lead_seguro, campo):
-                                setattr(lead_seguro, campo, valor)
-                                logger.info(f"[{telefone}] Campo LeadSeguro atualizado via tag: {campo} = {valor}")
-                                if campo == "stage":
-                                    lead.stage = valor
-                                    lead_seguro.stage = valor
-                                    db.commit()
-                    except Exception as ex_tag:
-                        logger.error(f"Erro ao processar tag de atualizacao '{tag}': {ex_tag}")
-                
-                # 2. Processar [SOLICITAR_HUMANO: motivo=...] ou transbordo
-                if "[SOLICITAR_HUMANO" in resposta_raw:
-                    motivo = "Solicitado pela IA"
-                    match_h = re.search(r'\[SOLICITAR_HUMANO:\s*motivo=([^\]]+)\]', resposta_raw)
-                    if match_h:
-                        motivo = match_h.group(1).strip()
-                    
-                    atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
-                    logger.info(f"[{telefone}] Robô pausado devido à tag [SOLICITAR_HUMANO] (Motivo: {motivo}).")
-                
-                # 3. Processar [DOCUMENTO_RECEBIDO: tipo=...]
-                tags_doc = re.findall(r'\[DOCUMENTO_RECEBIDO:\s*tipo=([^\]]+)\]', resposta_raw)
-                for doc_tipo in tags_doc:
-                    doc_tipo = doc_tipo.strip()
-                    docs_r = lead_seguro.docs_recebidos or []
-                    if doc_tipo not in [d.get("tipo") for d in docs_r]:
-                        docs_r.append({"tipo": doc_tipo, "recebido_em": str(datetime.utcnow())})
-                        lead_seguro.docs_recebidos = docs_r
-                    
-                    docs_p = lead_seguro.docs_pendentes or []
-                    if doc_tipo in docs_p:
-                        docs_p.remove(doc_tipo)
-                        lead_seguro.docs_pendentes = docs_p
-                    
-                db.commit()
+            
+        return processar_mensagem_dinamica(
+            mensagem_texto, 
+            configuracao, 
+            intencao, 
+            lead.stage, 
+            contexto_tempo, 
+            historico=historico, 
+            sentimento=sentimento,
+            empresa=empresa,
+            lead=lead,
+            lead_seguro=lead_seguro,
+            documentos_legais=documentos_legais
+        )
 
+def _processar_tags(db, empresa, lead, resposta_raw, telefone):
+    # Processar transbordo / suspensão baseada em tags
+    if "[CONFIRMAR_TRANSBORDO]" in resposta_raw:
+        atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
+    elif "[CANCELAR_TRANSBORDO]" in resposta_raw:
+        atualizar_status_transbordo(db, empresa.id, telefone, None, lead_id=lead.id)
+    elif "[SUGERIR_TRANSBORDO]" in resposta_raw:
+        atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
+
+    # Processar tags customizadas para corretora
+    if empresa.nicho == "corretora":
+        lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
+        if lead_seguro:
+            # 1. Processar [ATUALIZAR_LEAD: campo=valor]
+            tags_atualizacao = re.findall(r'\[ATUALIZAR_LEAD:\s*([^\]]+)\]', resposta_raw)
+            for tag in tags_atualizacao:
+                try:
+                    if '=' in tag:
+                        campo, valor = tag.split('=', 1)
+                        campo = campo.strip()
+                        valor = valor.strip()
+                        
+                        if valor.lower() == 'true':
+                            valor = True
+                        elif valor.lower() == 'false':
+                            valor = False
+                        elif valor.lower() in ('null', 'none'):
+                            valor = None
+                        elif valor.isdigit():
+                            valor = int(valor)
+                        
+                        if hasattr(lead_seguro, campo):
+                            setattr(lead_seguro, campo, valor)
+                            logger.info(f"[{telefone}] Campo LeadSeguro atualizado via tag: {campo} = {valor}")
+                            if campo == "stage":
+                                lead.stage = valor
+                                lead_seguro.stage = valor
+                                db.commit()
+                except Exception as ex_tag:
+                    logger.error(f"Erro ao processar tag de atualizacao '{tag}': {ex_tag}")
+            
+            # 2. Processar [SOLICITAR_HUMANO: motivo=...] ou transbordo
+            if "[SOLICITAR_HUMANO" in resposta_raw:
+                motivo = "Solicitado pela IA"
+                match_h = re.search(r'\[SOLICITAR_HUMANO:\s*motivo=([^\]]+)\]', resposta_raw)
+                if match_h:
+                    motivo = match_h.group(1).strip()
+                
+                atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
+                logger.info(f"[{telefone}] Robô pausado devido à tag [SOLICITAR_HUMANO] (Motivo: {motivo}).")
+            
+            # 3. Processar [DOCUMENTO_RECEBIDO: tipo=...]
+            tags_doc = re.findall(r'\[DOCUMENTO_RECEBIDO:\s*tipo=([^\]]+)\]', resposta_raw)
+            for doc_tipo in tags_doc:
+                doc_tipo = doc_tipo.strip()
+                docs_r = lead_seguro.docs_recebidos or []
+                if doc_tipo not in [d.get("tipo") for d in docs_r]:
+                    docs_r.append({"tipo": doc_tipo, "recebido_em": str(datetime.utcnow())})
+                    lead_seguro.docs_recebidos = docs_r
+                
+                docs_p = lead_seguro.docs_pendentes or []
+                if doc_tipo in docs_p:
+                    docs_p.remove(doc_tipo)
+                    lead_seguro.docs_pendentes = docs_p
+                
+            db.commit()
+
+def _finalizar(db, empresa, lead, resposta_limpa, t_in, t_out):
     # Registra tokens da resposta principal
     empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
     empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
-    db.commit()
-
-    resposta_limpa = limpar_tags(resposta_raw)
-    logger.info(f"Resposta gerada para {telefone}", extra={"empresa_id": str(empresa.id), "lead_id": str(lead.id), "tipo": "ia_response"})
-
+    
     msg_bot = Mensagem(empresa_id=empresa.id, lead_id=lead.id, tipo="agente", mensagem=resposta_limpa)
     db.add(msg_bot)
     db.commit()
-    db.close()
 
-    return {"status": "ok", "resposta": resposta_limpa}
+def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
+    db = SessionLocal()
+    try:
+        # ETAPA 0: Template externo (Piccolo Seguros)
+        if empresa.nicho == "corretora" and detectar_template_seguro(mensagem_texto):
+            res = _processar_modo_template(db, empresa, telefone, mensagem_texto)
+            if res:
+                return res
 
+        # ETAPA 1: Guardrails (blacklist, limite de plano)
+        guardrails = _verificar_guardrails(db, empresa, telefone)
+        if guardrails:
+            return guardrails
+
+        # ETAPA 2: Transbordo ativo?
+        status_transbordo = obter_status_transbordo(db, empresa.id, telefone)
+        if status_transbordo == "pausado":
+            return {"status": "pausado", "motivo": "transbordo_ativo"}
+
+        # ETAPA 3: Carregar/criar lead com controle de billing
+        lead_or_billing = _carregar_lead_com_billing(db, empresa, telefone)
+        if isinstance(lead_or_billing, dict):
+            # Limite atingido
+            return lead_or_billing
+        lead = lead_or_billing
+
+        # ETAPA 4: Triagem (IA — intenção + sentimento)
+        triagem = _executar_triagem(db, empresa, mensagem_texto)
+
+        # ETAPA 5: Salvar mensagem do usuário
+        msg_user = _salvar_mensagem_usuario(db, empresa, lead, mensagem_texto, triagem)
+
+        # ETAPA 6: Atualizar stage do funil
+        _atualizar_stage(db, empresa, lead, triagem["intencao"])
+
+        # ETAPA 7: Montar contexto
+        context_data = _montar_contexto(db, empresa, lead, triagem)
+
+        # ETAPA 8: Carregar histórico recente (limitado a 6)
+        historico_db = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.desc()).limit(6).all()
+        historico = []
+        for m in reversed(historico_db):
+            role = "user" if m.tipo == "usuario" else "assistant"
+            # Não adicionamos a mensagem que acabamos de receber
+            if m.id != msg_user.id:
+                historico.append({"role": role, "content": m.mensagem})
+
+        # ETAPA 9: Gerar resposta
+        ctx_para_gerar = {
+            "configuracao": context_data["configuracao"],
+            "contexto_tempo": context_data["contexto_tempo"],
+            "intencao": triagem["intencao"],
+            "sentimento": triagem["sentimento"],
+            "documentos_legais": context_data["documentos_legais"]
+        }
+        
+        resposta_raw, t_in, t_out = _gerar_resposta(
+            db, empresa, lead, mensagem_texto, ctx_para_gerar, status_transbordo, historico
+        )
+
+        # ETAPA 10: Processar tags da resposta
+        _processar_tags(db, empresa, lead, resposta_raw, telefone)
+
+        # ETAPA 11: Limpar tags e salvar tokens/mensagem do agente
+        resposta_limpa = limpar_tags(resposta_raw)
+        _finalizar(db, empresa, lead, resposta_limpa, t_in, t_out)
+
+        logger.info(f"Resposta gerada para {telefone}", extra={"empresa_id": str(empresa.id), "lead_id": str(lead.id), "tipo": "ia_response"})
+
+        return {"status": "ok", "resposta": resposta_limpa}
+
+    except Exception as ex:
+        logger.error(f"Erro fatal no processar_webhook: {ex}", exc_info=True)
+        return {"status": "erro", "motivo": str(ex)}
+    finally:
+        db.close()
