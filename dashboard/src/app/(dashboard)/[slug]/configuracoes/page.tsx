@@ -26,7 +26,7 @@ interface ConfigData {
   nome_agente: string;
   nome_empresa: string;
   endereco: string;
-  horarios: { semana: string; sabado: string; domingo?: string };
+  horarios: { semana: string; sabado: string; domingo?: string; feriado?: string };
   faq: { pergunta: string; resposta: string }[];
   conhecimento: Conhecimento[];
   planos_detalhados: { nome: string; valor: number; periodicidade: string; descricao: string }[];
@@ -47,7 +47,7 @@ export default function Configuracoes() {
     nome_agente: "",
     nome_empresa: "",
     endereco: "",
-    horarios: { semana: "", sabado: "", domingo: "" },
+    horarios: { semana: "", sabado: "", domingo: "", feriado: "" },
     faq: [],
     conhecimento: [],
     planos_detalhados: [],
@@ -89,7 +89,8 @@ export default function Configuracoes() {
             horarios: {
               semana: configData.horarios?.semana || "",
               sabado: configData.horarios?.sabado || "",
-              domingo: configData.horarios?.domingo || ""
+              domingo: configData.horarios?.domingo || "",
+              feriado: configData.horarios?.feriado || ""
             },
             faq: Array.isArray(configData.faq) ? configData.faq : [],
             conhecimento: Array.isArray(configData.conhecimento) ? configData.conhecimento : [],
@@ -244,7 +245,7 @@ export default function Configuracoes() {
     return { start, end };
   };
 
-  const updateTime = (day: 'semana' | 'sabado' | 'domingo', type: 'start' | 'end', val: string) => {
+  const updateTime = (day: 'semana' | 'sabado' | 'domingo' | 'feriado', type: 'start' | 'end', val: string) => {
     const current = parseTime(config.horarios[day] || "");
     const updated = { ...current, [type]: val };
     const newStr = updated.start && updated.end ? `${updated.start} as ${updated.end}` : "";
@@ -737,11 +738,11 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              {/* Domingos / Feriados */}
+              {/* Domingos */}
               <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   <Clock size={12} className="text-purple-400" />
-                  Domingos / Feriados
+                  Domingos
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input 
@@ -756,6 +757,30 @@ export default function Configuracoes() {
                     value={parseTime(config.horarios?.domingo || "").end}
                     onChange={e => updateTime('domingo', 'end', e.target.value)}
                     className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
+                  />
+                </div>
+                <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
+              </div>
+
+              {/* Feriados */}
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  <Clock size={12} className="text-red-400" />
+                  Feriados
+                </div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.feriado || "").start}
+                    onChange={e => updateTime('feriado', 'start', e.target.value)}
+                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                  />
+                  <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                  <input 
+                    type="time" 
+                    value={parseTime(config.horarios?.feriado || "").end}
+                    onChange={e => updateTime('feriado', 'end', e.target.value)}
+                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
                   />
                 </div>
                 <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>

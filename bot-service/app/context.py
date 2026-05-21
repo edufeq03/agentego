@@ -48,6 +48,58 @@ def parse_time_range(range_str: str):
             
     return ranges
 
+from datetime import timedelta
+
+def is_feriado_brasil(dt) -> bool:
+    """
+    Verifica se uma determinada data/datetime é um feriado nacional no Brasil.
+    Calcula feriados móveis baseado na Páscoa e os feriados fixos.
+    """
+    d = dt.date() if isinstance(dt, datetime) else dt
+    year = d.year
+    
+    # Algoritmo de Butcher para cálculo da Páscoa
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d_part = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d_part - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    L = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * L) // 451
+    month = (h + L - 7 * m + 114) // 31
+    day = ((h + L - 7 * m + 114) % 31) + 1
+    easter = datetime(year, month, day).date()
+    
+    # Feriados móveis baseados na data da Páscoa
+    sexta_santa = easter - timedelta(days=2)
+    corpus_christi = easter + timedelta(days=60)
+    carnaval = easter - timedelta(days=47) # Terça-feira de Carnaval
+    
+    # Feriados fixos nacionais
+    fixed = {
+        (1, 1),   # Ano Novo
+        (4, 21),  # Tiradentes
+        (5, 1),   # Dia do Trabalho
+        (9, 7),   # Independência
+        (10, 12), # Nossa Senhora Aparecida
+        (11, 2),  # Finados
+        (11, 15), # Proclamação da República
+        (11, 20), # Dia da Consciência Negra
+        (12, 25), # Natal
+    }
+    
+    if (d.month, d.day) in fixed:
+        return True
+    if d in (sexta_santa, corpus_christi, carnaval):
+        return True
+        
+    return False
+
 def esta_aberto(agora: datetime, horarios_config: dict) -> str:
     """
     Verifica se a empresa está aberta com base no dia da semana e horários.
@@ -56,8 +108,13 @@ def esta_aberto(agora: datetime, horarios_config: dict) -> str:
     dia_semana = agora.weekday() # 0 = Segunda, 6 = Domingo
     minutos_atuais = agora.hour * 60 + agora.minute
     
-    # Mapeamento simples
-    if dia_semana < 5: # Segunda a Sexta
+    # Verifica primeiro se hoje é feriado
+    if is_feriado_brasil(agora):
+        range_str = horarios_config.get('feriado', '')
+        # Se não houver horário específico para feriado configurado, assume fechado
+        if not range_str:
+            return "FECHADO"
+    elif dia_semana < 5: # Segunda a Sexta
         range_str = horarios_config.get('semana', '')
     elif dia_semana == 5: # Sábado
         range_str = horarios_config.get('sabado', '')
@@ -106,6 +163,8 @@ def gerar_contexto_tempo(config: dict) -> str:
     contexto = f"=== CONTEXTO DE TEMPO (CRÍTICO) ===\n"
     contexto += f"Data/Hora Atual: {dia_str}, às {hora_str}.\n"
     contexto += f"Fuso Horário Configurado: {tz_name}.\n"
+    if is_feriado_brasil(agora):
+        contexto += "Hoje é um FERIADO Nacional no Brasil.\n"
     contexto += f"Status de Funcionamento AGORA: {status}.\n"
     
     if status == "FECHADO" or status == "INTERVALO":
@@ -114,6 +173,4 @@ def gerar_contexto_tempo(config: dict) -> str:
         contexto += "(O estabelecimento está aberto. Você pode incentivar o cliente a vir conhecer o espaço agora mesmo!)"
         
     logger.info(f"Contexto gerado: {dia_str} {hora_str} - Status: {status}")
-    return contexto
-        
     return contexto

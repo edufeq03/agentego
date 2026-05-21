@@ -214,7 +214,7 @@ def conversas(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(g
                 "nome": lead.nome or lead.telefone,
                 "stage": lead.stage,
                 "ultima_mensagem": ultima_msg.mensagem,
-                "timestamp": str(ultima_msg.timestamp),
+                "timestamp": ultima_msg.timestamp.isoformat() + "Z",
                 "transbordo": status_transbordo,
                 "dados_customizados": lead.dados_customizados
             })
@@ -229,7 +229,7 @@ def historico_conversa(telefone: str, empresa: Empresa = Depends(obter_empresa),
         
     mensagens = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.asc()).all()
     
-    return [{"tipo": m.tipo, "mensagem": m.mensagem, "timestamp": str(m.timestamp)} for m in mensagens]
+    return [{"tipo": m.tipo, "mensagem": m.mensagem, "timestamp": m.timestamp.isoformat() + "Z"} for m in mensagens]
 
 @router.post("/conversas/{telefone}/pausar")
 def pausar_robo(telefone: str, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):

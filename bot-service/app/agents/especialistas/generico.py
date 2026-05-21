@@ -174,7 +174,8 @@ Se o cliente recusar: use a tag [CANCELAR_TRANSBORDO].
             secoes_conhecimento += "\n=== HORÁRIO DE FUNCIONAMENTO ===\n"
             secoes_conhecimento += f"- Segunda a Sexta: {horarios.get('semana', 'Não informado')}\n"
             secoes_conhecimento += f"- Sábados: {horarios.get('sabado', 'Não informado')}\n"
-            secoes_conhecimento += f"- Domingos e Feriados: {horarios.get('domingo', 'Fechado')}\n"
+            secoes_conhecimento += f"- Domingos: {horarios.get('domingo', 'Fechado')}\n"
+            secoes_conhecimento += f"- Feriados: {horarios.get('feriado', 'Fechado')}\n"
 
         professores = config.get('professores', [])
         if isinstance(professores, list) and professores:
