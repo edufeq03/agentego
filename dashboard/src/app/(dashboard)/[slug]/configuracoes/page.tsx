@@ -248,7 +248,7 @@ export default function Configuracoes() {
   const updateTime = (day: 'semana' | 'sabado' | 'domingo' | 'feriado', type: 'start' | 'end', val: string) => {
     const current = parseTime(config.horarios[day] || "");
     const updated = { ...current, [type]: val };
-    const newStr = updated.start && updated.end ? `${updated.start} as ${updated.end}` : "";
+    const newStr = (updated.start || updated.end) ? `${updated.start || ""} as ${updated.end || ""}` : "";
     setConfig(prev => ({ ...prev, horarios: { ...prev.horarios, [day]: newStr } }));
   };
 
