@@ -936,6 +936,7 @@ class CampoCustomizadoRequest(BaseModel):
     opcoes: Optional[List[str]] = None
     ordem: int = 0
     ativo: bool = True
+    dependencias: Optional[dict] = None
 
 @router.get("/marketing/triage/fields")
 async def listar_campos_triagem(
@@ -994,7 +995,8 @@ async def listar_campos_triagem(
         "obrigatorio": c.obrigatorio,
         "opcoes": c.opcoes,
         "ordem": c.ordem,
-        "ativo": c.ativo
+        "ativo": c.ativo,
+        "dependencias": c.dependencias
     } for c in campos]
 
 @router.post("/marketing/triage/fields")
@@ -1025,7 +1027,8 @@ async def criar_campo_triagem(
         obrigatorio=req.obrigatorio,
         opcoes=req.opcoes,
         ordem=req.ordem,
-        ativo=req.ativo
+        ativo=req.ativo,
+        dependencias=req.dependencias
     )
     db.add(novo)
     db.commit()
@@ -1039,7 +1042,8 @@ async def criar_campo_triagem(
         "obrigatorio": novo.obrigatorio,
         "opcoes": novo.opcoes,
         "ordem": novo.ordem,
-        "ativo": novo.ativo
+        "ativo": novo.ativo,
+        "dependencias": novo.dependencias
     }}
 
 @router.put("/marketing/triage/fields/{field_id}")
@@ -1065,6 +1069,7 @@ async def atualizar_campo_triagem(
     campo.opcoes = req.opcoes
     campo.ordem = req.ordem
     campo.ativo = req.ativo
+    campo.dependencias = req.dependencias
     
     db.commit()
     return {"status": "ok"}

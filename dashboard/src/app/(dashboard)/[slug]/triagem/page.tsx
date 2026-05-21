@@ -13,6 +13,7 @@ interface CampoCustomizado {
   opcoes?: string[] | null;
   ordem: number;
   ativo: boolean;
+  dependencias?: Record<string, string[]> | null;
 }
 
 export default function TriagemConfigPage() {
@@ -30,6 +31,11 @@ export default function TriagemConfigPage() {
   const [obrigatorio, setObrigatorio] = useState(false);
   const [opcoesText, setOpcoesText] = useState("");
   const [ativo, setAtivo] = useState(true);
+
+  // Dependencias Form State
+  const [temDependencia, setTemDependencia] = useState(false);
+  const [depChave, setDepChave] = useState("");
+  const [depValores, setDepValores] = useState("");
 
   // Auto-slugification flag
   const [autoSlug, setAutoSlug] = useState(true);
@@ -79,6 +85,7 @@ export default function TriagemConfigPage() {
         opcoes: field.opcoes,
         ordem: field.ordem,
         ativo: property === "ativo" ? updatedValue : field.ativo,
+        dependencias: field.dependencias,
       };
 
       await api.put(`dashboard/marketing/triage/fields/${field.id}`, payload);
@@ -118,6 +125,7 @@ export default function TriagemConfigPage() {
           opcoes: currentField.opcoes,
           ordem: targetOrder,
           ativo: currentField.ativo,
+          dependencias: currentField.dependencias,
         }),
         api.put(`dashboard/marketing/triage/fields/${targetField.id}`, {
           chave: targetField.chave,
@@ -127,6 +135,7 @@ export default function TriagemConfigPage() {
           opcoes: targetField.opcoes,
           ordem: currentOrder,
           ativo: targetField.ativo,
+          dependencias: targetField.dependencias,
         })
       ]);
 
@@ -167,6 +176,19 @@ export default function TriagemConfigPage() {
         }
       }
 
+      let dependenciasPayload: Record<string, string[]> | null = null;
+      if (temDependencia && depChave) {
+        const parsedVals = depValores
+          .split(",")
+          .map(v => v.trim())
+          .filter(Boolean);
+        if (parsedVals.length > 0) {
+          dependenciasPayload = {
+            [depChave]: parsedVals
+          };
+        }
+      }
+
       const payload = {
         chave: chave.trim().toLowerCase().replace(/\s+/g, "_"),
         label: label.trim(),
@@ -177,6 +199,7 @@ export default function TriagemConfigPage() {
           ? fields.find(f => f.id === editingFieldId)?.ordem || 0 
           : (fields.length > 0 ? Math.max(...fields.map(f => f.ordem)) + 10 : 10),
         ativo,
+        dependencias: dependenciasPayload,
       };
 
       if (editingFieldId) {
@@ -209,6 +232,17 @@ export default function TriagemConfigPage() {
     setAtivo(field.ativo);
     setOpcoesText(field.opcoes ? field.opcoes.join(", ") : "");
     setAutoSlug(false); // don't auto-slugify existing fields
+
+    if (field.dependencias && Object.keys(field.dependencias).length > 0) {
+      const firstKey = Object.keys(field.dependencias)[0];
+      setTemDependencia(true);
+      setDepChave(firstKey);
+      setDepValores(field.dependencias[firstKey].join(", "));
+    } else {
+      setTemDependencia(false);
+      setDepChave("");
+      setDepValores("");
+    }
   }
 
   // Cancel edit mode
@@ -222,6 +256,9 @@ export default function TriagemConfigPage() {
     setOpcoesText("");
     setAutoSlug(true);
     setErrorMsg("");
+    setTemDependencia(false);
+    setDepChave("");
+    setDepValores("");
   }
 
   // Delete field
@@ -338,6 +375,14 @@ export default function TriagemConfigPage() {
                                 {opt}
                               </span>
                             ))}
+                          </div>
+                        )}
+                        {field.dependencias && Object.keys(field.dependencias).length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-2 text-[10px] text-amber-400 bg-amber-950/20 border border-amber-500/20 px-2.5 py-1 rounded-lg w-fit">
+                            <Info className="h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              Depende de: <code className="bg-white/5 px-1 py-0.5 rounded text-white font-mono font-bold">{Object.keys(field.dependencias)[0]}</code> = <strong className="text-white">{field.dependencias[Object.keys(field.dependencias)[0]].join(", ")}</strong>
+                            </span>
                           </div>
                         )}
                       </div>
@@ -504,6 +549,77 @@ export default function TriagemConfigPage() {
                 </p>
               </div>
             )}
+
+            {/* Dynamic Dependency Configuration */}
+            <div className="space-y-3 pt-3 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-white">Depende de outro campo?</span>
+                  <p className="text-[9px] text-[var(--color-foreground-muted)]">Exibir apenas condicionalmente</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemDependencia(!temDependencia);
+                    if (!temDependencia && fields.length > 0) {
+                      // Autoselect first possible field that is not the current one
+                      const possibleFields = fields.filter(f => f.id !== editingFieldId);
+                      if (possibleFields.length > 0) {
+                        setDepChave(possibleFields[0].chave);
+                      }
+                    }
+                  }}
+                  className="focus:outline-none bg-transparent border-0 p-0"
+                >
+                  {temDependencia ? (
+                    <ToggleRight className="h-8 w-8 text-[var(--color-brand-500)]" />
+                  ) : (
+                    <ToggleLeft className="h-8 w-8 text-[var(--color-foreground-muted)]" />
+                  )}
+                </button>
+              </div>
+
+              {temDependencia && (
+                <div className="space-y-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl animate-fadeIn">
+                  {/* Select field parent */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-white/80">Selecionar Campo Pai</label>
+                    <select
+                      value={depChave}
+                      onChange={(e) => setDepChave(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all [&>option]:bg-zinc-950"
+                      required={temDependencia}
+                    >
+                      <option value="">Selecione um campo...</option>
+                      {fields
+                        .filter(f => f.id !== editingFieldId)
+                        .map(f => (
+                          <option key={f.id} value={f.chave}>
+                            {f.label} ({f.chave})
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+
+                  {/* Input values that trigger this field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-white/80">Valores Ativadores (Separados por vírgula)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Carro, Moto"
+                      value={depValores}
+                      onChange={(e) => setDepValores(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all"
+                      required={temDependencia}
+                    />
+                    <p className="text-[9px] text-[var(--color-foreground-muted)]">
+                      O campo só aparecerá se o lead responder um desses valores no campo selecionado.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Toggles */}
             <div className="grid grid-cols-2 gap-4 py-2 border-t border-b border-white/5">

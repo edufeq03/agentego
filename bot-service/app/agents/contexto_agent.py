@@ -121,6 +121,40 @@ class ContextoAgent:
                         dados_lead["idade_segurado"] = lead_seguro.idade_segurado
 
                 for campo in db_campos:
+                    # Validar se o campo atende às dependências dinâmicas configuradas
+                    if getattr(campo, "dependencias", None):
+                        satisfeito = True
+                        deps = campo.dependencias
+                        
+                        # Suportar tanto o formato composto {"campo_pai": chave, "valores": [valores]} quanto o formato direto {chave: [valores]}
+                        if "campo_pai" in deps or "parent_chave" in deps:
+                            dep_chave = deps.get("campo_pai") or deps.get("parent_chave")
+                            dep_valores = deps.get("valores") or deps.get("valores_ativadores") or deps.get("values")
+                            
+                            val_atual = dados_lead.get(dep_chave)
+                            if not val_atual:
+                                satisfeito = False
+                            elif isinstance(dep_valores, list):
+                                if val_atual not in dep_valores:
+                                    satisfeito = False
+                            elif val_atual != dep_valores:
+                                satisfeito = False
+                        else:
+                            for dep_chave, dep_valores in deps.items():
+                                val_atual = dados_lead.get(dep_chave)
+                                if not val_atual:
+                                    satisfeito = False
+                                    break
+                                if isinstance(dep_valores, list):
+                                    if val_atual not in dep_valores:
+                                        satisfeito = False
+                                        break
+                                elif val_atual != dep_valores:
+                                    satisfeito = False
+                                    break
+                        if not satisfeito:
+                            continue
+
                     valor = dados_lead.get(campo.chave)
                     
                     # Formatar visualmente a regra do campo

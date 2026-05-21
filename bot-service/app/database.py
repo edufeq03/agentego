@@ -260,6 +260,7 @@ class CampoCustomizado(Base):
     opcoes = Column(JSONB, nullable=True) # Ex: ["particular", "trabalho"]
     ordem = Column(Integer, default=0)
     ativo = Column(Boolean, default=True)
+    dependencias = Column(JSONB, nullable=True) # Ex: {"tipo_seguro": ["Carro", "Moto"]}
     criado_em = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -415,9 +416,11 @@ def init_db():
                     opcoes JSONB,
                     ordem INTEGER DEFAULT 0,
                     ativo BOOLEAN DEFAULT TRUE,
+                    dependencias JSONB,
                     criado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
+            conn.execute(text('ALTER TABLE campos_customizados ADD COLUMN IF NOT EXISTS dependencias JSONB'))
             
             # Garantir ON DELETE CASCADE em tabelas existentes
             try:
