@@ -337,7 +337,7 @@ async def tarefa_avisos_obrigacoes():
         db.close()
 
 async def tarefa_reengajamento_automatico():
-    """Tarefa periódica para verificar e disparar reengajamentos inteligentes por IA."""
+    """Tarefa periódica para verificar e disparar reengajamentos inteligentes por IA em cadência (multi-step)."""
     logger.info("Iniciando varredura de reengajamento inteligente por IA...")
     db = SessionLocal()
     try:
@@ -360,11 +360,28 @@ async def tarefa_reengajamento_automatico():
             if not inact_enabled and not pend_enabled:
                 continue
                 
-            inact_delay = config_dict.get("reengagement_inactivity_delay_hours", 2)
-            pend_delay = config_dict.get("reengagement_pending_delay_hours", 1)
-            
             inact_prompt = config_dict.get("reengagement_inactivity_prompt", "")
             pend_prompt = config_dict.get("reengagement_pending_prompt", "")
+            
+            # Processar passos de inatividade com fallback
+            inact_steps = config_dict.get("reengagement_inactivity_steps")
+            if not inact_steps:
+                old_prompt = config_dict.get("reengagement_inactivity_prompt")
+                old_delay = config_dict.get("reengagement_inactivity_delay_hours")
+                if old_prompt is not None:
+                    inact_steps = [{"step": 1, "delay_hours": float(old_delay or 2), "prompt": old_prompt}]
+                else:
+                    inact_steps = [{"step": 1, "delay_hours": 2.0, "prompt": inact_prompt or "Pergunte se o cliente ainda tem interesse."}]
+
+            # Processar passos de campos pendentes com fallback
+            pend_steps = config_dict.get("reengagement_pending_steps")
+            if not pend_steps:
+                old_prompt = config_dict.get("reengagement_pending_prompt")
+                old_delay = config_dict.get("reengagement_pending_delay_hours")
+                if old_prompt is not None:
+                    pend_steps = [{"step": 1, "delay_hours": float(old_delay or 1), "prompt": old_prompt}]
+                else:
+                    pend_steps = [{"step": 1, "delay_hours": 1.0, "prompt": pend_prompt or "Lembre o lead das informações pendentes ({campos_pendentes})."}]
             
             # 2. Obter leads da empresa em estágio de 'novo' ou 'triagem'
             leads = db.query(Lead).filter(
@@ -386,26 +403,30 @@ async def tarefa_reengajamento_automatico():
                 if not ultimo_msg:
                     continue
                     
-                # Apenas reengaja se a última mensagem foi do robô (esperando resposta do cliente)
+                # Apenas reengaja se a última mensagem foi do robô ou do próprio reengajamento (tipo "agente")
                 if ultimo_msg.tipo != "agente":
                     continue
                     
-                # Calcular horas de inatividade
-                elapsed_hours = (datetime.utcnow() - ultimo_msg.timestamp).total_seconds() / 3600.0
-                ultimo_msg_iso = ultimo_msg.timestamp.isoformat()
-                
                 # Garantir dicionário dados_customizados inicializado
                 dados_custom = lead.dados_customizados or {}
                 if not isinstance(dados_custom, dict):
                     dados_custom = {}
+                
+                # Rastrear chaves de cadência
+                fluxo_ativo = dados_custom.get("reengajamento_fluxo_ativo")
+                passo_atual = dados_custom.get("reengajamento_passo_atual", 0) or 0
+                ultimo_reeng_ts_str = dados_custom.get("reengajamento_ultimo_timestamp")
+                
+                # Calcular tempos decorridos
+                now = datetime.utcnow()
+                elapsed_since_last_msg = (now - ultimo_msg.timestamp).total_seconds() / 3600.0
+                
+                # Se não houver uma cadência ativa para esse bloco de silêncio, começamos o Passo 1
+                if not fluxo_ativo:
+                    se_disparou = False
                     
-                # GATILHO A: Reengajamento por Triagem Incompleta (Campos Pendentes)
-                # Damos preferência ao gatilho de ação pendente se aplicável
-                se_disparou = False
-                if pend_enabled and elapsed_hours >= pend_delay:
-                    ultimo_reeng_pend = dados_custom.get("ultimo_reengajamento_pendente")
-                    
-                    if ultimo_reeng_pend != ultimo_msg_iso:
+                    # A. Gatilho de Triagem Incompleta (Campos Pendentes) - Prioridade
+                    if pend_enabled and len(pend_steps) > 0:
                         # Encontrar campos requeridos pendentes
                         campos_definidos = db.query(CampoCustomizado).filter(
                             CampoCustomizado.empresa_id == empresa.id,
@@ -420,42 +441,105 @@ async def tarefa_reengajamento_automatico():
                                 campos_pendentes.append(campo.label)
                                 
                         if len(campos_pendentes) > 0:
-                            # Disparar reengajamento por ação pendente!
-                            campos_pendentes_str = ", ".join(campos_pendentes)
-                            prompt_final = pend_prompt.replace("{campos_pendentes}", campos_pendentes_str)
+                            step1 = pend_steps[0]
+                            if elapsed_since_last_msg >= step1["delay_hours"]:
+                                # Disparar Passo 1 dos pendentes!
+                                campos_pendentes_str = ", ".join(campos_pendentes)
+                                prompt_final = step1["prompt"].replace("{campos_pendentes}", campos_pendentes_str)
+                                
+                                gerar_mensagem_reengajamento_ia(
+                                    db, empresa, lead, prompt_final, campos_pendentes_str=campos_pendentes_str
+                                )
+                                
+                                dados_custom["reengajamento_fluxo_ativo"] = "pending"
+                                dados_custom["reengajamento_passo_atual"] = 1
+                                dados_custom["reengajamento_ultimo_timestamp"] = now.isoformat()
+                                lead.dados_customizados = dados_custom
+                                flag_modified(lead, "dados_customizados")
+                                db.commit()
+                                se_disparou = True
+                                
+                                await asyncio.sleep(4 + random.uniform(0, 3))
+                                
+                    # B. Gatilho de Inatividade
+                    if inact_enabled and len(inact_steps) > 0 and not se_disparou:
+                        step1 = inact_steps[0]
+                        if elapsed_since_last_msg >= step1["delay_hours"]:
+                            # Disparar Passo 1 da inatividade!
+                            gerar_mensagem_reengajamento_ia(db, empresa, lead, step1["prompt"])
                             
-                            # Chamar pipeline de reengajamento por IA
-                            gerar_mensagem_reengajamento_ia(
-                                db, empresa, lead, prompt_final, campos_pendentes_str=campos_pendentes_str
-                            )
-                            
-                            # Atualizar controle de reengajamento
-                            dados_custom["ultimo_reengajamento_pendente"] = ultimo_msg_iso
+                            dados_custom["reengajamento_fluxo_ativo"] = "inactivity"
+                            dados_custom["reengajamento_passo_atual"] = 1
+                            dados_custom["reengajamento_ultimo_timestamp"] = now.isoformat()
                             lead.dados_customizados = dados_custom
                             flag_modified(lead, "dados_customizados")
                             db.commit()
-                            se_disparou = True
                             
-                            # Delay de cortesia para controle do gateway
-                            await asyncio.sleep(5 + random.uniform(0, 5))
+                            await asyncio.sleep(4 + random.uniform(0, 3))
                             
-                # GATILHO B: Reengajamento por Inatividade
-                if inact_enabled and elapsed_hours >= inact_delay and not se_disparou:
-                    ultimo_reeng_inact = dados_custom.get("ultimo_reengajamento_inatividade")
+                else:
+                    # Cadência já ativa! Verificamos se é hora de enviar o próximo passo.
+                    if not ultimo_reeng_ts_str:
+                        continue
+                        
+                    steps = pend_steps if fluxo_ativo == "pending" else inact_steps
+                    enabled = pend_enabled if fluxo_ativo == "pending" else inact_enabled
                     
-                    if ultimo_reeng_inact != ultimo_msg_iso:
-                        # Chamar pipeline de reengajamento por IA
-                        gerar_mensagem_reengajamento_ia(db, empresa, lead, inact_prompt)
+                    if not enabled:
+                        continue
                         
-                        # Atualizar controle de reengajamento
-                        dados_custom["ultimo_reengajamento_inatividade"] = ultimo_msg_iso
-                        lead.dados_customizados = dados_custom
-                        flag_modified(lead, "dados_customizados")
-                        db.commit()
+                    # O próximo passo na lista é o index = passo_atual (porque passo_atual = 1-based, ex: após enviar passo 1, o próximo passo é o index 1, i.e., o 2º item da lista)
+                    next_step_idx = passo_atual
+                    if next_step_idx < len(steps):
+                        next_step = steps[next_step_idx]
+                        ultimo_reeng_dt = datetime.fromisoformat(ultimo_reeng_ts_str)
+                        elapsed_since_last_reeng = (now - ultimo_reeng_dt).total_seconds() / 3600.0
                         
-                        # Delay de cortesia
-                        await asyncio.sleep(5 + random.uniform(0, 5))
-                        
+                        if elapsed_since_last_reeng >= next_step["delay_hours"]:
+                            # Disparar próximo passo!
+                            if fluxo_ativo == "pending":
+                                # Verificar se ainda restam campos pendentes
+                                campos_definidos = db.query(CampoCustomizado).filter(
+                                    CampoCustomizado.empresa_id == empresa.id,
+                                    CampoCustomizado.ativo == True,
+                                    CampoCustomizado.obrigatorio == True
+                                ).all()
+                                
+                                campos_pendentes = []
+                                for campo in campos_definidos:
+                                    val = dados_custom.get(campo.chave)
+                                    if val is None or val == "":
+                                        campos_pendentes.append(campo.label)
+                                        
+                                if len(campos_pendentes) == 0:
+                                    # Triagem concluída no meio tempo, encerra a cadência!
+                                    dados_custom.pop("reengajamento_fluxo_ativo", None)
+                                    dados_custom.pop("reengajamento_passo_atual", None)
+                                    dados_custom.pop("reengajamento_ultimo_timestamp", None)
+                                    lead.dados_customizados = dados_custom
+                                    flag_modified(lead, "dados_customizados")
+                                    db.commit()
+                                    continue
+                                    
+                                campos_pendentes_str = ", ".join(campos_pendentes)
+                                prompt_final = next_step["prompt"].replace("{campos_pendentes}", campos_pendentes_str)
+                                
+                                gerar_mensagem_reengajamento_ia(
+                                    db, empresa, lead, prompt_final, campos_pendentes_str=campos_pendentes_str
+                                )
+                            else:
+                                # Inatividade
+                                gerar_mensagem_reengajamento_ia(db, empresa, lead, next_step["prompt"])
+                                
+                            # Atualizar estado para a próxima etapa
+                            dados_custom["reengajamento_passo_atual"] = next_step["step"]
+                            dados_custom["reengajamento_ultimo_timestamp"] = now.isoformat()
+                            lead.dados_customizados = dados_custom
+                            flag_modified(lead, "dados_customizados")
+                            db.commit()
+                            
+                            await asyncio.sleep(4 + random.uniform(0, 3))
+                            
     except Exception as e:
         logger.error(f"Erro na execução da tarefa de reengajamento automático: {e}", exc_info=True)
     finally:

@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Zap, Check, AlertCircle, Save, Info, HelpCircle, ToggleLeft, ToggleRight, Hourglass, Sparkles, Loader2 } from "lucide-react";
+import { Zap, Check, AlertCircle, Save, Info, Plus, Trash2, ToggleLeft, ToggleRight, Hourglass, Sparkles, Loader2 } from "lucide-react";
+
+interface ReengagementStep {
+  step: number;
+  delay_hours: number;
+  prompt: string;
+}
 
 export default function ReengagementConfigPage() {
   const [loading, setLoading] = useState(true);
@@ -12,13 +18,11 @@ export default function ReengagementConfigPage() {
 
   // Inactivity Trigger States
   const [inactEnabled, setInactEnabled] = useState(false);
-  const [inactDelay, setInactDelay] = useState(2);
-  const [inactPrompt, setInactPrompt] = useState("");
+  const [inactSteps, setInactSteps] = useState<ReengagementStep[]>([]);
 
   // Pending Fields Trigger States
   const [pendEnabled, setPendEnabled] = useState(false);
-  const [pendDelay, setPendDelay] = useState(1);
-  const [pendPrompt, setPendPrompt] = useState("");
+  const [pendSteps, setPendSteps] = useState<ReengagementStep[]>([]);
 
   useEffect(() => {
     fetchConfig();
@@ -31,15 +35,13 @@ export default function ReengagementConfigPage() {
       const data = response.data;
       
       setInactEnabled(data.reengagement_inactivity_enabled);
-      setInactDelay(data.reengagement_inactivity_delay_hours);
-      setInactPrompt(data.reengagement_inactivity_prompt);
+      setInactSteps(data.reengagement_inactivity_steps || []);
       
       setPendEnabled(data.reengagement_pending_enabled);
-      setPendDelay(data.reengagement_pending_delay_hours);
-      setPendPrompt(data.reengagement_pending_prompt);
+      setPendSteps(data.reengagement_pending_steps || []);
     } catch (error: any) {
       console.error("Erro ao carregar configurações de reengajamento:", error);
-      setErrorMsg("Não foi possível carregar as configurações de disparo automático.");
+      setErrorMsg("Não foi possível carregar as configurações de disparos sequenciais.");
     } finally {
       setLoading(false);
     }
@@ -52,18 +54,30 @@ export default function ReengagementConfigPage() {
       setErrorMsg("");
       setSuccessMsg("");
 
+      // Higienizar prompts removendo espaços extras
+      const sanitizedInact = inactSteps.map(s => ({ ...s, prompt: s.prompt.trim() }));
+      const sanitizedPend = pendSteps.map(s => ({ ...s, prompt: s.prompt.trim() }));
+
+      // Validação básica: impedir prompts vazios
+      if (inactEnabled && sanitizedInact.some(s => !s.prompt)) {
+        setErrorMsg("Por favor, preencha as instruções de IA para todas as abordagens de inatividade.");
+        return;
+      }
+      if (pendEnabled && sanitizedPend.some(s => !s.prompt)) {
+        setErrorMsg("Por favor, preencha as instruções de IA para todas as abordagens de triagem incompleta.");
+        return;
+      }
+
       const payload = {
         reengagement_inactivity_enabled: inactEnabled,
-        reengagement_inactivity_delay_hours: Number(inactDelay),
-        reengagement_inactivity_prompt: inactPrompt.trim(),
+        reengagement_inactivity_steps: sanitizedInact,
         
         reengagement_pending_enabled: pendEnabled,
-        reengagement_pending_delay_hours: Number(pendDelay),
-        reengagement_pending_prompt: pendPrompt.trim(),
+        reengagement_pending_steps: sanitizedPend,
       };
 
       await api.post("dashboard/marketing/reengagement", payload);
-      showToast("Configurações de reengajamento salvas com sucesso!");
+      showToast("Esteiras de reengajamento salvas com sucesso!");
     } catch (error: any) {
       console.error("Erro ao salvar configurações:", error);
       setErrorMsg("Ocorreu um erro ao salvar as configurações no servidor.");
@@ -77,11 +91,61 @@ export default function ReengagementConfigPage() {
     setTimeout(() => setSuccessMsg(""), 4000);
   }
 
+  // --- Dynamic Step Modifiers ---
+
+  function handleAddInactStep() {
+    const nextNum = inactSteps.length + 1;
+    const defaultDelays = [2, 6, 24, 48, 72];
+    const delay = defaultDelays[inactSteps.length] || 24;
+    setInactSteps([
+      ...inactSteps,
+      { step: nextNum, delay_hours: delay, prompt: "" }
+    ]);
+  }
+
+  function handleRemoveInactStep(index: number) {
+    if (inactSteps.length <= 1) return;
+    const updated = inactSteps
+      .filter((_, i) => i !== index)
+      .map((s, i) => ({ ...s, step: i + 1 }));
+    setInactSteps(updated);
+  }
+
+  function handleUpdateInactStep(index: number, field: keyof ReengagementStep, value: any) {
+    const updated = [...inactSteps];
+    updated[index] = { ...updated[index], [field]: value };
+    setInactSteps(updated);
+  }
+
+  function handleAddPendStep() {
+    const nextNum = pendSteps.length + 1;
+    const defaultDelays = [1, 4, 12, 24];
+    const delay = defaultDelays[pendSteps.length] || 12;
+    setPendSteps([
+      ...pendSteps,
+      { step: nextNum, delay_hours: delay, prompt: "" }
+    ]);
+  }
+
+  function handleRemovePendStep(index: number) {
+    if (pendSteps.length <= 1) return;
+    const updated = pendSteps
+      .filter((_, i) => i !== index)
+      .map((s, i) => ({ ...s, step: i + 1 }));
+    setPendSteps(updated);
+  }
+
+  function handleUpdatePendStep(index: number, field: keyof ReengagementStep, value: any) {
+    const updated = [...pendSteps];
+    updated[index] = { ...updated[index], [field]: value };
+    setPendSteps(updated);
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-3">
         <Loader2 className="animate-spin h-10 w-10 text-[var(--color-brand-500)]" />
-        <span className="text-sm font-medium text-[var(--color-foreground-muted)]">Carregando painel de inteligência...</span>
+        <span className="text-sm font-medium text-[var(--color-foreground-muted)]">Carregando construtor de cadência...</span>
       </div>
     );
   }
@@ -92,10 +156,10 @@ export default function ReengagementConfigPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Zap className="text-[var(--color-brand-500)] fill-[var(--color-brand-500)]/15 h-7 w-7" /> Disparos da IA (Reengajamento Automatizado)
+            <Zap className="text-[var(--color-brand-500)] fill-[var(--color-brand-500)]/15 h-7 w-7 animate-pulse" /> Disparos da IA (Cadência de Reengajamento)
           </h2>
           <p className="text-[var(--color-foreground-muted)] mt-1 max-w-3xl">
-            Aumente suas conversões recuperando leads frios no WhatsApp. Nossa IA acompanha o histórico e envia mensagens personalizadas e humanizadas de acompanhamento no tempo ideal.
+            Configure esteiras de reengajamento automatizadas. Defina uma sequência de mensagens com diferentes tempos de silêncio para contatar leads frios de forma dinâmica e humanizada.
           </p>
         </div>
       </div>
@@ -119,9 +183,9 @@ export default function ReengagementConfigPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Card A: Inactivity */}
-          <div className="glass-panel p-6 flex flex-col justify-between border border-white/5 hover:border-white/10 transition-all duration-300">
-            <div className="space-y-4">
+          {/* Card A: Inactivity Cadence */}
+          <div className="glass-panel p-6 border border-white/5 hover:border-white/10 transition-all duration-300">
+            <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-orange-950/40 border border-orange-500/25 text-orange-400">
@@ -129,7 +193,7 @@ export default function ReengagementConfigPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-white">Reengajamento por Inatividade</h3>
-                    <p className="text-[10px] text-[var(--color-foreground-muted)]">Ativado após período de silêncio do lead</p>
+                    <p className="text-[10px] text-[var(--color-foreground-muted)]">Disparado em passos quando o lead some</p>
                   </div>
                 </div>
                 
@@ -146,54 +210,92 @@ export default function ReengagementConfigPage() {
                 </button>
               </div>
 
-              <div className={`space-y-4 transition-all duration-300 ${inactEnabled ? "opacity-100" : "opacity-45 pointer-events-none select-none"}`}>
+              <div className={`space-y-6 transition-all duration-300 ${inactEnabled ? "opacity-100" : "opacity-40 pointer-events-none select-none"}`}>
                 
-                {/* Delay hours */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/90 flex items-center gap-1">
-                    Tempo de Espera para Disparo
-                  </label>
-                  <select
-                    value={inactDelay}
-                    onChange={(e) => setInactDelay(Number(e.target.value))}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all [&>option]:bg-zinc-950"
-                  >
-                    <option value="1">1 hora sem resposta</option>
-                    <option value="2">2 horas sem resposta</option>
-                    <option value="4">4 horas sem resposta</option>
-                    <option value="8">8 horas sem resposta</option>
-                    <option value="24">24 horas sem resposta</option>
-                    <option value="48">48 horas sem resposta</option>
-                  </select>
+                {/* Timeline vertical sequence */}
+                <div className="relative pl-8 space-y-6">
+                  {/* Timeline dotted connection line */}
+                  {inactSteps.length > 1 && (
+                    <div className="absolute left-[15px] top-6 bottom-6 w-[1.5px] border-l border-dashed border-white/15" />
+                  )}
+
+                  {inactSteps.map((step, idx) => (
+                    <div key={idx} className="relative bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3 hover:border-white/10 transition-all duration-200">
+                      
+                      {/* Step marker dot */}
+                      <div className="absolute -left-[23.5px] top-5 h-[12px] w-[12px] rounded-full border border-orange-500 bg-zinc-950 flex items-center justify-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                      </div>
+
+                      {/* Header Row of step */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Abordagem {step.step}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={step.delay_hours}
+                            onChange={(e) => handleUpdateInactStep(idx, "delay_hours", Number(e.target.value))}
+                            className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-orange-500 transition-all"
+                          >
+                            <option value="1">Aguardar 1h</option>
+                            <option value="2">Aguardar 2h</option>
+                            <option value="4">Aguardar 4h</option>
+                            <option value="6">Aguardar 6h</option>
+                            <option value="12">Aguardar 12h</option>
+                            <option value="24">Aguardar 24h</option>
+                            <option value="48">Aguardar 48h</option>
+                          </select>
+
+                          {inactSteps.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveInactStep(idx)}
+                              className="text-white/40 hover:text-red-400 transition-colors p-1"
+                              title="Remover etapa"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Prompt script */}
+                      <textarea
+                        placeholder="Roteiro de abordagem para esta etapa específica..."
+                        value={step.prompt}
+                        onChange={(e) => handleUpdateInactStep(idx, "prompt", e.target.value)}
+                        rows={3}
+                        className="w-full bg-black/25 border border-white/5 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-orange-500 transition-all"
+                      />
+                    </div>
+                  ))}
                 </div>
 
-                {/* IA Prompt instructions */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/90 flex items-center gap-1.5">
-                    Instrução de Abordagem para a IA <Sparkles className="h-3 w-3 text-purple-400" />
-                  </label>
-                  <textarea
-                    placeholder="Descreva como o robô deve quebrar o silêncio de forma amigável..."
-                    value={inactPrompt}
-                    onChange={(e) => setInactPrompt(e.target.value)}
-                    rows={5}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all"
-                  />
-                  <div className="flex gap-2 p-3 bg-blue-950/20 border border-blue-500/15 rounded-lg text-[10px] text-blue-400 mt-1">
-                    <Info className="h-4 w-4 shrink-0" />
-                    <span>
-                      Dica: A IA tem acesso total ao histórico da conversa recente e gerará um texto personalizado, garantindo que a abordagem faça total sentido no contexto.
-                    </span>
-                  </div>
+                {/* Add Step Control */}
+                <button
+                  type="button"
+                  onClick={handleAddInactStep}
+                  className="w-full py-2.5 border border-dashed border-white/10 hover:border-orange-500/30 hover:bg-orange-500/[0.02] rounded-xl text-xs font-semibold text-orange-400/90 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Abordagem Sequencial
+                </button>
+
+                <div className="flex gap-2 p-3 bg-blue-950/20 border border-blue-500/15 rounded-lg text-[10px] text-blue-400">
+                  <Info className="h-4 w-4 shrink-0" />
+                  <span>
+                    Dica: O robô consultará o histórico recente e gerará um texto único para quebrar o silêncio de acordo com as diretrizes da etapa correspondente.
+                  </span>
                 </div>
 
               </div>
             </div>
           </div>
 
-          {/* Card B: Pending Action */}
-          <div className="glass-panel p-6 flex flex-col justify-between border border-white/5 hover:border-white/10 transition-all duration-300">
-            <div className="space-y-4">
+          {/* Card B: Pending Fields Cadence */}
+          <div className="glass-panel p-6 border border-white/5 hover:border-white/10 transition-all duration-300">
+            <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-purple-950/40 border border-purple-500/25 text-purple-400">
@@ -201,7 +303,7 @@ export default function ReengagementConfigPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-white">Triagem Incompleta (Campos Pendentes)</h3>
-                    <p className="text-[10px] text-[var(--color-foreground-muted)]">Cobrança focada nos dados que restam coletar</p>
+                    <p className="text-[10px] text-[var(--color-foreground-muted)]">Cobre dados de triagem em passos cadenciados</p>
                   </div>
                 </div>
                 
@@ -218,43 +320,83 @@ export default function ReengagementConfigPage() {
                 </button>
               </div>
 
-              <div className={`space-y-4 transition-all duration-300 ${pendEnabled ? "opacity-100" : "opacity-45 pointer-events-none select-none"}`}>
+              <div className={`space-y-6 transition-all duration-300 ${pendEnabled ? "opacity-100" : "opacity-40 pointer-events-none select-none"}`}>
                 
-                {/* Delay hours */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/90 flex items-center gap-1">
-                    Tempo de Espera para Cobrança
-                  </label>
-                  <select
-                    value={pendDelay}
-                    onChange={(e) => setPendDelay(Number(e.target.value))}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all [&>option]:bg-zinc-950"
-                  >
-                    <option value="0.5">30 minutos sem concluir triagem</option>
-                    <option value="1">1 hora sem concluir triagem</option>
-                    <option value="2">2 horas sem concluir triagem</option>
-                    <option value="4">4 horas sem concluir triagem</option>
-                  </select>
+                {/* Timeline vertical sequence */}
+                <div className="relative pl-8 space-y-6">
+                  {/* Timeline dotted connection line */}
+                  {pendSteps.length > 1 && (
+                    <div className="absolute left-[15px] top-6 bottom-6 w-[1.5px] border-l border-dashed border-white/15" />
+                  )}
+
+                  {pendSteps.map((step, idx) => (
+                    <div key={idx} className="relative bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3 hover:border-white/10 transition-all duration-200">
+                      
+                      {/* Step marker dot */}
+                      <div className="absolute -left-[23.5px] top-5 h-[12px] w-[12px] rounded-full border border-purple-500 bg-zinc-950 flex items-center justify-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                      </div>
+
+                      {/* Header Row of step */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Abordagem {step.step}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={step.delay_hours}
+                            onChange={(e) => handleUpdatePendStep(idx, "delay_hours", Number(e.target.value))}
+                            className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-purple-500 transition-all"
+                          >
+                            <option value="0.5">Aguardar 30min</option>
+                            <option value="1">Aguardar 1h</option>
+                            <option value="2">Aguardar 2h</option>
+                            <option value="4">Aguardar 4h</option>
+                            <option value="6">Aguardar 6h</option>
+                            <option value="12">Aguardar 12h</option>
+                            <option value="24">Aguardar 24h</option>
+                          </select>
+
+                          {pendSteps.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePendStep(idx)}
+                              className="text-white/40 hover:text-red-400 transition-colors p-1"
+                              title="Remover etapa"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Prompt script */}
+                      <textarea
+                        placeholder="Roteiro para solicitar os dados em falta..."
+                        value={step.prompt}
+                        onChange={(e) => handleUpdatePendStep(idx, "prompt", e.target.value)}
+                        rows={3}
+                        className="w-full bg-black/25 border border-white/5 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-purple-500 transition-all"
+                      />
+                    </div>
+                  ))}
                 </div>
 
-                {/* IA Prompt instructions */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/90 flex items-center gap-1.5">
-                    Instrução de Cobrança para a IA <Sparkles className="h-3 w-3 text-purple-400" />
-                  </label>
-                  <textarea
-                    placeholder="Oriente a IA a cobrar amigavelmente as informações que faltam..."
-                    value={pendPrompt}
-                    onChange={(e) => setPendPrompt(e.target.value)}
-                    rows={5}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)] transition-all"
-                  />
-                  <div className="flex gap-2 p-3 bg-purple-950/20 border border-purple-500/15 rounded-lg text-[10px] text-purple-400 mt-1">
-                    <HelpCircle className="h-4 w-4 shrink-0" />
-                    <span>
-                      Dica: Inclua <code className="bg-purple-950 px-1 py-0.5 rounded text-white font-mono font-bold">{"{campos_pendentes}"}</code> na sua instrução. O sistema substituirá dinamicamente pelos campos que faltam (ex: Nome, Idade) antes de passar a regra para a IA.
-                    </span>
-                  </div>
+                {/* Add Step Control */}
+                <button
+                  type="button"
+                  onClick={handleAddPendStep}
+                  className="w-full py-2.5 border border-dashed border-white/10 hover:border-purple-500/30 hover:bg-purple-500/[0.02] rounded-xl text-xs font-semibold text-purple-400/90 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Abordagem Sequencial
+                </button>
+
+                <div className="flex gap-2 p-3 bg-purple-950/20 border border-purple-500/15 rounded-lg text-[10px] text-purple-400">
+                  <Info className="h-4 w-4 shrink-0" />
+                  <span>
+                    Dica: Use a tag <code className="bg-purple-950 px-1 py-0.5 rounded text-white font-mono font-bold">{"{campos_pendentes}"}</code> na sua instrução. Ela será preenchida automaticamente com as informações faltantes de triagem no WhatsApp.
+                  </span>
                 </div>
 
               </div>
@@ -275,7 +417,7 @@ export default function ReengagementConfigPage() {
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Salvar Configurações de Disparo
+            Salvar Esteiras de Reengajamento
           </button>
         </div>
 

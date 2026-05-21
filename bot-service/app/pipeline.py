@@ -647,6 +647,20 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
             return lead_or_billing
         lead = lead_or_billing
         
+        # ETAPA 3.5: Resetar cadência de reengajamento se o lead responder
+        dados_custom = lead.dados_customizados or {}
+        if not isinstance(dados_custom, dict):
+            dados_custom = {}
+            
+        if any(k in dados_custom for k in ("reengajamento_fluxo_ativo", "reengajamento_passo_atual", "reengajamento_ultimo_timestamp")):
+            dados_custom.pop("reengajamento_fluxo_ativo", None)
+            dados_custom.pop("reengajamento_passo_atual", None)
+            dados_custom.pop("reengajamento_ultimo_timestamp", None)
+            lead.dados_customizados = dados_custom
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(lead, "dados_customizados")
+            db.commit()
+        
         # Atribuir campanha se houver tags de marketing na mensagem
         _atribuir_campanha_se_houver(db, empresa, lead, mensagem_texto)
 

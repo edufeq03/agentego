@@ -1091,13 +1091,16 @@ async def excluir_campo_triagem(
 
 # --- SMART RE-ENGAGEMENT ENDPOINTS (SaaS Global) ---
 
+class ReengagementStep(BaseModel):
+    step: int
+    delay_hours: float
+    prompt: str
+
 class ReengagementConfigRequest(BaseModel):
     reengagement_inactivity_enabled: bool = False
-    reengagement_inactivity_delay_hours: int = 2
-    reengagement_inactivity_prompt: str = ""
+    reengagement_inactivity_steps: List[ReengagementStep] = []
     reengagement_pending_enabled: bool = False
-    reengagement_pending_delay_hours: int = 1
-    reengagement_pending_prompt: str = ""
+    reengagement_pending_steps: List[ReengagementStep] = []
 
 @router.get("/marketing/reengagement")
 async def obter_configuracao_reengajamento(
@@ -1116,14 +1119,32 @@ async def obter_configuracao_reengajamento(
         default_inactivity_prompt = "Pergunte gentilmente se o cliente ainda tem interesse nas nossas soluções e se quer agendar uma visita experimental."
         default_pending_prompt = "Lembre o lead amigavelmente de que precisamos do preenchimento das informações pendentes ({campos_pendentes}) para liberar seu acesso."
 
+    # Processar passos de inatividade com fallback
+    inact_steps = config_dict.get("reengagement_inactivity_steps")
+    if not inact_steps:
+        old_prompt = config_dict.get("reengagement_inactivity_prompt")
+        old_delay = config_dict.get("reengagement_inactivity_delay_hours")
+        if old_prompt is not None:
+            inact_steps = [{"step": 1, "delay_hours": float(old_delay or 2), "prompt": old_prompt}]
+        else:
+            inact_steps = [{"step": 1, "delay_hours": 2.0, "prompt": default_inactivity_prompt}]
+
+    # Processar passos de campos pendentes com fallback
+    pend_steps = config_dict.get("reengagement_pending_steps")
+    if not pend_steps:
+        old_prompt = config_dict.get("reengagement_pending_prompt")
+        old_delay = config_dict.get("reengagement_pending_delay_hours")
+        if old_prompt is not None:
+            pend_steps = [{"step": 1, "delay_hours": float(old_delay or 1), "prompt": old_prompt}]
+        else:
+            pend_steps = [{"step": 1, "delay_hours": 1.0, "prompt": default_pending_prompt}]
+
     return {
         "reengagement_inactivity_enabled": config_dict.get("reengagement_inactivity_enabled", False),
-        "reengagement_inactivity_delay_hours": config_dict.get("reengagement_inactivity_delay_hours", 2),
-        "reengagement_inactivity_prompt": config_dict.get("reengagement_inactivity_prompt", default_inactivity_prompt),
+        "reengagement_inactivity_steps": inact_steps,
         
         "reengagement_pending_enabled": config_dict.get("reengagement_pending_enabled", False),
-        "reengagement_pending_delay_hours": config_dict.get("reengagement_pending_delay_hours", 1),
-        "reengagement_pending_prompt": config_dict.get("reengagement_pending_prompt", default_pending_prompt),
+        "reengagement_pending_steps": pend_steps,
     }
 
 @router.post("/marketing/reengagement")
@@ -1141,17 +1162,25 @@ async def atualizar_configuracao_reengajamento(
         db.flush()
         
     config_dict = config_obj.config
+    
     config_dict["reengagement_inactivity_enabled"] = req.reengagement_inactivity_enabled
-    config_dict["reengagement_inactivity_delay_hours"] = req.reengagement_inactivity_delay_hours
-    config_dict["reengagement_inactivity_prompt"] = req.reengagement_inactivity_prompt
+    config_dict["reengagement_inactivity_steps"] = [step.dict() for step in req.reengagement_inactivity_steps]
     
     config_dict["reengagement_pending_enabled"] = req.reengagement_pending_enabled
-    config_dict["reengagement_pending_delay_hours"] = req.reengagement_pending_delay_hours
-    config_dict["reengagement_pending_prompt"] = req.reengagement_pending_prompt
+    config_dict["reengagement_pending_steps"] = [step.dict() for step in req.reengagement_pending_steps]
     
+    # Manter campos antigos sincronizados com o primeiro passo da esteira para retrocompatibilidade
+    if len(req.reengagement_inactivity_steps) > 0:
+        config_dict["reengagement_inactivity_delay_hours"] = int(req.reengagement_inactivity_steps[0].delay_hours)
+        config_dict["reengagement_inactivity_prompt"] = req.reengagement_inactivity_steps[0].prompt
+    if len(req.reengagement_pending_steps) > 0:
+        config_dict["reengagement_pending_delay_hours"] = int(req.reengagement_pending_steps[0].delay_hours)
+        config_dict["reengagement_pending_prompt"] = req.reengagement_pending_steps[0].prompt
+        
     config_obj.config = config_dict
     flag_modified(config_obj, "config")
     db.commit()
     
     return {"status": "ok"}
+
 

@@ -33,22 +33,23 @@ class TestSmartReengagement(unittest.IsolatedAsyncioTestCase):
             telefone_proprietario=f"55118{suffix}",
             nicho="corretora",
             ativo=True,
-            evolution_instance="instancia_teste_reeng"
+            evolution_instance=f"instancia_teste_reeng-{suffix}"
         )
         self.db.add(self.empresa)
         self.db.flush()
         
-        # 2. Criar configuração de reengajamento habilitada
+        # 2. Criar configuração de reengajamento habilitada com cadência multi-passo
         self.config_obj = Configuracao(
             empresa_id=self.empresa.id,
             config={
                 "reengagement_inactivity_enabled": True,
-                "reengagement_inactivity_delay_hours": 2,
-                "reengagement_inactivity_prompt": "Olá! Gostaria de saber se ficou com alguma dúvida sobre nossos seguros.",
+                "reengagement_inactivity_steps": [
+                    {"step": 1, "delay_hours": 1.0, "prompt": "Olá! Vi que você sumiu. Passo 1."},
+                    {"step": 2, "delay_hours": 2.0, "prompt": "Ainda aí? Passo 2."}
+                ],
                 
-                "reengagement_pending_enabled": True,
-                "reengagement_pending_delay_hours": 1,
-                "reengagement_pending_prompt": "Lembre o lead de que precisamos das informações pendentes ({campos_pendentes}) para prosseguir."
+                "reengagement_pending_enabled": False,
+                "reengagement_pending_steps": []
             }
         )
         self.db.add(self.config_obj)
@@ -74,9 +75,13 @@ class TestSmartReengagement(unittest.IsolatedAsyncioTestCase):
     @patch("app.openai_client.perguntar")
     @patch("app.pipeline.enviar_whatsapp")
     async def test_ciclo_reengajamento_completo(self, mock_whatsapp, mock_perguntar):
+        from sqlalchemy.orm.attributes import flag_modified
+        from app.pipeline import processar_webhook
+        import asyncio
+        
         # Definir resposta mockada para OpenAI
         mock_perguntar.return_value = (
-            "Olá! Notamos que faltou preencher o Tipo de Seguro para prosseguir com sua cotação. Vamos finalizar?",
+            "Oi! Restou alguma dúvida sobre o nosso seguro? Passo 1.",
             100,
             50
         )
@@ -87,12 +92,12 @@ class TestSmartReengagement(unittest.IsolatedAsyncioTestCase):
             telefone="5511999998888",
             nome="Carlos Silveira",
             stage="triagem",
-            dados_customizados={} # Nenhuma informação preenchida (tipo_seguro está pendente!)
+            dados_customizados={}
         )
         self.db.add(lead)
         self.db.flush()
         
-        # Enviar mensagem do robô há 3 horas (excede o delay de 1h pendente e 2h inatividade)
+        # Enviar mensagem do robô há 3 horas (excede o delay do Passo 1)
         msg_antiga = Mensagem(
             empresa_id=self.empresa.id,
             lead_id=lead.id,
@@ -103,34 +108,64 @@ class TestSmartReengagement(unittest.IsolatedAsyncioTestCase):
         self.db.add(msg_antiga)
         self.db.commit()
         
-        # 2. Rodar a tarefa em background do Scheduler
-        # Como ela é async, podemos chamá-la diretamente
+        # 2. Rodar o Scheduler (Deve disparar o PASSO 1 da Inatividade)
         await tarefa_reengajamento_automatico()
         
-        # 3. ASSERÇÃO: Verificar se uma nova mensagem do robô foi gerada e registrada
+        # ASSERÇÃO 1: Verificar se Passo 1 foi registrado no histórico e estado do lead
         mensagens = self.db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.asc()).all()
-        self.assertEqual(len(mensagens), 2, "Deveria ter gerado o reengajamento e somado 2 mensagens no histórico")
+        self.assertEqual(len(mensagens), 2, "Deveria ter gerado o reengajamento Passo 1")
+        self.assertEqual(mensagens[-1].tipo, "agente")
         
-        reeng_msg = mensagens[-1]
-        self.assertEqual(reeng_msg.tipo, "agente")
-        self.assertIn("notamos que faltou preencher", reeng_msg.mensagem.lower())
-        
-        # 4. ASSERÇÃO: Verificar se o timestamp de controle foi inserido para evitar spam
         lead_atualizado = self.db.query(Lead).filter(Lead.id == lead.id).first()
-        self.assertIsNotNone(lead_atualizado.dados_customizados.get("ultimo_reengajamento_pendente"))
-        self.assertEqual(lead_atualizado.dados_customizados["ultimo_reengajamento_pendente"], msg_antiga.timestamp.isoformat())
+        self.assertEqual(lead_atualizado.dados_customizados.get("reengajamento_fluxo_ativo"), "inactivity")
+        self.assertEqual(lead_atualizado.dados_customizados.get("reengajamento_passo_atual"), 1)
+        self.assertIsNotNone(lead_atualizado.dados_customizados.get("reengajamento_ultimo_timestamp"))
         
-        # 5. ASSERÇÃO: Rodar o motor de reengajamento novamente e verificar que NÃO envia duplicado (Guardrail Anti-Spam!)
+        # 3. MOCKAR AVANÇO DE TEMPO DO REENGAJAMENTO (Fazer o Passo 1 parecer enviado há 3 horas)
+        mock_perguntar.return_value = (
+            "Olá de novo! Ainda quer ver a cotação? Passo 2.",
+            100,
+            50
+        )
+        lead_atualizado.dados_customizados["reengajamento_ultimo_timestamp"] = (datetime.utcnow() - timedelta(hours=3)).isoformat()
+        flag_modified(lead_atualizado, "dados_customizados")
+        self.db.commit()
+        
+        # Enviar outra mensagem fictícia do agente para simular que o chat continuou silenciado depois
+        msg_ficticia_agente = Mensagem(
+            empresa_id=self.empresa.id,
+            lead_id=lead.id,
+            tipo="agente",
+            mensagem="Oi! Restou alguma dúvida sobre o nosso seguro? Passo 1.",
+            timestamp=datetime.utcnow() - timedelta(hours=3)
+        )
+        self.db.add(msg_ficticia_agente)
+        self.db.commit()
+        
+        # 4. Rodar o Scheduler (Deve disparar o PASSO 2 da Inatividade)
+        await tarefa_reengajamento_automatico()
+        
+        # ASSERÇÃO 2: Verificar se o Passo 2 foi enviado e incrementou o passo atual
+        lead_atualizado = self.db.query(Lead).filter(Lead.id == lead.id).first()
+        self.assertEqual(lead_atualizado.dados_customizados.get("reengajamento_passo_atual"), 2)
+        
+        # 5. ASSERÇÃO 3: Limite da esteira. Se rodar de novo, não dispara mais pois acabou a cadência
         mock_perguntar.reset_mock()
         await tarefa_reengajamento_automatico()
         mock_perguntar.assert_not_called()
         
-        # Garantir que continuam apenas 2 mensagens no histórico
-        mensagens_depois = self.db.query(Mensagem).filter(Mensagem.lead_id == lead.id).all()
-        self.assertEqual(len(mensagens_depois), 2, "Guardrail anti-spam falhou e duplicou o envio!")
+        # 6. RESET HOOK: Simular que o usuário respondeu via webhook do Evolution
+        # Isso deve limpar todas as chaves de cadência
+        await asyncio.to_thread(processar_webhook, self.empresa, lead.telefone, "Quero sim, desculpe a demora!")
         
-        print("\n\u2705 SPRINT 11: Todos os testes de integração do Reengajamento Inteligente passaram com sucesso!")
+        lead_final = self.db.query(Lead).filter(Lead.id == lead.id).first()
+        self.db.refresh(lead_final)
+        dados_finais = lead_final.dados_customizados or {}
+        self.assertNotIn("reengajamento_fluxo_ativo", dados_finais)
+        self.assertNotIn("reengajamento_passo_atual", dados_finais)
+        self.assertNotIn("reengajamento_ultimo_timestamp", dados_finais)
+        
+        print("\n✅ SPRINT 16: Suíte de testes de cadências e resets concluída com absoluto sucesso!")
 
 if __name__ == "__main__":
     unittest.main()
-
