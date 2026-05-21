@@ -540,12 +540,15 @@ def _processar_tags(db, empresa, lead, resposta_raw, telefone):
                 
             db.commit()
 
-def _finalizar(db, empresa, lead, resposta_limpa, t_in, t_out):
+def _finalizar(db, empresa, lead, resposta_raw, resposta_limpa, t_in, t_out):
     # Registra tokens da resposta principal
     empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
     empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
     
-    msg_bot = Mensagem(empresa_id=empresa.id, lead_id=lead.id, tipo="agente", mensagem=resposta_limpa)
+    # Para o nicho de corretora, mantemos as tags na mensagem salva no banco para evitar que o modelo imite histórico limpo
+    msg_mensagem = resposta_raw if empresa.nicho == "corretora" else resposta_limpa
+    
+    msg_bot = Mensagem(empresa_id=empresa.id, lead_id=lead.id, tipo="agente", mensagem=msg_mensagem)
     db.add(msg_bot)
     db.commit()
 
@@ -614,7 +617,7 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
 
         # ETAPA 11: Limpar tags e salvar tokens/mensagem do agente
         resposta_limpa = limpar_tags(resposta_raw)
-        _finalizar(db, empresa, lead, resposta_limpa, t_in, t_out)
+        _finalizar(db, empresa, lead, resposta_raw, resposta_limpa, t_in, t_out)
 
         logger.info(f"Resposta gerada para {telefone}", extra={"empresa_id": str(empresa.id), "lead_id": str(lead.id), "tipo": "ia_response"})
 
