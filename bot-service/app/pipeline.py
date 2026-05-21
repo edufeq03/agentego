@@ -700,3 +700,77 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         return {"status": "erro", "motivo": str(ex)}
     finally:
         db.close()
+
+
+def gerar_mensagem_reengajamento_ia(db, empresa, lead, prompt_roteiro, campos_pendentes_str=None):
+    from app.openai_client import perguntar
+    from app.database import Mensagem
+    from datetime import datetime
+    
+    # 1. Obter nome do agente e da empresa das configurações da empresa
+    configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
+    nome_empresa = configuracao.get("nome_empresa", empresa.nome)
+    nome_agente = configuracao.get("nome_agente", "Rosana")
+    
+    # 2. Montar contexto de sistema para a OpenAI
+    contexto_sistema = (
+        f"Você é a assistente virtual {nome_agente} da empresa {nome_empresa}.\n"
+        f"Seu objetivo é enviar uma mensagem de reengajamento simpática para o cliente {lead.nome or 'amigo(a)'} que parou de responder.\n\n"
+        f"Diretriz de Reengajamento:\n"
+        f"{prompt_roteiro}\n\n"
+        f"Instruções:\n"
+        f"1. Escreva uma mensagem muito curta, direta e extremamente natural de WhatsApp (no máximo 1 ou 2 parágrafos curtos).\n"
+        f"2. Use emojis amigáveis e mantenha a conversa informal e acolhedora.\n"
+        f"3. Não se apresente novamente se você já se apresentou no histórico.\n"
+        f"4. NUNCA invente informações. Limite-se ao roteiro.\n"
+        f"5. Não retorne nenhuma tag técnica como [ATUALIZAR_LEAD...] ou [SOLICITAR_HUMANO...], apenas a mensagem limpa de texto."
+    )
+    
+    # 3. Carregar histórico recente do lead para guiar a IA contextualmente (últimas 10 mensagens)
+    historico_db = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.asc()).all()
+    # Limitar as últimas 10
+    mensagens_recentes = historico_db[-10:]
+    historico_openai = []
+    for msg in mensagens_recentes:
+        role = "user" if msg.tipo == "usuario" else "assistant"
+        # Limpar tags da mensagem caso existam no histórico para a IA não se confundir
+        mensagem_limpa = limpar_tags(msg.mensagem)
+        historico_openai.append({"role": role, "content": mensagem_limpa})
+        
+    # 4. Mensagem de gatilho do usuário
+    if campos_pendentes_str:
+        mensagem_usuario = f"[GATILHO: Enviar lembrete focado nos seguintes dados pendentes: {campos_pendentes_str}]"
+    else:
+        mensagem_usuario = "[GATILHO: Enviar mensagem de reengajamento por inatividade agora. Lembre-o de forma simpática.]"
+        
+    # 5. Chamar a OpenAI para gerar a resposta
+    logger.info(f"Gerando mensagem de reengajamento por IA para o lead {lead.telefone}...")
+    texto_resposta, t_in, t_out = perguntar(mensagem_usuario, contexto_sistema, historico=historico_openai)
+    
+    # Limpar qualquer tag residual por segurança
+    texto_resposta = limpar_tags(texto_resposta).strip()
+    
+    # 6. Atualizar tokens gastos na empresa
+    empresa.tokens_input_mes = (empresa.tokens_input_mes or 0) + t_in
+    empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
+    
+    # 7. Registrar a mensagem no banco de dados para sincronização total com o painel humano
+    msg_bot = Mensagem(
+        empresa_id=empresa.id,
+        lead_id=lead.id,
+        tipo="agente",
+        mensagem=texto_resposta,
+        timestamp=datetime.utcnow()
+    )
+    db.add(msg_bot)
+    db.commit()
+    
+    # 8. Disparar via Evolution API para o WhatsApp do Lead
+    try:
+        logger.info(f"Disparando WhatsApp de reengajamento para {lead.telefone}...")
+        enviar_whatsapp(lead.telefone, texto_resposta, empresa.evolution_instance)
+    except Exception as e:
+        logger.error(f"Falha ao enviar WhatsApp de reengajamento para {lead.telefone}: {e}")
+        
+    return texto_resposta
+

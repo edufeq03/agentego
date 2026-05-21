@@ -1087,3 +1087,71 @@ async def excluir_campo_triagem(
     db.delete(campo)
     db.commit()
     return {"status": "ok"}
+
+
+# --- SMART RE-ENGAGEMENT ENDPOINTS (SaaS Global) ---
+
+class ReengagementConfigRequest(BaseModel):
+    reengagement_inactivity_enabled: bool = False
+    reengagement_inactivity_delay_hours: int = 2
+    reengagement_inactivity_prompt: str = ""
+    reengagement_pending_enabled: bool = False
+    reengagement_pending_delay_hours: int = 1
+    reengagement_pending_prompt: str = ""
+
+@router.get("/marketing/reengagement")
+async def obter_configuracao_reengajamento(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+    config_dict = config_obj.config if config_obj else {}
+    
+    # Determinar fallbacks baseados no nicho
+    if empresa.nicho == "corretora":
+        default_inactivity_prompt = "Pergunte se o cliente ainda tem interesse e se restou alguma dúvida, mantendo o tom muito simpático e informal."
+        default_pending_prompt = "Lembre o lead amigavelmente de que precisamos das informações pendentes ({campos_pendentes}) para prosseguir com a cotação do seu seguro."
+    else:
+        # Academia / Outros
+        default_inactivity_prompt = "Pergunte gentilmente se o cliente ainda tem interesse nas nossas soluções e se quer agendar uma visita experimental."
+        default_pending_prompt = "Lembre o lead amigavelmente de que precisamos do preenchimento das informações pendentes ({campos_pendentes}) para liberar seu acesso."
+
+    return {
+        "reengagement_inactivity_enabled": config_dict.get("reengagement_inactivity_enabled", False),
+        "reengagement_inactivity_delay_hours": config_dict.get("reengagement_inactivity_delay_hours", 2),
+        "reengagement_inactivity_prompt": config_dict.get("reengagement_inactivity_prompt", default_inactivity_prompt),
+        
+        "reengagement_pending_enabled": config_dict.get("reengagement_pending_enabled", False),
+        "reengagement_pending_delay_hours": config_dict.get("reengagement_pending_delay_hours", 1),
+        "reengagement_pending_prompt": config_dict.get("reengagement_pending_prompt", default_pending_prompt),
+    }
+
+@router.post("/marketing/reengagement")
+async def atualizar_configuracao_reengajamento(
+    req: ReengagementConfigRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from sqlalchemy.orm.attributes import flag_modified
+    
+    config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+    if not config_obj:
+        config_obj = Configuracao(empresa_id=empresa.id, config={})
+        db.add(config_obj)
+        db.flush()
+        
+    config_dict = config_obj.config
+    config_dict["reengagement_inactivity_enabled"] = req.reengagement_inactivity_enabled
+    config_dict["reengagement_inactivity_delay_hours"] = req.reengagement_inactivity_delay_hours
+    config_dict["reengagement_inactivity_prompt"] = req.reengagement_inactivity_prompt
+    
+    config_dict["reengagement_pending_enabled"] = req.reengagement_pending_enabled
+    config_dict["reengagement_pending_delay_hours"] = req.reengagement_pending_delay_hours
+    config_dict["reengagement_pending_prompt"] = req.reengagement_pending_prompt
+    
+    config_obj.config = config_dict
+    flag_modified(config_obj, "config")
+    db.commit()
+    
+    return {"status": "ok"}
+

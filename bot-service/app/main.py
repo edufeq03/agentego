@@ -336,6 +336,132 @@ async def tarefa_avisos_obrigacoes():
     finally:
         db.close()
 
+async def tarefa_reengajamento_automatico():
+    """Tarefa periódica para verificar e disparar reengajamentos inteligentes por IA."""
+    logger.info("Iniciando varredura de reengajamento inteligente por IA...")
+    db = SessionLocal()
+    try:
+        from datetime import datetime
+        from app.database import Empresa, Lead, Mensagem, CampoCustomizado
+        from app.pipeline import obter_status_transbordo, gerar_mensagem_reengajamento_ia
+        from sqlalchemy.orm.attributes import flag_modified
+        import asyncio
+        import random
+        
+        # 1. Obter empresas ativas
+        empresas = db.query(Empresa).filter(Empresa.ativo == True).all()
+        for empresa in empresas:
+            config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
+            
+            inact_enabled = config_dict.get("reengagement_inactivity_enabled", False)
+            pend_enabled = config_dict.get("reengagement_pending_enabled", False)
+            
+            # Se nenhum estiver habilitado, pula a empresa
+            if not inact_enabled and not pend_enabled:
+                continue
+                
+            inact_delay = config_dict.get("reengagement_inactivity_delay_hours", 2)
+            pend_delay = config_dict.get("reengagement_pending_delay_hours", 1)
+            
+            inact_prompt = config_dict.get("reengagement_inactivity_prompt", "")
+            pend_prompt = config_dict.get("reengagement_pending_prompt", "")
+            
+            # 2. Obter leads da empresa em estágio de 'novo' ou 'triagem'
+            leads = db.query(Lead).filter(
+                Lead.empresa_id == empresa.id,
+                Lead.stage.in_(["novo", "triagem"])
+            ).all()
+            
+            for lead in leads:
+                # 3. Guardrail: Se o transbordo estiver pausado (atendimento humano), nunca reengajar!
+                status_transbordo = obter_status_transbordo(db, empresa.id, lead.telefone)
+                if status_transbordo == "pausado":
+                    continue
+                    
+                # 4. Obter a última mensagem da conversa
+                ultimo_msg = db.query(Mensagem).filter(
+                    Mensagem.lead_id == lead.id
+                ).order_by(Mensagem.timestamp.desc()).first()
+                
+                if not ultimo_msg:
+                    continue
+                    
+                # Apenas reengaja se a última mensagem foi do robô (esperando resposta do cliente)
+                if ultimo_msg.tipo != "agente":
+                    continue
+                    
+                # Calcular horas de inatividade
+                elapsed_hours = (datetime.utcnow() - ultimo_msg.timestamp).total_seconds() / 3600.0
+                ultimo_msg_iso = ultimo_msg.timestamp.isoformat()
+                
+                # Garantir dicionário dados_customizados inicializado
+                dados_custom = lead.dados_customizados or {}
+                if not isinstance(dados_custom, dict):
+                    dados_custom = {}
+                    
+                # GATILHO A: Reengajamento por Triagem Incompleta (Campos Pendentes)
+                # Damos preferência ao gatilho de ação pendente se aplicável
+                se_disparou = False
+                if pend_enabled and elapsed_hours >= pend_delay:
+                    ultimo_reeng_pend = dados_custom.get("ultimo_reengajamento_pendente")
+                    
+                    if ultimo_reeng_pend != ultimo_msg_iso:
+                        # Encontrar campos requeridos pendentes
+                        campos_definidos = db.query(CampoCustomizado).filter(
+                            CampoCustomizado.empresa_id == empresa.id,
+                            CampoCustomizado.ativo == True,
+                            CampoCustomizado.obrigatorio == True
+                        ).all()
+                        
+                        campos_pendentes = []
+                        for campo in campos_definidos:
+                            val = dados_custom.get(campo.chave)
+                            if val is None or val == "":
+                                campos_pendentes.append(campo.label)
+                                
+                        if len(campos_pendentes) > 0:
+                            # Disparar reengajamento por ação pendente!
+                            campos_pendentes_str = ", ".join(campos_pendentes)
+                            prompt_final = pend_prompt.replace("{campos_pendentes}", campos_pendentes_str)
+                            
+                            # Chamar pipeline de reengajamento por IA
+                            gerar_mensagem_reengajamento_ia(
+                                db, empresa, lead, prompt_final, campos_pendentes_str=campos_pendentes_str
+                            )
+                            
+                            # Atualizar controle de reengajamento
+                            dados_custom["ultimo_reengajamento_pendente"] = ultimo_msg_iso
+                            lead.dados_customizados = dados_custom
+                            flag_modified(lead, "dados_customizados")
+                            db.commit()
+                            se_disparou = True
+                            
+                            # Delay de cortesia para controle do gateway
+                            await asyncio.sleep(5 + random.uniform(0, 5))
+                            
+                # GATILHO B: Reengajamento por Inatividade
+                if inact_enabled and elapsed_hours >= inact_delay and not se_disparou:
+                    ultimo_reeng_inact = dados_custom.get("ultimo_reengajamento_inatividade")
+                    
+                    if ultimo_reeng_inact != ultimo_msg_iso:
+                        # Chamar pipeline de reengajamento por IA
+                        gerar_mensagem_reengajamento_ia(db, empresa, lead, inact_prompt)
+                        
+                        # Atualizar controle de reengajamento
+                        dados_custom["ultimo_reengajamento_inatividade"] = ultimo_msg_iso
+                        lead.dados_customizados = dados_custom
+                        flag_modified(lead, "dados_customizados")
+                        db.commit()
+                        
+                        # Delay de cortesia
+                        await asyncio.sleep(5 + random.uniform(0, 5))
+                        
+    except Exception as e:
+        logger.error(f"Erro na execução da tarefa de reengajamento automático: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
 @app.on_event("startup")
 def on_startup():
     init_db()
@@ -347,8 +473,10 @@ def on_startup():
     scheduler.add_job(tarefa_avisos_vencimento, 'cron', hour=9, minute=0, id="tarefa_avisos_vencimento")
     scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0, id="tarefa_avisos_obrigacoes")
     scheduler.add_job(tarefa_disparo_agendado, 'interval', minutes=10, id="tarefa_disparo_agendado")
+    scheduler.add_job(tarefa_reengajamento_automatico, 'interval', minutes=5, id="tarefa_reengajamento_automatico")
     scheduler.start()
-    logger.info("Scheduler iniciado: Relatórios semanais (Seg 09h) e Manutenção (00h).")
+    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção e Reengajamento Inteligente.")
+
 
 @app.on_event("shutdown")
 def on_shutdown():
