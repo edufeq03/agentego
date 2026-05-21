@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
-import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle, ChevronLeft } from "lucide-react";
+import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle, ChevronLeft, Sliders } from "lucide-react";
 
 interface ConversaData {
   id: string;
@@ -12,6 +12,7 @@ interface ConversaData {
   ultima_mensagem: string;
   timestamp: string;
   transbordo: string | null;
+  dados_customizados?: Record<string, any> | null;
 }
 
 interface MensagemData {
@@ -181,6 +182,8 @@ export default function Conversas() {
     c.ultima_mensagem.toLowerCase().includes(busca.toLowerCase())
   );
 
+  const conversaAtivaAtualizada = conversas.find(c => c.id === conversaAtiva?.id) || conversaAtiva;
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="hidden md:block">
@@ -242,138 +245,199 @@ export default function Conversas() {
           </div>
         </div>
 
-        {/* Histórico da Conversa (Direita) */}
-        <div className={`flex-1 flex-col glass-panel overflow-hidden ${conversaAtiva ? 'flex' : 'hidden md:flex'}`}>
-          {conversaAtiva ? (
+        {/* Histórico da Conversa (Direita) e Painel Lateral */}
+        <div className={`flex-1 flex glass-panel overflow-hidden ${conversaAtiva ? 'flex' : 'hidden md:flex'}`}>
+          {conversaAtivaAtualizada ? (
             <>
-              {/* Header Conversa */}
-              <div className="p-4 border-b border-[var(--color-border)] flex flex-col md:flex-row md:justify-between md:items-center bg-[var(--color-surface-hover)]/30 gap-4">
-                <div className="flex items-center gap-3">
-                  <button 
-                    className="md:hidden text-[var(--color-foreground-muted)] hover:text-white"
-                    onClick={fecharConversaMobile}
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{conversaAtiva.nome}</h3>
-                    <p className="text-sm text-[var(--color-foreground-muted)]">{conversaAtiva.telefone}</p>
+              {/* Chat Area */}
+              <div className="flex-1 flex flex-col overflow-hidden border-r border-white/5">
+                {/* Header Conversa */}
+                <div className="p-4 border-b border-[var(--color-border)] flex flex-col md:flex-row md:justify-between md:items-center bg-[var(--color-surface-hover)]/30 gap-4">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      className="md:hidden text-[var(--color-foreground-muted)] hover:text-white"
+                      onClick={fecharConversaMobile}
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">{conversaAtivaAtualizada.nome}</h3>
+                      <p className="text-sm text-[var(--color-foreground-muted)]">{conversaAtivaAtualizada.telefone}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex w-full md:w-auto">
+                    {conversaAtivaAtualizada.transbordo === 'pausado' ? (
+                      <button 
+                        onClick={reativarRobo}
+                        className="w-full md:w-auto flex justify-center items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-green-500/20"
+                      >
+                        <Power size={16} /> Reativar Robô
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={pausarRobo}
+                        className="w-full md:w-auto flex justify-center items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                      >
+                        <Pause size={16} /> Pausar Robô
+                      </button>
+                    )}
                   </div>
                 </div>
                 
-                <div className="flex w-full md:w-auto">
-                  {conversaAtiva.transbordo === 'pausado' ? (
-                    <button 
-                      onClick={reativarRobo}
-                      className="w-full md:w-auto flex justify-center items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-green-500/20"
-                    >
-                      <Power size={16} /> Reativar Robô
-                    </button>
+                {conversaAtivaAtualizada.transbordo === 'pausado' && (
+                  <div className="bg-red-500/10 border-b border-red-500/20 px-4 md:px-6 py-2 md:py-3 flex items-center justify-center gap-2 text-red-400 text-xs md:text-sm font-medium text-center">
+                    <AlertTriangle size={16} className="shrink-0" />
+                    O robô está pausado. O atendimento agora é humano.
+                  </div>
+                )}
+                
+                <div 
+                  className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 relative" 
+                  id="chat-messages"
+                  ref={chatContainerRef}
+                  onScroll={handleScroll}
+                >
+                  {loadingMensagens ? (
+                    <div className="flex justify-center py-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand-500)]"></div>
+                    </div>
                   ) : (
+                    <>
+                      {mensagens.map((msg, index) => {
+                        const isUser = msg.tipo === 'usuario';
+                        return (
+                          <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-[var(--color-surface-hover)]' : 'bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)]'}`}>
+                                {isUser ? <User size={16} className="text-[var(--color-foreground-muted)]" /> : <Bot size={16} className="text-white" />}
+                              </div>
+                              
+                              <div className={`p-3 md:p-4 rounded-2xl ${
+                                isUser 
+                                  ? 'bg-[var(--color-surface-hover)] text-white rounded-tr-none' 
+                                  : 'bg-[var(--color-brand-600)] text-white rounded-tl-none'
+                              }`}>
+                                <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">{msg.mensagem}</p>
+                                <span className={`text-[10px] mt-1 md:mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
+                                  {new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+
+                  {/* Botão flutuante para voltar ao fundo se houver novas mensagens */}
+                  {!autoScrollEnabled && (
                     <button 
-                      onClick={pausarRobo}
-                      className="w-full md:w-auto flex justify-center items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                      onClick={() => {
+                        setAutoScrollEnabled(true);
+                        scrollToBottom(true);
+                      }}
+                      className="absolute bottom-24 right-8 bg-[var(--color-brand-500)] text-white p-2 rounded-full shadow-lg hover:bg-[var(--color-brand-600)] transition-all animate-bounce flex items-center gap-2 px-4 text-xs font-bold"
                     >
-                      <Pause size={16} /> Pausar Robô
+                      <ChevronLeft size={16} className="-rotate-90" />
+                      Novas mensagens
                     </button>
                   )}
                 </div>
-              </div>
-              
-              {conversaAtiva.transbordo === 'pausado' && (
-                <div className="bg-red-500/10 border-b border-red-500/20 px-4 md:px-6 py-2 md:py-3 flex items-center justify-center gap-2 text-red-400 text-xs md:text-sm font-medium text-center">
-                  <AlertTriangle size={16} className="shrink-0" />
-                  O robô está pausado. O atendimento agora é humano.
-                </div>
-              )}
-              
-              <div 
-                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 relative" 
-                id="chat-messages"
-                ref={chatContainerRef}
-                onScroll={handleScroll}
-              >
-                {loadingMensagens ? (
-                  <div className="flex justify-center py-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand-500)]"></div>
+
+                {/* Input de Mensagem (Apenas se pausado) */}
+                {conversaAtivaAtualizada.transbordo === 'pausado' ? (
+                  <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input 
+                        type="text"
+                        placeholder="Digite sua mensagem aqui..."
+                        value={mensagemInput}
+                        onChange={(e) => setMensagemInput(e.target.value)}
+                        className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!mensagemInput.trim() || enviandoMensagem}
+                        className="bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {enviandoMensagem ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : "Enviar"}
+                      </button>
+                    </form>
                   </div>
                 ) : (
-                  <>
-                    {mensagens.map((msg, index) => {
-                      const isUser = msg.tipo === 'usuario';
-                      return (
-                        <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`flex max-w-[85%] md:max-w-[70%] gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-[var(--color-surface-hover)]' : 'bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)]'}`}>
-                              {isUser ? <User size={16} className="text-[var(--color-foreground-muted)]" /> : <Bot size={16} className="text-white" />}
-                            </div>
-                            
-                            <div className={`p-3 md:p-4 rounded-2xl ${
-                              isUser 
-                                ? 'bg-[var(--color-surface-hover)] text-white rounded-tr-none' 
-                                : 'bg-[var(--color-brand-600)] text-white rounded-tl-none'
-                            }`}>
-                              <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">{msg.mensagem}</p>
-                              <span className={`text-[10px] mt-1 md:mt-2 block ${isUser ? 'text-[var(--color-foreground-muted)] text-right' : 'text-blue-200 text-left'}`}>
-                                {new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </>
-                )}
-
-                {/* Botão flutuante para voltar ao fundo se houver novas mensagens */}
-                {!autoScrollEnabled && (
-                  <button 
-                    onClick={() => {
-                      setAutoScrollEnabled(true);
-                      scrollToBottom(true);
-                    }}
-                    className="absolute bottom-24 right-8 bg-[var(--color-brand-500)] text-white p-2 rounded-full shadow-lg hover:bg-[var(--color-brand-600)] transition-all animate-bounce flex items-center gap-2 px-4 text-xs font-bold"
-                  >
-                    <ChevronLeft size={16} className="-rotate-90" />
-                    Novas mensagens
-                  </button>
+                  <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-hover)]/20 text-center">
+                    <p className="text-xs text-[var(--color-foreground-muted)]">
+                      Pause o robô para enviar mensagens manualmente.
+                    </p>
+                  </div>
                 )}
               </div>
 
-              {/* Input de Mensagem (Apenas se pausado) */}
-              {conversaAtiva.transbordo === 'pausado' ? (
-                <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }}
-                    className="flex gap-2"
-                  >
-                    <input 
-                      type="text"
-                      placeholder="Digite sua mensagem aqui..."
-                      value={mensagemInput}
-                      onChange={(e) => setMensagemInput(e.target.value)}
-                      className="flex-1 bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!mensagemInput.trim() || enviandoMensagem}
-                      className="bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {enviandoMensagem ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : "Enviar"}
-                    </button>
-                  </form>
+              {/* Side Panel (Lead Profile & Triage Data) */}
+              <div className="hidden lg:flex flex-col w-80 bg-white/[0.01] p-6 overflow-y-auto shrink-0 space-y-6">
+                <div className="flex items-center gap-2 border-b border-white/5 pb-3">
+                  <User className="text-[var(--color-brand-500)] h-5 w-5" />
+                  <h3 className="text-base font-semibold text-white">Perfil do Lead</h3>
                 </div>
-              ) : (
-                <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-hover)]/20 text-center">
-                  <p className="text-xs text-[var(--color-foreground-muted)]">
-                    Pause o robô para enviar mensagens manualmente.
-                  </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs text-[var(--color-foreground-muted)] uppercase tracking-wider block">Nome</span>
+                    <span className="text-sm font-bold text-white block mt-0.5">{conversaAtivaAtualizada.nome}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-[var(--color-foreground-muted)] uppercase tracking-wider block">Telefone</span>
+                    <span className="text-sm text-white/95 font-mono block mt-0.5">{conversaAtivaAtualizada.telefone}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-[var(--color-foreground-muted)] uppercase tracking-wider block">Estágio do Funil</span>
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-white/5 border border-white/10 text-white rounded-md mt-1">
+                      {conversaAtivaAtualizada.stage}
+                    </span>
+                  </div>
                 </div>
-              )}
+
+                <div className="border-t border-white/5 pt-4 space-y-4">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Sliders className="h-4 w-4 text-[var(--color-brand-500)]" /> Dados Triados pela IA
+                  </h4>
+
+                  {!conversaAtivaAtualizada.dados_customizados || Object.keys(conversaAtivaAtualizada.dados_customizados).length === 0 ? (
+                    <div className="p-4 bg-white/[0.01] border border-dashed border-white/5 rounded-xl text-center text-xs text-[var(--color-foreground-muted)] space-y-1">
+                      <p>Nenhum dado capturado ainda.</p>
+                      <p className="text-[10px] leading-relaxed">Conforme a IA conversar com o lead no WhatsApp, os campos configurados serão preenchidos automaticamente aqui.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {Object.entries(conversaAtivaAtualizada.dados_customizados).map(([key, value]) => {
+                        let displayValue = String(value);
+                        if (value === true) displayValue = "Sim";
+                        if (value === false) displayValue = "Não";
+                        if (value === null || value === undefined) displayValue = "-";
+
+                        return (
+                          <div key={key} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-1 hover:bg-white/[0.03] transition-colors">
+                            <span className="text-[10px] text-[var(--color-foreground-muted)] font-semibold uppercase tracking-wider block">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <span className="text-sm font-bold text-white break-words block">
+                              {displayValue}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-foreground-muted)] p-8 text-center">

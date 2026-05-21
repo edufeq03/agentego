@@ -215,7 +215,8 @@ def conversas(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(g
                 "stage": lead.stage,
                 "ultima_mensagem": ultima_msg.mensagem,
                 "timestamp": str(ultima_msg.timestamp),
-                "transbordo": status_transbordo
+                "transbordo": status_transbordo,
+                "dados_customizados": lead.dados_customizados
             })
             
     return resultado
@@ -919,4 +920,170 @@ async def excluir_campanha(
     db.delete(campanha)
     db.commit()
     
+    return {"status": "ok"}
+
+
+# --- DYNAMIC TRIAGE FIELDS ENDPOINTS (SaaS Global) ---
+
+from typing import Optional, List
+from pydantic import BaseModel
+
+class CampoCustomizadoRequest(BaseModel):
+    chave: str
+    label: str
+    tipo: str = "texto" # texto, numero, booleano, opcao_unica
+    obrigatorio: bool = False
+    opcoes: Optional[List[str]] = None
+    ordem: int = 0
+    ativo: bool = True
+
+@router.get("/marketing/triage/fields")
+async def listar_campos_triagem(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import CampoCustomizado
+    
+    campos = db.query(CampoCustomizado).filter(
+        CampoCustomizado.empresa_id == empresa.id
+    ).order_by(CampoCustomizado.ordem.asc(), CampoCustomizado.criado_em.asc()).all()
+    
+    # Seeder automático por nicho se a empresa tem 0 campos cadastrados
+    if len(campos) == 0:
+        logger.info(f"Executando seeder automático de campos de triagem para empresa {empresa.nome} (Nicho: {empresa.nicho})")
+        novos_campos = []
+        if empresa.nicho == "corretora":
+            novos_campos = [
+                CampoCustomizado(empresa_id=empresa.id, chave="tipo_seguro", label="Tipo de Seguro", tipo="opcao_unica", opcoes=["Saúde / PME", "Odontológico", "Carro", "Moto"], obrigatorio=True, ordem=10),
+                CampoCustomizado(empresa_id=empresa.id, chave="nome_segurado", label="Nome do Segurado", tipo="texto", obrigatorio=True, ordem=20),
+                CampoCustomizado(empresa_id=empresa.id, chave="idade_segurado", label="Idade ou Nascimento", tipo="texto", obrigatorio=True, ordem=30),
+                CampoCustomizado(empresa_id=empresa.id, chave="marca_modelo", label="Marca e Modelo do Veículo", tipo="texto", obrigatorio=False, ordem=40),
+                CampoCustomizado(empresa_id=empresa.id, chave="ano_fabricacao", label="Ano de Fabricação", tipo="numero", obrigatorio=False, ordem=50),
+                CampoCustomizado(empresa_id=empresa.id, chave="cep_pernoite", label="CEP de Pernoite", tipo="texto", obrigatorio=False, ordem=60),
+                CampoCustomizado(empresa_id=empresa.id, chave="uso_veiculo", label="Uso do Veículo", tipo="opcao_unica", opcoes=["particular", "trabalho", "aplicativo"], obrigatorio=False, ordem=70),
+                CampoCustomizado(empresa_id=empresa.id, chave="tem_garagem", label="Possui Garagem?", tipo="booleano", obrigatorio=False, ordem=80),
+            ]
+        elif empresa.nicho == "generico" or empresa.nicho == "academia":
+            novos_campos = [
+                CampoCustomizado(empresa_id=empresa.id, chave="nome_completo", label="Nome Completo", tipo="texto", obrigatorio=True, ordem=10),
+                CampoCustomizado(empresa_id=empresa.id, chave="idade", label="Idade", tipo="texto", obrigatorio=True, ordem=20),
+                CampoCustomizado(empresa_id=empresa.id, chave="objetivo", label="Objetivo do Treino", tipo="opcao_unica", opcoes=["Emagrecimento", "Ganho de Massa", "Condicionamento"], obrigatorio=False, ordem=30),
+                CampoCustomizado(empresa_id=empresa.id, chave="frequencia", label="Frequência Pretendida", tipo="opcao_unica", opcoes=["1 a 2 dias", "3 a 4 dias", "5+ dias"], obrigatorio=False, ordem=40),
+            ]
+        else:
+            # Qualquer outro nicho ou genérico
+            novos_campos = [
+                CampoCustomizado(empresa_id=empresa.id, chave="nome_completo", label="Nome Completo", tipo="texto", obrigatorio=True, ordem=10),
+                CampoCustomizado(empresa_id=empresa.id, chave="objetivo_contato", label="Objetivo do Contato", tipo="texto", obrigatorio=True, ordem=20),
+            ]
+        
+        for c in novos_campos:
+            db.add(c)
+        db.commit()
+        
+        # Consultar novamente
+        campos = db.query(CampoCustomizado).filter(
+            CampoCustomizado.empresa_id == empresa.id
+        ).order_by(CampoCustomizado.ordem.asc(), CampoCustomizado.criado_em.asc()).all()
+        
+    return [{
+        "id": str(c.id),
+        "chave": c.chave,
+        "label": c.label,
+        "tipo": c.tipo,
+        "obrigatorio": c.obrigatorio,
+        "opcoes": c.opcoes,
+        "ordem": c.ordem,
+        "ativo": c.ativo
+    } for c in campos]
+
+@router.post("/marketing/triage/fields")
+async def criar_campo_triagem(
+    req: CampoCustomizadoRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import CampoCustomizado
+    
+    chave_limpa = req.chave.lower().replace(" ", "_").strip()
+    if not chave_limpa:
+        raise HTTPException(status_code=400, detail="Chave inválida")
+        
+    # Verificar se já existe campo com esta chave para a empresa
+    existe = db.query(CampoCustomizado).filter(
+        CampoCustomizado.empresa_id == empresa.id,
+        CampoCustomizado.chave == chave_limpa
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe um campo cadastrado com esta chave")
+        
+    novo = CampoCustomizado(
+        empresa_id=empresa.id,
+        chave=chave_limpa,
+        label=req.label.strip(),
+        tipo=req.tipo,
+        obrigatorio=req.obrigatorio,
+        opcoes=req.opcoes,
+        ordem=req.ordem,
+        ativo=req.ativo
+    )
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    
+    return {"status": "ok", "campo": {
+        "id": str(novo.id),
+        "chave": novo.chave,
+        "label": novo.label,
+        "tipo": novo.tipo,
+        "obrigatorio": novo.obrigatorio,
+        "opcoes": novo.opcoes,
+        "ordem": novo.ordem,
+        "ativo": novo.ativo
+    }}
+
+@router.put("/marketing/triage/fields/{field_id}")
+async def atualizar_campo_triagem(
+    field_id: uuid.UUID,
+    req: CampoCustomizadoRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import CampoCustomizado
+    
+    campo = db.query(CampoCustomizado).filter(
+        CampoCustomizado.id == field_id,
+        CampoCustomizado.empresa_id == empresa.id
+    ).first()
+    
+    if not campo:
+        raise HTTPException(status_code=404, detail="Campo não encontrado")
+        
+    campo.label = req.label.strip()
+    campo.tipo = req.tipo
+    campo.obrigatorio = req.obrigatorio
+    campo.opcoes = req.opcoes
+    campo.ordem = req.ordem
+    campo.ativo = req.ativo
+    
+    db.commit()
+    return {"status": "ok"}
+
+@router.delete("/marketing/triage/fields/{field_id}")
+async def excluir_campo_triagem(
+    field_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import CampoCustomizado
+    campo = db.query(CampoCustomizado).filter(
+        CampoCustomizado.id == field_id,
+        CampoCustomizado.empresa_id == empresa.id
+    ).first()
+    
+    if not campo:
+        raise HTTPException(status_code=404, detail="Campo não encontrado")
+        
+    db.delete(campo)
+    db.commit()
     return {"status": "ok"}

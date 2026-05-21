@@ -109,6 +109,7 @@ class Lead(Base):
     utm_source = Column(String(50), nullable=True)
     utm_campaign = Column(String(50), nullable=True)
     canal_entrada = Column(String(50), default='organico')
+    dados_customizados = Column(JSONB, nullable=False, default=dict)
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -248,6 +249,21 @@ class Campanha(Base):
 
     empresa = relationship("Empresa", back_populates="campanhas")
 
+class CampoCustomizado(Base):
+    __tablename__ = "campos_customizados"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    chave = Column(String(50), nullable=False)
+    label = Column(String(100), nullable=False)
+    tipo = Column(String(30), default="texto") # texto, numero, booleano, opcao_unica
+    obrigatorio = Column(Boolean, default=False)
+    opcoes = Column(JSONB, nullable=True) # Ex: ["particular", "trabalho"]
+    ordem = Column(Integer, default=0)
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
 class LeadSeguro(Base):
     __tablename__ = "leads_seguro"
     id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True)
@@ -385,6 +401,23 @@ def init_db():
             
             # Migração para Comunicados (Imagem)
             conn.execute(text('ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS imagem_url TEXT'))
+            
+            # Novas colunas e tabelas para Triagem Dinâmica (SaaS Global)
+            conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS dados_customizados JSONB NOT NULL DEFAULT '{}'::jsonb"))
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS campos_customizados (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    chave VARCHAR(50) NOT NULL,
+                    label VARCHAR(100) NOT NULL,
+                    tipo VARCHAR(30) DEFAULT 'texto',
+                    obrigatorio BOOLEAN DEFAULT FALSE,
+                    opcoes JSONB,
+                    ordem INTEGER DEFAULT 0,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
             
             # Garantir ON DELETE CASCADE em tabelas existentes
             try:

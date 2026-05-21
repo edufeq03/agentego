@@ -61,6 +61,91 @@ class ContextoAgent:
             finally:
                 db_session.close()
 
+        # Carregar campos de triagem dinâmicos da empresa
+        campos_pendentes = []
+        campos_coletados = []
+        if lead and getattr(lead, "id", None):
+            from app.database import SessionLocal, CampoCustomizado
+            db_session = SessionLocal()
+            try:
+                # Carregar campos configurados ativos
+                db_campos = db_session.query(CampoCustomizado).filter(
+                    CampoCustomizado.empresa_id == empresa.id,
+                    CampoCustomizado.ativo == True
+                ).order_by(CampoCustomizado.ordem.asc(), CampoCustomizado.criado_em.asc()).all()
+                
+                # Se ainda não existem campos cadastrados no banco (e a rota listar_campos não foi chamada),
+                # podemos gerar a lista com base no dicionário dados_customizados do lead (ou usar fallback estático do nicho)
+                if len(db_campos) == 0:
+                    if empresa.nicho == "corretora":
+                        chaves_def = [
+                            ("tipo_seguro", "Tipo de Seguro", "opcao_unica", ["Saúde / PME", "Odontológico", "Carro", "Moto"], True),
+                            ("nome_segurado", "Nome do Segurado", "texto", None, True),
+                            ("idade_segurado", "Idade ou Nascimento", "texto", None, True),
+                            ("marca_modelo", "Marca e Modelo do Veículo", "texto", None, False),
+                            ("ano_fabricacao", "Ano de Fabricação", "numero", None, False),
+                            ("cep_pernoite", "CEP de Pernoite", "texto", None, False),
+                            ("uso_veiculo", "Uso do Veículo", "opcao_unica", ["particular", "trabalho", "aplicativo"], False),
+                            ("tem_garagem", "Possui Garagem?", "booleano", None, False),
+                        ]
+                    elif empresa.nicho in ("generico", "academia"):
+                        chaves_def = [
+                            ("nome_completo", "Nome Completo", "texto", None, True),
+                            ("idade", "Idade", "texto", None, True),
+                            ("objetivo", "Objetivo do Treino", "opcao_unica", ["Emagrecimento", "Ganho de Massa", "Condicionamento"], False),
+                            ("frequencia", "Frequência Pretendida", "opcao_unica", ["1 a 2 dias", "3 a 4 dias", "5+ dias"], False),
+                        ]
+                    else:
+                        chaves_def = [
+                            ("nome_completo", "Nome Completo", "texto", None, True),
+                            ("objetivo_contato", "Objetivo do Contato", "texto", None, True),
+                        ]
+                    
+                    db_campos = [
+                        CampoCustomizado(empresa_id=empresa.id, chave=k, label=l, tipo=t, opcoes=o, obrigatorio=ob)
+                        for k, l, t, o, ob in chaves_def
+                    ]
+                
+                # Mapear dados coletados do JSONB
+                dados_lead = getattr(lead, "dados_customizados", {}) or {}
+                
+                # Se for corretora, enriquecer com dados físicos de lead_seguro
+                if empresa.nicho == "corretora" and lead_seguro:
+                    for attr in ["tipo_seguro", "marca_modelo", "cep_pernoite", "uso_veiculo", "tem_garagem"]:
+                        val_fisico = getattr(lead_seguro, attr, None)
+                        if val_fisico is not None and attr not in dados_lead:
+                            dados_lead[attr] = val_fisico
+                    if getattr(lead_seguro, "nome_segurado", None) and "nome_segurado" not in dados_lead:
+                        dados_lead["nome_segurado"] = lead_seguro.nome_segurado
+                    if getattr(lead_seguro, "idade_segurado", None) and "idade_segurado" not in dados_lead:
+                        dados_lead["idade_segurado"] = lead_seguro.idade_segurado
+
+                for campo in db_campos:
+                    valor = dados_lead.get(campo.chave)
+                    
+                    # Formatar visualmente a regra do campo
+                    regra_desc = f"- {campo.label} (Chave: {campo.chave})"
+                    if campo.obrigatorio:
+                        regra_desc += " [OBRIGATÓRIO]"
+                    if campo.tipo == "opcao_unica" and campo.opcoes:
+                        regra_desc += f" (Opções permitidas: {', '.join(campo.opcoes)})"
+                    elif campo.tipo == "booleano":
+                        regra_desc += " (Responda apenas Sim/Não)"
+                    elif campo.tipo == "numero":
+                        regra_desc += " (Responda apenas número inteiro)"
+                        
+                    if valor is not None and valor != "":
+                        if isinstance(valor, bool):
+                            valor = "Sim" if valor else "Não"
+                        campos_coletados.append(f"- {campo.label}: {valor}")
+                    else:
+                        campos_pendentes.append(regra_desc)
+            except Exception as ex_context:
+                import logging
+                logging.getLogger("uvicorn").error(f"Erro ao computar campos dinâmicos no contexto: {ex_context}")
+            finally:
+                db_session.close()
+
         ctx = {
             # Empresa e configuração
             "nicho": empresa.nicho or "generico",
@@ -83,6 +168,12 @@ class ContextoAgent:
                 "descricao": campanha_desc
             },
             "lead_recorrente": recorrente,
+
+            # Triagem Dinâmica de Campos
+            "triagem_dinamica": {
+                "campos_pendentes": "\n".join(campos_pendentes) if campos_pendentes else "Todos os dados já foram coletados com sucesso!",
+                "campos_coletados": "\n".join(campos_coletados) if campos_coletados else "Nenhum dado coletado ainda."
+            },
 
             # Triagem
             "intencao": triagem.get("intencao", "duvida"),

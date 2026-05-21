@@ -469,114 +469,145 @@ def _processar_tags(db, empresa, lead, resposta_raw, telefone):
     elif "[SUGERIR_TRANSBORDO]" in resposta_raw:
         atualizar_status_transbordo(db, empresa.id, telefone, "aguardando", lead_id=lead.id)
 
-    # Processar tags customizadas para corretora
+    # === PROCESSAMENTO GLOBAL DE TAGS DE TRIAGEM DINÂMICA (SaaS Global) ===
+    
+    # 1. Carregar/Inicializar dados customizados do lead
+    dados_customizados = lead.dados_customizados or {}
+    if not isinstance(dados_customizados, dict):
+        dados_customizados = {}
+        
+    lead_atualizado = False
+    
+    # 2. Encontrar todas as tags [ATUALIZAR_LEAD: campo=valor]
+    tags_atualizacao = re.findall(r'\[ATUALIZAR_LEAD:\s*([^\]]+)\]', resposta_raw)
+    
+    # Compatibilidade legado com corretora
+    lead_seguro = None
     if empresa.nicho == "corretora":
         lead_seguro = db.query(LeadSeguro).filter(LeadSeguro.id == lead.id).first()
-        if lead_seguro:
-            # 1. Processar [ATUALIZAR_LEAD: campo=valor]
-            tags_atualizacao = re.findall(r'\[ATUALIZAR_LEAD:\s*([^\]]+)\]', resposta_raw)
-            for tag_content in tags_atualizacao:
-                # Trata atribuições múltiplas separadas por vírgula no mesmo bloco
-                parts = tag_content.split(',')
-                for part in parts:
-                    try:
-                        if '=' in part:
-                            campo, valor = part.split('=', 1)
-                            campo = campo.strip()
-                            valor = valor.strip()
-                            
-                            if valor.lower() == 'true':
-                                valor = True
-                            elif valor.lower() == 'false':
-                                valor = False
-                            elif valor.lower() in ('null', 'none'):
-                                valor = None
-                            elif valor.isdigit():
-                                valor = int(valor)
-                            elif campo in ('idade_segurado', 'idade_condutor'):
-                                # Parser resiliente para converter nascimento/data/texto em idade inteira
-                                val_str = str(valor)
-                                match_date = re.search(r'(\d{2})[/-](\d{2})[/-](\d{4})', val_str)
-                                if match_date:
-                                    dia, mes, ano = map(int, match_date.groups())
+        
+    for tag_content in tags_atualizacao:
+        parts = tag_content.split(',')
+        for part in parts:
+            try:
+                if '=' in part:
+                    campo, valor = part.split('=', 1)
+                    campo = campo.strip().lower().replace(" ", "_")
+                    valor = valor.strip()
+                    
+                    if not campo:
+                        continue
+                        
+                    # Converter tipo primitivo se necessário
+                    if valor.lower() in ('true', 'sim'):
+                        valor = True
+                    elif valor.lower() in ('false', 'nao', 'não'):
+                        valor = False
+                    elif valor.lower() in ('null', 'none'):
+                        valor = None
+                    elif valor.isdigit():
+                        valor = int(valor)
+                    
+                    # Salvar no dicionário dinâmico global
+                    dados_customizados[campo] = valor
+                    lead_atualizado = True
+                    logger.info(f"[{telefone}] Campo dinâmico atualizado via tag: {campo} = {valor}")
+                    
+                    # Sincronização retrativa com colunas físicas de LeadSeguro (para corretoras)
+                    if lead_seguro:
+                        # Se for um campo de data/idade especial, aplica parser resiliente
+                        if campo in ('idade_segurado', 'idade_condutor') and not isinstance(valor, bool) and valor is not None:
+                            val_str = str(valor)
+                            match_date = re.search(r'(\d{2})[/-](\d{2})[/-](\d{4})', val_str)
+                            if match_date:
+                                dia, mes, ano = map(int, match_date.groups())
+                                from datetime import date
+                                hoje = date.today()
+                                valor_parsed = hoje.year - ano - ((hoje.month, hoje.day) < (mes, dia))
+                            else:
+                                match_year = re.search(r'\b(19\d{2}|20\d{2})\b', val_str)
+                                if match_year:
+                                    ano = int(match_year.group(1))
                                     from datetime import date
-                                    hoje = date.today()
-                                    valor = hoje.year - ano - ((hoje.month, hoje.day) < (mes, dia))
+                                    valor_parsed = date.today().year - ano
                                 else:
-                                    match_year = re.search(r'\b(19\d{2}|20\d{2})\b', val_str)
-                                    if match_year:
-                                        ano = int(match_year.group(1))
-                                        from datetime import date
-                                        valor = date.today().year - ano
-                                    else:
-                                        continue # ignora se não conseguir computar
+                                    valor_parsed = valor
+                        else:
+                            valor_parsed = valor
                             
-                            if hasattr(lead_seguro, campo):
-                                setattr(lead_seguro, campo, valor)
-                                logger.info(f"[{telefone}] Campo LeadSeguro atualizado via tag: {campo} = {valor}")
-                                if campo == "stage":
-                                    lead.stage = valor
-                                    lead_seguro.stage = valor
-                                    db.commit()
-                    except Exception as ex_tag:
-                        logger.error(f"Erro ao processar parte da tag de atualizacao '{part}': {ex_tag}")
-            
-            # 2. Processar [SOLICITAR_HUMANO: motivo=...] ou transbordo
-            if "[SOLICITAR_HUMANO" in resposta_raw:
-                motivo = "Solicitado pela IA"
-                match_h = re.search(r'\[SOLICITAR_HUMANO:\s*motivo=([^\]]+)\]', resposta_raw)
-                if match_h:
-                    motivo = match_h.group(1).strip()
+                        if hasattr(lead_seguro, campo):
+                            setattr(lead_seguro, campo, valor_parsed)
+                            logger.info(f"[{telefone}] Legacy LeadSeguro sincronizado retrativamente: {campo} = {valor_parsed}")
+                            if campo == "stage":
+                                lead.stage = valor_parsed
+                                lead_seguro.stage = valor_parsed
+            except Exception as ex_tag:
+                logger.error(f"Erro ao processar parte da tag de atualizacao '{part}': {ex_tag}")
                 
-                atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
-                logger.info(f"[{telefone}] Robô pausado devido à tag [SOLICITAR_HUMANO] (Motivo: {motivo}).")
-                
-                # Notificar a corretora no WhatsApp em tempo real!
-                config = empresa.configuracoes.config if empresa.configuracoes else {}
-                tel_corretor = config.get("telefone_notificacao") or config.get("telefone_corretor") or empresa.telefone_proprietario
-                if tel_corretor:
-                    # Normalizar o número de telefone da corretora
-                    tel_corretor_limpo = "".join(filter(str.isdigit, str(tel_corretor)))
-                    if tel_corretor_limpo:
-                        if len(tel_corretor_limpo) == 10 or len(tel_corretor_limpo) == 11:
-                            tel_corretor_limpo = "55" + tel_corretor_limpo
-                            
-                        dados_lead_formatado = formatar_dados_lead(lead_seguro)
-                        tipo_seguro_str = (lead_seguro.tipo_seguro or "não informado").upper()
+    if lead_atualizado:
+        from sqlalchemy.orm.attributes import flag_modified
+        lead.dados_customizados = dados_customizados
+        flag_modified(lead, "dados_customizados")
+        db.commit()
+
+    # 3. Processar [SOLICITAR_HUMANO: motivo=...] ou transbordo global
+    if "[SOLICITAR_HUMANO" in resposta_raw:
+        motivo = "Triagem concluída - pronto para atendimento"
+        match_h = re.search(r'\[SOLICITAR_HUMANO:\s*motivo=([^\]]+)\]', resposta_raw)
+        if match_h:
+            motivo = match_h.group(1).strip()
+        
+        atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
+        logger.info(f"[{telefone}] Robô pausado devido à tag global [SOLICITAR_HUMANO] (Motivo: {motivo}).")
+        
+        # Notificar dono/corretor se for nicho de corretora
+        if empresa.nicho == "corretora" and lead_seguro:
+            config = empresa.configuracoes.config if empresa.configuracoes else {}
+            tel_corretor = config.get("telefone_notificacao") or config.get("telefone_corretor") or empresa.telefone_proprietario
+            if tel_corretor:
+                tel_corretor_limpo = "".join(filter(str.isdigit, str(tel_corretor)))
+                if tel_corretor_limpo:
+                    if len(tel_corretor_limpo) in (10, 11):
+                        tel_corretor_limpo = "55" + tel_corretor_limpo
                         
-                        mensagem_alerta = (
-                            f"🚨 *NOVO LEAD DE SEGURO CADASTRADO* 🚨\n\n"
-                            f"Olá! O assistente virtual concluiu a triagem de um novo lead:\n\n"
-                            f"👤 *Nome:* {lead.nome or lead_seguro.nome_segurado or 'Não informado'}\n"
-                            f"📱 *WhatsApp do Lead:* https://wa.me/{telefone}\n"
-                            f"📋 *Interesse:* {tipo_seguro_str}\n\n"
-                            f"📊 *Dados Coletados:*\n"
-                            f"{dados_lead_formatado}\n\n"
-                            f"⚡ *Status:* {motivo}\n\n"
-                            f"_O robô foi pausado automaticamente. Você já pode assumir o atendimento!_"
-                        )
-                        
-                        try:
-                            enviar_whatsapp(tel_corretor_limpo, mensagem_alerta, empresa.evolution_instance)
-                            logger.info(f"[{telefone}] Notificação enviada para corretor {tel_corretor_limpo}")
-                        except Exception as ex_notif:
-                            logger.error(f"Erro ao enviar notificação no WhatsApp do corretor: {ex_notif}")
+                    dados_lead_formatado = formatar_dados_lead(lead_seguro)
+                    tipo_seguro_str = (lead_seguro.tipo_seguro or "não informado").upper()
+                    
+                    mensagem_alerta = (
+                        f"🚨 *NOVO LEAD DE SEGURO CADASTRADO* 🚨\n\n"
+                        f"Olá! O assistente virtual concluiu a triagem de um novo lead:\n\n"
+                        f"👤 *Nome:* {lead.nome or lead_seguro.nome_segurado or 'Não informado'}\n"
+                        f"📱 *WhatsApp do Lead:* https://wa.me/{telefone}\n"
+                        f"📋 *Interesse:* {tipo_seguro_str}\n\n"
+                        f"📊 *Dados Coletados:*\n"
+                        f"{dados_lead_formatado}\n\n"
+                        f"⚡ *Status:* {motivo}\n\n"
+                        f"_O robô foi pausado automaticamente. Você já pode assumir o atendimento!_"
+                    )
+                    
+                    try:
+                        enviar_whatsapp(tel_corretor_limpo, mensagem_alerta, empresa.evolution_instance)
+                        logger.info(f"[{telefone}] Notificação de transbordo enviada para {tel_corretor_limpo}")
+                    except Exception as ex_notif:
+                        logger.error(f"Erro ao enviar notificação no WhatsApp: {ex_notif}")
+        db.commit()
+
+    # 4. Processar [DOCUMENTO_RECEBIDO: tipo=...] para corretora
+    if empresa.nicho == "corretora" and lead_seguro:
+        tags_doc = re.findall(r'\[DOCUMENTO_RECEBIDO:\s*tipo=([^\]]+)\]', resposta_raw)
+        for doc_tipo in tags_doc:
+            doc_tipo = doc_tipo.strip()
+            docs_r = lead_seguro.docs_recebidos or []
+            if doc_tipo not in [d.get("tipo") for d in docs_r]:
+                docs_r.append({"tipo": doc_tipo, "recebido_em": str(datetime.utcnow())})
+                lead_seguro.docs_recebidos = docs_r
             
-            # 3. Processar [DOCUMENTO_RECEBIDO: tipo=...]
-            tags_doc = re.findall(r'\[DOCUMENTO_RECEBIDO:\s*tipo=([^\]]+)\]', resposta_raw)
-            for doc_tipo in tags_doc:
-                doc_tipo = doc_tipo.strip()
-                docs_r = lead_seguro.docs_recebidos or []
-                if doc_tipo not in [d.get("tipo") for d in docs_r]:
-                    docs_r.append({"tipo": doc_tipo, "recebido_em": str(datetime.utcnow())})
-                    lead_seguro.docs_recebidos = docs_r
-                
-                docs_p = lead_seguro.docs_pendentes or []
-                if doc_tipo in docs_p:
-                    docs_p.remove(doc_tipo)
-                    lead_seguro.docs_pendentes = docs_p
-                
-            db.commit()
+            docs_p = lead_seguro.docs_pendentes or []
+            if doc_tipo in docs_p:
+                docs_p.remove(doc_tipo)
+                lead_seguro.docs_pendentes = docs_p
+            
+        db.commit()
 
 def _finalizar(db, empresa, lead, resposta_raw, resposta_limpa, t_in, t_out):
     # Registra tokens da resposta principal

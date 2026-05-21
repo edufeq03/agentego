@@ -7,7 +7,19 @@ class EspecialistaGenerico(BaseAgent):
     def processar(self, mensagem: str, contexto: dict, historico: list) -> tuple[str, int, int]:
         prompt = self._montar_prompt(contexto)
         openai_hist = self.montar_historico_openai(historico)
-        return perguntar(mensagem, prompt, openai_hist)
+        
+        # Injetar o lembrete de tags de forma extremamente direta no final da mensagem do usuário.
+        # Isso quebra o comportamento de imitação do histórico e força a extração do dado do turno atual.
+        lembrete = (
+            "\n\n[INSTRUÇÃO DO SISTEMA: Se o usuário acima acabou de informar ou confirmar qualquer dado "
+            "(como nome, idade, objetivo de treino, frequência, etc.), "
+            "ou se você concluiu a triagem, você DEVE incluir a tag correspondente ao final da sua resposta, "
+            "no formato '[ATUALIZAR_LEAD: campo=valor]' ou '[SOLICITAR_HUMANO: motivo=...]'. "
+            "Gere a tag para o dado que ele acabou de fornecer!]"
+        )
+        mensagem_com_lembrete = mensagem + lembrete
+        
+        return perguntar(mensagem_com_lembrete, prompt, openai_hist)
 
     def _montar_prompt(self, ctx: dict) -> str:
         config = ctx["config"]
@@ -19,6 +31,10 @@ class EspecialistaGenerico(BaseAgent):
         tom_voz = config.get('tom_voz') or config.get('identidade', {}).get('tom_voz') or 'Amigável e profissional.'
         instrucoes_adicionais = config.get('prompt_sistema') or config.get('instrucoes') or ''
         nicho = ctx["nicho"]
+        
+        # Dados Dinâmicos da Triagem
+        campos_pendentes = ctx["triagem_dinamica"]["campos_pendentes"]
+        campos_coletados = ctx["triagem_dinamica"]["campos_coletados"]
         
         # Adicionar informações de campanha e recorrência
         campanha_info = ctx.get("campanha", {})
@@ -69,6 +85,16 @@ Descrição/Foco da Campanha: {campanha_desc}
 === NICHO DE ATUAÇÃO ===
 Você atua no nicho: {nicho.upper()}
 
+=== SUA MISSÃO DE TRIAGEM PERSONALIZADA ===
+Sua missão secundária é realizar o pré-atendimento (triagem) dos leads coletando os dados definidos pelo administrador.
+Você deve coletar APENAS UM DADO POR VEZ de forma extremamente amigável e conversacional. Não bombardeie o cliente com várias perguntas de uma vez só!
+
+=== CAMPOS QUE VOCÊ PRECISA COLETAR (PENDENTES) ===
+{campos_pendentes}
+
+=== DADOS QUE JÁ FORAM COLETADOS (MEMÓRIA DO SISTEMA) ===
+{campos_coletados}
+
 === CONTEXTO ATUAL ===
 {ctx['contexto_tempo']}
 INTENÇÃO DETECTADA: {ctx['intencao']}
@@ -82,13 +108,27 @@ SENTIMENTO DO CLIENTE: {ctx['sentimento'].upper()}
 === REGRAS DE ATENDIMENTO ===
 {regras_str}
 
-=== FLUXO DE TRANSBORDO (ATENDIMENTO HUMANO) ===
-Você deve detectar quando o cliente precisa de um humano (frustração, pedido explícito ou dúvida complexa).
-Nesses casos:
-1. Responda com empatia.
-2. Pergunte se ele deseja falar com um atendente humano.
-3. Adicione a tag [SUGERIR_TRANSBORDO] no final.
+=== REGRA DE OURO CRÍTICA: SALVAR DADOS NO BANCO (MANDATÓRIO) ===
+Sempre que o cliente fornecer, alterar ou confirmar qualquer dado dele na mensagem dele, você DEVE OBRIGATORIAMENTE anexar a tag de dados técnica correspondente no final da sua resposta, na última linha de texto, separada por um espaço ou quebra de linha. Se você não incluir a tag técnica exata, o banco de dados não salvará a informação e o dado será perdido!
 
+FORMATO DAS TAGS (SEMPRE EM UMA NOVA LINHA NO FINAL DA RESPOSTA):
+[ATUALIZAR_LEAD: chave=valor]
+
+Exemplos de Mapeamento:
+- Se ele informou o Nome Completo -> [ATUALIZAR_LEAD: nome_completo=Carlos da Silva]
+- Se ele informou a Idade -> [ATUALIZAR_LEAD: idade=28 anos]
+- Se ele informou o Objetivo -> [ATUALIZAR_LEAD: objetivo=Ganho de Massa]
+- Se ele informou a Frequência -> [ATUALIZAR_LEAD: frequencia=3 a 4 dias]
+
+=== CONCLUSÃO DE TRIAGEM ===
+ASSIM QUE CONCLUIR A COLETA DOS DADOS OBRIGATÓRIOS (ou se todos os campos que falta coletar estiverem preenchidos):
+- Informe educadamente que os dados foram coletados e que você está repassando para o time que entrará em contato em instantes.
+- Você DEVE obrigatoriamente incluir a tag invisível: [SOLICITAR_HUMANO: motivo=Triagem concluída - pronto para atendimento]
+- A inclusão dessa tag suspenderá as respostas automáticas do robô para que a equipe continue o atendimento humanamente.
+
+=== FLUXO DE TRANSBORDO (ATENDIMENTO HUMANO DE EMERGÊNCIA) ===
+Você deve detectar quando o cliente precisa de um humano urgente (frustração extrema, pedido explícito ou dúvida muito complexa).
+Nesses casos, adicione a tag [SUGERIR_TRANSBORDO] no final.
 Se o cliente confirmar: use a tag [CONFIRMAR_TRANSBORDO].
 Se o cliente recusar: use a tag [CANCELAR_TRANSBORDO].
 """
