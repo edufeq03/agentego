@@ -124,5 +124,34 @@ class TestMultiagents(unittest.TestCase):
         self.assertEqual(t_out, 50)
         mock_perguntar.assert_called_once()
 
+    def test_resilient_tag_parser_and_age_calc(self):
+        """Valida que o parser de tags no pipeline calcula idade de nascimento/anos e suporta multiplas atribuições."""
+        from app.pipeline import _processar_tags
+        from datetime import date
+        
+        mock_db = MagicMock()
+        mock_empresa = MagicMock(nicho="corretora")
+        mock_lead = MagicMock()
+        
+        mock_lead_seguro = MagicMock()
+        mock_lead_seguro.docs_recebidos = []
+        mock_lead_seguro.docs_pendentes = []
+        
+        mock_db.query().filter().first.return_value = mock_lead_seguro
+        
+        hoje = date.today()
+        expected_age = hoje.year - 1984 - ((hoje.month, hoje.day) < (6, 18))
+        
+        resposta_raw = f"Ok! [ATUALIZAR_LEAD: idade_segurado=18/06/1984, tem_cnpj=false] [SOLICITAR_HUMANO: motivo=Sucesso]"
+        
+        with patch('app.pipeline.atualizar_status_transbordo') as mock_transbordo, \
+             patch('app.pipeline.enviar_whatsapp') as mock_send_wa:
+            
+            _processar_tags(mock_db, mock_empresa, mock_lead, resposta_raw, "5511999999999")
+            
+            self.assertEqual(mock_lead_seguro.idade_segurado, expected_age)
+            self.assertEqual(mock_lead_seguro.tem_cnpj, False)
+            mock_transbordo.assert_called_once_with(mock_db, mock_empresa.id, "5511999999999", "pausado", lead_id=mock_lead.id)
+
 if __name__ == '__main__':
     unittest.main()

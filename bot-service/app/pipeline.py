@@ -437,31 +437,51 @@ def _processar_tags(db, empresa, lead, resposta_raw, telefone):
         if lead_seguro:
             # 1. Processar [ATUALIZAR_LEAD: campo=valor]
             tags_atualizacao = re.findall(r'\[ATUALIZAR_LEAD:\s*([^\]]+)\]', resposta_raw)
-            for tag in tags_atualizacao:
-                try:
-                    if '=' in tag:
-                        campo, valor = tag.split('=', 1)
-                        campo = campo.strip()
-                        valor = valor.strip()
-                        
-                        if valor.lower() == 'true':
-                            valor = True
-                        elif valor.lower() == 'false':
-                            valor = False
-                        elif valor.lower() in ('null', 'none'):
-                            valor = None
-                        elif valor.isdigit():
-                            valor = int(valor)
-                        
-                        if hasattr(lead_seguro, campo):
-                            setattr(lead_seguro, campo, valor)
-                            logger.info(f"[{telefone}] Campo LeadSeguro atualizado via tag: {campo} = {valor}")
-                            if campo == "stage":
-                                lead.stage = valor
-                                lead_seguro.stage = valor
-                                db.commit()
-                except Exception as ex_tag:
-                    logger.error(f"Erro ao processar tag de atualizacao '{tag}': {ex_tag}")
+            for tag_content in tags_atualizacao:
+                # Trata atribuições múltiplas separadas por vírgula no mesmo bloco
+                parts = tag_content.split(',')
+                for part in parts:
+                    try:
+                        if '=' in part:
+                            campo, valor = part.split('=', 1)
+                            campo = campo.strip()
+                            valor = valor.strip()
+                            
+                            if valor.lower() == 'true':
+                                valor = True
+                            elif valor.lower() == 'false':
+                                valor = False
+                            elif valor.lower() in ('null', 'none'):
+                                valor = None
+                            elif valor.isdigit():
+                                valor = int(valor)
+                            elif campo in ('idade_segurado', 'idade_condutor'):
+                                # Parser resiliente para converter nascimento/data/texto em idade inteira
+                                val_str = str(valor)
+                                match_date = re.search(r'(\d{2})[/-](\d{2})[/-](\d{4})', val_str)
+                                if match_date:
+                                    dia, mes, ano = map(int, match_date.groups())
+                                    from datetime import date
+                                    hoje = date.today()
+                                    valor = hoje.year - ano - ((hoje.month, hoje.day) < (mes, dia))
+                                else:
+                                    match_year = re.search(r'\b(19\d{2}|20\d{2})\b', val_str)
+                                    if match_year:
+                                        ano = int(match_year.group(1))
+                                        from datetime import date
+                                        valor = date.today().year - ano
+                                    else:
+                                        continue # ignora se não conseguir computar
+                            
+                            if hasattr(lead_seguro, campo):
+                                setattr(lead_seguro, campo, valor)
+                                logger.info(f"[{telefone}] Campo LeadSeguro atualizado via tag: {campo} = {valor}")
+                                if campo == "stage":
+                                    lead.stage = valor
+                                    lead_seguro.stage = valor
+                                    db.commit()
+                    except Exception as ex_tag:
+                        logger.error(f"Erro ao processar parte da tag de atualizacao '{part}': {ex_tag}")
             
             # 2. Processar [SOLICITAR_HUMANO: motivo=...] ou transbordo
             if "[SOLICITAR_HUMANO" in resposta_raw:
@@ -472,6 +492,37 @@ def _processar_tags(db, empresa, lead, resposta_raw, telefone):
                 
                 atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
                 logger.info(f"[{telefone}] Robô pausado devido à tag [SOLICITAR_HUMANO] (Motivo: {motivo}).")
+                
+                # Notificar a corretora no WhatsApp em tempo real!
+                config = empresa.configuracoes.config if empresa.configuracoes else {}
+                tel_corretor = config.get("telefone_notificacao") or config.get("telefone_corretor") or empresa.telefone_proprietario
+                if tel_corretor:
+                    # Normalizar o número de telefone da corretora
+                    tel_corretor_limpo = "".join(filter(str.isdigit, str(tel_corretor)))
+                    if tel_corretor_limpo:
+                        if len(tel_corretor_limpo) == 10 or len(tel_corretor_limpo) == 11:
+                            tel_corretor_limpo = "55" + tel_corretor_limpo
+                            
+                        dados_lead_formatado = formatar_dados_lead(lead_seguro)
+                        tipo_seguro_str = (lead_seguro.tipo_seguro or "não informado").upper()
+                        
+                        mensagem_alerta = (
+                            f"🚨 *NOVO LEAD DE SEGURO CADASTRADO* 🚨\n\n"
+                            f"Olá! O assistente virtual concluiu a triagem de um novo lead:\n\n"
+                            f"👤 *Nome:* {lead.nome or lead_seguro.nome_segurado or 'Não informado'}\n"
+                            f"📱 *WhatsApp do Lead:* https://wa.me/{telefone}\n"
+                            f"📋 *Interesse:* {tipo_seguro_str}\n\n"
+                            f"📊 *Dados Coletados:*\n"
+                            f"{dados_lead_formatado}\n\n"
+                            f"⚡ *Status:* {motivo}\n\n"
+                            f"_O robô foi pausado automaticamente. Você já pode assumir o atendimento!_"
+                        )
+                        
+                        try:
+                            enviar_whatsapp(tel_corretor_limpo, mensagem_alerta, empresa.evolution_instance)
+                            logger.info(f"[{telefone}] Notificação enviada para corretor {tel_corretor_limpo}")
+                        except Exception as ex_notif:
+                            logger.error(f"Erro ao enviar notificação no WhatsApp do corretor: {ex_notif}")
             
             # 3. Processar [DOCUMENTO_RECEBIDO: tipo=...]
             tags_doc = re.findall(r'\[DOCUMENTO_RECEBIDO:\s*tipo=([^\]]+)\]', resposta_raw)
