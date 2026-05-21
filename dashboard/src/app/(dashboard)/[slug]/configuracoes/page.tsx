@@ -700,17 +700,21 @@ export default function Configuracoes() {
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="08:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.semana || "").start}
                     onChange={e => updateTime('semana', 'start', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
                   />
                   <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="18:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.semana || "").end}
                     onChange={e => updateTime('semana', 'end', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -723,17 +727,21 @@ export default function Configuracoes() {
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="08:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.sabado || "").start}
                     onChange={e => updateTime('sabado', 'start', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
                   />
                   <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="12:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.sabado || "").end}
                     onChange={e => updateTime('sabado', 'end', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -746,17 +754,21 @@ export default function Configuracoes() {
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="Fechado"
+                    maxLength={5}
                     value={parseTime(config.horarios?.domingo || "").start}
                     onChange={e => updateTime('domingo', 'start', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
                   />
                   <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="Fechado"
+                    maxLength={5}
                     value={parseTime(config.horarios?.domingo || "").end}
                     onChange={e => updateTime('domingo', 'end', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
                   />
                 </div>
                 <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
@@ -770,17 +782,21 @@ export default function Configuracoes() {
                 </div>
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="09:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.feriado || "").start}
                     onChange={e => updateTime('feriado', 'start', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
                   />
                   <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
                   <input 
-                    type="time" 
+                    type="text" 
+                    placeholder="13:00"
+                    maxLength={5}
                     value={parseTime(config.horarios?.feriado || "").end}
                     onChange={e => updateTime('feriado', 'end', e.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
                   />
                 </div>
                 <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
