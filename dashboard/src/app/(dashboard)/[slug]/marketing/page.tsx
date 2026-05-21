@@ -311,9 +311,8 @@ export default function MarketingPage() {
                   type="text"
                   placeholder="Ex: 5519996737713"
                   value={whatsappNumber}
-                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, ""))}
                   className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-brand-500)]"
-                  disabled
                 />
               </div>
             </div>
@@ -351,7 +350,11 @@ export default function MarketingPage() {
             ) : (
               <div className="text-xs text-amber-300 bg-amber-950/20 border border-amber-500/20 p-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>Cadastre pelo menos uma campanha para poder gerar links de anúncios.</span>
+                <span>
+                  {!selectedCampaignCode 
+                    ? "Cadastre pelo menos uma campanha para poder gerar links de anúncios."
+                    : "Por favor, digite o telefone de atendimento (DDI + DDD + Número) no campo acima para gerar o link."}
+                </span>
               </div>
             )}
           </div>
