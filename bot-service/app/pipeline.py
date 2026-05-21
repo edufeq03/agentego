@@ -301,6 +301,44 @@ def _carregar_lead_com_billing(db, empresa, telefone):
             
     return lead
 
+def _atribuir_campanha_se_houver(db, empresa, lead, mensagem_texto):
+    if not mensagem_texto:
+        return
+        
+    # Regex para capturar [REF: CODIGO] ou [CAMPANHA: CODIGO]
+    match = re.search(r"\[(?:REF|CAMPANHA):\s*([A-Za-z0-9_-]+)\]", mensagem_texto, re.IGNORECASE)
+    if match:
+        codigo_ref = match.group(1).upper().strip()
+        logger.info(f"Tag de campanha detectada na mensagem: {codigo_ref}")
+        
+        # Buscar se a campanha existe no banco para esta empresa
+        from app.database import Campanha
+        campanha = db.query(Campanha).filter(
+            Campanha.empresa_id == empresa.id,
+            Campanha.codigo_ref == codigo_ref
+        ).first()
+        
+        if campanha:
+            # Atribuir campanha cadastrada
+            lead.utm_campaign = campanha.codigo_ref
+            lead.utm_source = campanha.origem
+            lead.canal_entrada = campanha.origem
+            db.commit()
+            
+            # Registrar evento de atribuição
+            registrar_evento(db, empresa.id, lead.id, "campanha_atribuida", {
+                "campanha_id": str(campanha.id),
+                "codigo_ref": campanha.codigo_ref,
+                "origem": campanha.origem
+            })
+            logger.info(f"Campanha '{campanha.nome}' atribuída ao lead {lead.id}")
+        else:
+            # Fallback se não existir pré-cadastro: salva o código textual
+            lead.utm_campaign = codigo_ref
+            lead.canal_entrada = "ads_generico"
+            db.commit()
+            logger.info(f"Tag de campanha '{codigo_ref}' vinculada como ad_generico (sem pré-cadastro)")
+
 def _executar_triagem(db, empresa, mensagem_texto):
     from app.agents.triagem_agent import triagem_agent
     from app.classifier import classificar_intencao, analisar_sentimento_ia
@@ -577,6 +615,9 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
             # Limite atingido
             return lead_or_billing
         lead = lead_or_billing
+        
+        # Atribuir campanha se houver tags de marketing na mensagem
+        _atribuir_campanha_se_houver(db, empresa, lead, mensagem_texto)
 
         # ETAPA 4: Triagem (IA — intenção + sentimento)
         triagem = _executar_triagem(db, empresa, mensagem_texto)

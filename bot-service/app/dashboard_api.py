@@ -817,3 +817,102 @@ async def excluir_comunicado(
     db.delete(com)
     db.commit()
     return {"status": "ok"}
+
+class CampanhaRequest(BaseModel):
+    codigo_ref: str
+    nome: str
+    origem: str
+
+@router.get("/marketing/campanhas")
+async def listar_campanhas(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    from app.database import Campanha, Lead
+    
+    campanhas = db.query(Campanha).filter(Campanha.empresa_id == empresa.id).order_by(Campanha.criado_em.desc()).all()
+    
+    resultado = []
+    
+    etapas = empresa.etapas_funil or ["novo", "curioso", "interessado", "agendado"]
+    etapa_conversao = etapas[-1].lower() if etapas else "agendado"
+    
+    for c in campanhas:
+        # Leads gerados por esta campanha
+        total_leads = db.query(Lead).filter(
+            Lead.empresa_id == empresa.id,
+            Lead.utm_campaign == c.codigo_ref
+        ).count()
+        
+        # Leads convertidos (estágio final)
+        leads_convertidos = db.query(Lead).filter(
+            Lead.empresa_id == empresa.id,
+            Lead.utm_campaign == c.codigo_ref,
+            Lead.stage.ilike(etapa_conversao)
+        ).count()
+        
+        taxa_conversao = round((leads_convertidos / total_leads * 100), 1) if total_leads > 0 else 0.0
+        
+        resultado.append({
+            "id": str(c.id),
+            "codigo_ref": c.codigo_ref,
+            "nome": c.nome,
+            "origem": c.origem,
+            "criado_em": c.criado_em.isoformat() if c.criado_em else None,
+            "leads_gerados": total_leads,
+            "leads_convertidos": leads_convertidos,
+            "taxa_conversao": taxa_conversao
+        })
+        
+    return resultado
+
+@router.post("/marketing/campanhas")
+async def criar_campanha(
+    req: CampanhaRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import Campanha
+    
+    codigo_limpo = req.codigo_ref.upper().strip()
+    if not codigo_limpo:
+        raise HTTPException(status_code=400, detail="Código de referência inválido")
+        
+    # Verificar se já existe campanha com este código
+    existe = db.query(Campanha).filter(Campanha.codigo_ref == codigo_limpo).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Já existe uma campanha com este código de referência")
+        
+    nova = Campanha(
+        empresa_id=empresa.id,
+        codigo_ref=codigo_limpo,
+        nome=req.nome.strip(),
+        origem=req.origem.lower().strip()
+    )
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
+    
+    return {"status": "ok", "campanha": {
+        "id": str(nova.id),
+        "codigo_ref": nova.codigo_ref,
+        "nome": nova.nome,
+        "origem": nova.origem
+    }}
+
+@router.delete("/marketing/campanhas/{campanha_id}")
+async def excluir_campanha(
+    campanha_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.database import Campanha
+    campanha = db.query(Campanha).filter(
+        Campanha.id == campanha_id,
+        Campanha.empresa_id == empresa.id
+    ).first()
+    
+    if not campanha:
+        raise HTTPException(status_code=404, detail="Campanha não encontrada")
+        
+    db.delete(campanha)
+    db.commit()
+    
+    return {"status": "ok"}

@@ -23,6 +23,26 @@ class ContextoAgent:
         fuso = pytz.timezone("America/Sao_Paulo")
         agora = datetime.now(fuso)
 
+        # Obter UTMs e flag de recorrência do lead
+        utm_source = getattr(lead, "utm_source", None)
+        utm_campaign = getattr(lead, "utm_campaign", None)
+        canal_entrada = getattr(lead, "canal_entrada", "organico")
+        
+        recorrente = False
+        if lead and getattr(lead, "id", None):
+            from app.database import SessionLocal, Mensagem
+            db_session = SessionLocal()
+            try:
+                # É recorrente se houver pelo menos uma mensagem enviada por nós (agente) anteriormente
+                recorrente = db_session.query(Mensagem).filter(
+                    Mensagem.lead_id == lead.id,
+                    Mensagem.tipo == "agente"
+                ).count() > 0
+            except Exception:
+                pass
+            finally:
+                db_session.close()
+
         ctx = {
             # Empresa e configuração
             "nicho": empresa.nicho or "generico",
@@ -35,6 +55,14 @@ class ContextoAgent:
             "telefone": lead.telefone if lead else None,
             "stage": lead.stage if lead else "novo",
             "lead_nome": lead.nome if lead else None,
+            
+            # Rastreamento de Campanhas e Recorrência
+            "campanha": {
+                "codigo": utm_campaign,
+                "origem": utm_source,
+                "canal": canal_entrada
+            },
+            "lead_recorrente": recorrente,
 
             # Triagem
             "intencao": triagem.get("intencao", "duvida"),

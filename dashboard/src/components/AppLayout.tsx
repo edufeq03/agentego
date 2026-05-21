@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2 } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ] : []),
 
     { name: "Funil de Vendas", href: `/${slug}/funil`, icon: Filter },
+    { name: "Marketing", href: `/${slug}/marketing`, icon: Share2 },
     { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
     { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
     { name: "Configurações", href: `/${slug}/configuracoes`, icon: Settings },

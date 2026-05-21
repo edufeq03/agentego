@@ -58,6 +58,7 @@ class Empresa(Base):
     mensagens = relationship("Mensagem", back_populates="empresa", cascade="all, delete-orphan")
     eventos = relationship("Evento", back_populates="empresa", cascade="all, delete-orphan")
     transbordos = relationship("Transbordo", back_populates="empresa", cascade="all, delete-orphan")
+    campanhas = relationship("Campanha", back_populates="empresa", cascade="all, delete-orphan")
     membros_academia = relationship("MembroAcademia", back_populates="empresa", cascade="all, delete-orphan")
     empresas_clientes = relationship("EmpresaCliente", back_populates="empresa", cascade="all, delete-orphan")
     obrigacoes_fiscais = relationship("ObrigacaoFiscal", back_populates="empresa", cascade="all, delete-orphan")
@@ -105,6 +106,9 @@ class Lead(Base):
     nome = Column(String, nullable=True)
     stage = Column(String, default='novo') # novo, curioso, interessado, quente, agendado, perdido
     visit_offer_made = Column(Boolean, default=False)
+    utm_source = Column(String(50), nullable=True)
+    utm_campaign = Column(String(50), nullable=True)
+    canal_entrada = Column(String(50), default='organico')
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -232,6 +236,17 @@ class ComunicadoLog(Base):
 
     comunicado = relationship("Comunicado")
 
+class Campanha(Base):
+    __tablename__ = "campanhas"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    codigo_ref = Column(String(50), unique=True, nullable=False, index=True)
+    nome = Column(String(100), nullable=False)
+    origem = Column(String(50), nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa", back_populates="campanhas")
+
 class LeadSeguro(Base):
     __tablename__ = "leads_seguro"
     id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True)
@@ -347,6 +362,23 @@ def init_db():
             # Nicho e Novas Tabelas
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
             conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS nicho VARCHAR DEFAULT \'generico\''))
+            
+            # Migração de UTM e Campanhas para Leads
+            conn.execute(text('ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_source VARCHAR(50)'))
+            conn.execute(text('ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(50)'))
+            conn.execute(text('ALTER TABLE leads ADD COLUMN IF NOT EXISTS canal_entrada VARCHAR(50) DEFAULT \'organico\''))
+            
+            # Tabela de Campanhas de Marketing
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS campanhas (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    codigo_ref VARCHAR(50) UNIQUE NOT NULL,
+                    nome VARCHAR(100) NOT NULL,
+                    origem VARCHAR(50) NOT NULL,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
             
             # Migração para Comunicados (Imagem)
             conn.execute(text('ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS imagem_url TEXT'))

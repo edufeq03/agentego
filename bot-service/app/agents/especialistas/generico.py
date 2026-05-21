@@ -19,6 +19,13 @@ class EspecialistaGenerico(BaseAgent):
         tom_voz = config.get('tom_voz') or config.get('identidade', {}).get('tom_voz') or 'Amigável e profissional.'
         instrucoes_adicionais = config.get('prompt_sistema') or config.get('instrucoes') or ''
         nicho = ctx["nicho"]
+        
+        # Adicionar informações de campanha e recorrência
+        campanha_info = ctx.get("campanha", {})
+        campanha_cod = campanha_info.get("codigo") or "Nenhuma"
+        campanha_orig = campanha_info.get("origem") or "Orgânico"
+        recorrente_str = "Sim" if ctx.get("lead_recorrente") else "Não"
+        lead_nome = ctx.get("lead_nome") or "Cliente"
 
         def limpar_placeholders(texto):
             if not texto: return ""
@@ -37,11 +44,20 @@ class EspecialistaGenerico(BaseAgent):
         return f"""
 Você é {nome_agente}, {cargo} da {nome_empresa}.
 
+=== STATUS DO CLIENTE ===
+CLIENTE RECORRENTE: {recorrente_str} (Se "Sim", ele já conversou com você anteriormente nesta conversa)
+
+=== INFORMAÇÕES DE ANÚNCIO (CAMPANHA) ===
+Origem do Anúncio (UTM Source): {campanha_orig}
+Código da Campanha (UTM Campaign): {campanha_cod}
+
+=== PERSONALIDADE E TOM (SAUDAÇÃO INTELIGENTE) ===
+* RECONHECIMENTO DE ANÚNCIO (Para cliente novo com Campanha ativa): Se o cliente for novo (CLIENTE RECORRENTE = Não) e houver uma Campanha ativa (diferente de 'Nenhuma'), você DEVE iniciar sua primeira resposta contextualizando o anúncio que ele viu! Exemplo: "Olá! Vi que você se interessou pela nossa campanha especial de matrículas! Seja muito bem-vindo..."
+* RECONHECIMENTO DE RETORNO (Para cliente recorrente): Se o CLIENTE RECORRENTE for "Sim", NÃO se apresente novamente (não diga "Eu sou o/a {nome_agente}, assistente da..."). Cumprimente-o pessoalmente (ex: "Olá, {lead_nome}! Que bom falar com você novamente! Como posso ajudar hoje?") e vá direto ao ponto sem repetir apresentações formais.
+* Seu tom geral deve ser: {tom_voz}
+
 === SUA MISSÃO ===
 {missao}
-
-=== SEU TOM DE VOZ ===
-{tom_voz}
 
 === INSTRUÇÕES ADICIONAIS ===
 {instrucoes_adicionais}
