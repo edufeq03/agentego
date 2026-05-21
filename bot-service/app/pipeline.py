@@ -126,7 +126,10 @@ def atualizar_status_transbordo(db, empresa_id, telefone, novo_status, lead_id=N
         db.add(novo)
         if lead_id:
             tipo = "transbordo_confirmado" if novo_status == "pausado" else "transbordo_sugerido"
-            registrar_evento(db, empresa_id, lead_id, tipodef _processar_modo_template(db, empresa, telefone, mensagem_texto):
+            registrar_evento(db, empresa_id, lead_id, tipo)
+    db.commit()
+
+def _processar_modo_template(db, empresa, telefone, mensagem_texto):
     logger.info("Template da Piccolo Seguros detectado! Iniciando extração e Modo A.")
     try:
         # Parsear template via IA
