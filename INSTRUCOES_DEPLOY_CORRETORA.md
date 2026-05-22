@@ -13,7 +13,7 @@ git pull origin main
 ### 2. Atualizar o Banco de Dados (Migrações)
 Como criamos tabelas exclusivas para o nicho de seguros (`leads_seguro` e `documentos_seguro`), você precisa rodar o script de migração:
 ```bash
-cd bot-service
+cd backend
 python migrate_db.py
 ```
 
