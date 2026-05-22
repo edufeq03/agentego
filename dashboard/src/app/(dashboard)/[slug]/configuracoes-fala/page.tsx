@@ -57,7 +57,7 @@ export default function ConfiguracoesFalaPage() {
       const currentRes = await api.get("/dashboard/config");
       const fullConfig = { ...(currentRes.data?.config || {}), ...config };
       
-      await api.put("/dashboard/config", fullConfig);
+      await api.put("/dashboard/config", { config: fullConfig });
       alert("Configurações de fala atualizadas!");
     } catch (error) {
       console.error("Erro ao salvar:", error);

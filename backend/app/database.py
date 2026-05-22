@@ -358,6 +358,54 @@ class FollowupSeguro(Base):
     lead = relationship("LeadSeguro")
     empresa = relationship("Empresa")
 
+class Cardapio(Base):
+    __tablename__ = "cardapio"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    categoria = Column(String, nullable=False) # Lanches, Bebidas, Sobremesas, etc.
+    nome = Column(String, nullable=False)
+    descricao = Column(Text, nullable=True)
+    preco = Column(Float, nullable=False)
+    disponivel = Column(Boolean, default=True)
+    ordem = Column(Integer, default=0)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
+class Pedido(Base):
+    __tablename__ = "pedidos"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    numero_pedido = Column(Integer, primary_key=False, nullable=True) # Sequencial por empresa ou autoincremento
+    modo = Column(String, nullable=False) # 'delivery', 'balcao', 'mesa'
+    status = Column(String, default="aguardando") # aguardando, em_preparo, pronto, entregue, cancelado
+    total = Column(Float, nullable=True)
+    observacao = Column(Text, nullable=True)
+    endereco = Column(Text, nullable=True)
+    nome_balcao = Column(String, nullable=True)
+    numero_mesa = Column(Integer, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    lead = relationship("Lead")
+    itens = relationship("ItemPedido", back_populates="pedido", cascade="all, delete-orphan")
+
+class ItemPedido(Base):
+    __tablename__ = "itens_pedido"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pedido_id = Column(UUID(as_uuid=True), ForeignKey("pedidos.id", ondelete="CASCADE"), nullable=False)
+    cardapio_id = Column(UUID(as_uuid=True), ForeignKey("cardapio.id", ondelete="SET NULL"), nullable=True)
+    nome = Column(String, nullable=False)
+    preco_unit = Column(Float, nullable=False)
+    quantidade = Column(Integer, nullable=False)
+    observacao = Column(Text, nullable=True)
+
+    pedido = relationship("Pedido", back_populates="itens")
+    cardapio = relationship("Cardapio")
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -623,6 +671,52 @@ def init_db():
                     mensagem TEXT,
                     enviado_em TIMESTAMP DEFAULT NOW(),
                     resultado VARCHAR(30) DEFAULT 'pendente'
+                )
+            '''))
+
+            # Tabelas do Nicho Lanchonete
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS cardapio (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    categoria VARCHAR(100) NOT NULL,
+                    nome VARCHAR(200) NOT NULL,
+                    descricao TEXT,
+                    preco DECIMAL(8,2) NOT NULL,
+                    disponivel BOOLEAN DEFAULT TRUE,
+                    ordem INTEGER DEFAULT 0,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS pedidos (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+                    numero_pedido SERIAL,
+                    modo VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'aguardando',
+                    total DECIMAL(8,2),
+                    observacao TEXT,
+                    endereco TEXT,
+                    nome_balcao VARCHAR(200),
+                    numero_mesa INTEGER,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS itens_pedido (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    pedido_id UUID REFERENCES pedidos(id) ON DELETE CASCADE,
+                    cardapio_id UUID REFERENCES cardapio(id) ON DELETE SET NULL,
+                    nome VARCHAR(200) NOT NULL,
+                    preco_unit DECIMAL(8,2) NOT NULL,
+                    quantidade INTEGER NOT NULL,
+                    observacao TEXT
                 )
             '''))
 

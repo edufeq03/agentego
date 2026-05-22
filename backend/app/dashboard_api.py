@@ -1189,3 +1189,224 @@ async def atualizar_configuracao_reengajamento(
     return {"status": "ok"}
 
 
+# --- ENDPOINTS DO NICHO LANCHONETE ---
+
+class CardapioItemRequest(BaseModel):
+    categoria: str
+    nome: str
+    preco: float
+    descricao: Optional[str] = None
+    disponivel: bool = True
+    ordem: int = 0
+
+class PedidoStatusRequest(BaseModel):
+    status: str
+
+@router.get("/lanchonete/cardapio")
+def api_listar_cardapio(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.cardapio_service import listar_itens
+    return listar_itens(db, empresa.id)
+
+@router.post("/lanchonete/cardapio")
+def api_adicionar_item_cardapio(
+    req: CardapioItemRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.cardapio_service import adicionar_item
+    item = adicionar_item(
+        db=db,
+        empresa_id=empresa.id,
+        categoria=req.categoria,
+        nome=req.nome,
+        preco=req.preco,
+        descricao=req.descricao,
+        disponivel=req.disponivel,
+        ordem=req.ordem
+    )
+    return item
+
+@router.put("/lanchonete/cardapio/{item_id}")
+def api_atualizar_item_cardapio(
+    item_id: uuid.UUID,
+    req: CardapioItemRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.cardapio_service import atualizar_item
+    item = atualizar_item(
+        db=db,
+        item_id=item_id,
+        categoria=req.categoria,
+        nome=req.nome,
+        preco=req.preco,
+        descricao=req.descricao,
+        disponivel=req.disponivel,
+        ordem=req.ordem
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado no cardápio")
+    return item
+
+@router.patch("/lanchonete/cardapio/{item_id}/disponibilidade")
+def api_toggle_disponibilidade_item(
+    item_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.cardapio_service import toggle_disponibilidade
+    item = toggle_disponibilidade(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado no cardápio")
+    return item
+
+@router.delete("/lanchonete/cardapio/{item_id}")
+def api_remover_item_cardapio(
+    item_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.cardapio_service import remover_item
+    sucesso = remover_item(db, item_id)
+    if not sucesso:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    return {"status": "ok"}
+
+@router.get("/lanchonete/pedidos/ativos")
+def api_listar_pedidos_ativos(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.pedido_service import obter_pedidos_ativos
+    pedidos = obter_pedidos_ativos(db, empresa.id)
+    
+    # Adicionar dados de resumo e nomes para simplificar o frontend
+    resultado = []
+    for ped in pedidos:
+        cliente_nome = "Cliente"
+        cliente_telefone = "Não inf."
+        if ped.lead_id:
+            lead = db.query(Lead).filter(Lead.id == ped.lead_id).first()
+            if lead:
+                cliente_nome = lead.nome or "Cliente"
+                cliente_telefone = lead.telefone
+                
+        itens_list = []
+        for it in ped.itens:
+            itens_list.append({
+                "id": str(it.id),
+                "nome": it.nome,
+                "preco_unit": it.preco_unit,
+                "quantidade": it.quantidade,
+                "observacao": it.observacao
+            })
+            
+        resultado.append({
+            "id": str(ped.id),
+            "numero_pedido": ped.numero_pedido,
+            "modo": ped.modo,
+            "status": ped.status,
+            "total": ped.total,
+            "observacao": ped.observacao,
+            "endereco": ped.endereco,
+            "nome_balcao": ped.nome_balcao,
+            "numero_mesa": ped.numero_mesa,
+            "criado_em": ped.criado_em.isoformat() if ped.criado_em else None,
+            "cliente": {
+                "nome": cliente_nome,
+                "telefone": cliente_telefone
+            },
+            "itens": itens_list
+        })
+    return resultado
+
+@router.get("/lanchonete/pedidos/historico")
+def api_listar_historico_pedidos(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.pedido_service import obter_historico_pedidos
+    pedidos = obter_historico_pedidos(db, empresa.id, status=status, limit=limit, offset=offset)
+    
+    resultado = []
+    for ped in pedidos:
+        cliente_nome = "Cliente"
+        cliente_telefone = "Não inf."
+        if ped.lead_id:
+            lead = db.query(Lead).filter(Lead.id == ped.lead_id).first()
+            if lead:
+                cliente_nome = lead.nome or "Cliente"
+                cliente_telefone = lead.telefone
+                
+        itens_list = []
+        for it in ped.itens:
+            itens_list.append({
+                "id": str(it.id),
+                "nome": it.nome,
+                "preco_unit": it.preco_unit,
+                "quantidade": it.quantidade,
+                "observacao": it.observacao
+            })
+            
+        resultado.append({
+            "id": str(ped.id),
+            "numero_pedido": ped.numero_pedido,
+            "modo": ped.modo,
+            "status": ped.status,
+            "total": ped.total,
+            "observacao": ped.observacao,
+            "endereco": ped.endereco,
+            "nome_balcao": ped.nome_balcao,
+            "numero_mesa": ped.numero_mesa,
+            "criado_em": ped.criado_em.isoformat() if ped.criado_em else None,
+            "cliente": {
+                "nome": cliente_nome,
+                "telefone": cliente_telefone
+            },
+            "itens": itens_list
+        })
+    return resultado
+
+@router.patch("/lanchonete/pedidos/{pedido_id}/status")
+def api_atualizar_status_pedido(
+    pedido_id: uuid.UUID,
+    req: PedidoStatusRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    from app.pedido_service import atualizar_status_pedido
+    
+    pedido = atualizar_status_pedido(db, pedido_id, req.status)
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    return {"status": "ok", "novo_status": pedido.status}
+
+@router.get("/lanchonete/mesa/qrcode")
+def api_gerar_qrcode_mesa(
+    numero_mesa: int,
+    empresa: Empresa = Depends(obter_empresa)
+):
+    # Gerar link com mensagem pre-preenchida para iniciar pedido na mesa
+    telefone_empresa = empresa.telefone_whatsapp or ""
+    telefone_limpo = "".join(filter(str.isdigit, str(telefone_empresa)))
+    if not telefone_limpo:
+        telefone_limpo = "5511999999999" # Fallback
+        
+    import urllib.parse
+    mensagem = f"Olá, gostaria de fazer um pedido na Mesa {numero_mesa}"
+    msg_encoded = urllib.parse.quote(mensagem)
+    
+    link_wa = f"https://wa.me/{telefone_limpo}?text={msg_encoded}"
+    return {
+        "numero_mesa": numero_mesa,
+        "link_whatsapp": link_wa
+    }
+
+
+
