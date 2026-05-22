@@ -966,7 +966,8 @@ async def webhook(token: str, request: Request):
         if tel_cozinha:
             tel_cozinha_norm = "".join(filter(str.isdigit, str(tel_cozinha)))
             telefone_norm = "".join(filter(str.isdigit, str(telefone)))
-            if tel_cozinha_norm and (telefone_norm == tel_cozinha_norm or telefone_norm.endswith(tel_cozinha_norm) or tel_cozinha_norm.endswith(telefone_norm)):
+            # Comparacao segura usando os ultimos 9 digitos para evitar falsos positivos
+            if len(tel_cozinha_norm) >= 8 and len(telefone_norm) >= 8 and tel_cozinha_norm[-9:] == telefone_norm[-9:]:
                 logger.info(f"🍳 [COZINHA] Processando comando síncrono para {telefone}...")
                 from app.pipeline_cozinha import processar_comando_cozinha
                 res_cozinha = processar_comando_cozinha(empresa, mensagem)
