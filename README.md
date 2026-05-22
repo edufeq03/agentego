@@ -4,7 +4,7 @@ Plataforma multi-tenant para automação de atendimento via WhatsApp utilizando 
 
 ## Estrutura do Projeto
 
-- `bot-service/`: Backend FastAPI (Processamento, IA, Banco de Dados).
+- `backend/`: Backend FastAPI (Processamento, IA, Banco de Dados).
 - `dashboard/`: Frontend Next.js (Métricas, Configurações, Admin).
 - `docker-compose.yml`: Orquestração dos serviços (Bot, DB, Dashboard).
 
@@ -43,7 +43,7 @@ O cliente pode acessar seu próprio dashboard (`http://localhost:3000/{slug}`) p
 - Definir a lista de aulas VIP e professores.
 
 ## Backup
-O sistema possui um script de backup automático do banco de dados em `bot-service/backup.sh`.
+O sistema possui um script de backup automático do banco de dados em `backend/backup.sh`.
 Recomenda-se configurar um cronjob para execução diária.
 
 ## Suporte

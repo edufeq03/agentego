@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   bot:
-    build: ./bot-service
+    build: ./backend
     container_name: agentego-bot
     restart: always
     env_file: .env
@@ -28,7 +28,7 @@ services:
       - db
       - redis
     volumes:
-      - ./bot-service:/app
+      - ./backend:/app
 
   dashboard:
     build: ./dashboard

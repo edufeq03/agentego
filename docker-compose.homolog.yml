@@ -15,7 +15,7 @@ services:
       - postgres_data_homolog:/var/lib/postgresql/data
 
   bot-homolog:
-    build: ./bot-service
+    build: ./backend
     container_name: agentego-bot-homolog
     restart: always
     env_file: .env.homolog
@@ -28,7 +28,7 @@ services:
       - db-homolog
       - redis-homolog
     volumes:
-      - ./bot-service:/app
+      - ./backend:/app
 
   dashboard-homolog:
     build: ./dashboard
