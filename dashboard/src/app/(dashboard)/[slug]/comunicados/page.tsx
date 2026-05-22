@@ -34,7 +34,18 @@ export default function ComunicadosPage() {
 
   const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
+  const [nicho, setNicho] = useState("academia");
+
   useEffect(() => {
+    async function fetchNicho() {
+      try {
+        const res = await api.get('dashboard/visao-geral');
+        setNicho(res.data.nicho || "academia");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    fetchNicho();
     fetchHistorico();
     fetchStats();
   }, []);
@@ -89,11 +100,14 @@ export default function ComunicadosPage() {
     }
   }
 
+  const recipientLabel = nicho === 'corretora' ? 'Leads' : nicho === 'lanchonete' ? 'Clientes' : 'Alunos';
+  const lowercaseLabel = nicho === 'corretora' ? 'leads' : nicho === 'lanchonete' ? 'clientes' : 'alunos';
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!mensagem.trim()) return;
 
-    if (!confirm("Isso enviará uma mensagem para TODOS os alunos ativos. Continuar?")) return;
+    if (!confirm(`Isso enviará uma mensagem para TODOS os ${lowercaseLabel} cadastrados. Continuar?`)) return;
 
     setLoading(true);
     setStatus('idle');
@@ -132,7 +146,7 @@ export default function ComunicadosPage() {
       <div>
         <h2 className="text-3xl font-bold text-white tracking-tight">Comunicados em Massa</h2>
         <p className="text-[var(--color-foreground-muted)] mt-1">
-          Envie novidades, promoções ou avisos gerais para todos os seus alunos via WhatsApp.
+          Envie novidades, promoções ou avisos gerais para todos os seus {lowercaseLabel} via WhatsApp.
         </p>
       </div>
 
@@ -149,7 +163,13 @@ export default function ComunicadosPage() {
                     rows={10}
                     value={mensagem}
                     onChange={(e) => setMensagem(e.target.value)}
-                    placeholder="Ex: Olá pessoal! Amanhã teremos um horário especial devido ao feriado..."
+                    placeholder={
+                      nicho === 'lanchonete' 
+                        ? "Ex: Olá! Hoje teremos cupom de frete grátis para comemorar o Dia do Hambúrguer! Use o cupom..."
+                        : nicho === 'corretora'
+                        ? "Ex: Olá! O vencimento da sua apólice está se aproximando. Entre em contato para renovar com desconto..."
+                        : "Ex: Olá pessoal! Amanhã teremos um horário especial devido ao feriado..."
+                    }
                     className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all resize-none"
                   />
                 </div>
@@ -222,7 +242,7 @@ export default function ComunicadosPage() {
                 <div className="flex items-center gap-4 text-[var(--color-foreground-muted)]">
                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)]">
                       <Users size={14} className="text-[var(--color-brand-400)]" />
-                      <span className="text-xs font-medium text-white">{totalMembros !== null ? totalMembros : '...'} Alunos Ativos</span>
+                      <span className="text-xs font-medium text-white">{totalMembros !== null ? totalMembros : '...'} {recipientLabel} Cadastrados</span>
                    </div>
                    <p className="text-xs hidden md:block">
                     Intervalo dinâmico ativado para maior segurança.
@@ -277,7 +297,7 @@ export default function ComunicadosPage() {
                     <p className="text-sm text-white line-clamp-2">{com.mensagem}</p>
                   </td>
                   <td className="p-4">
-                    <span className="text-xs text-white">{com.total_membros} alunos</span>
+                    <span className="text-xs text-white">{com.total_membros} {lowercaseLabel}</span>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
