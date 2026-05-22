@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap, Utensils, ClipboardList } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,6 +32,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ...(nicho === 'corretora' ? [
       { name: "Gestão de Leads", href: `/${slug}/alunos`, icon: Users },
       { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
+    ] : []),
+
+    // Nicho Lanchonete
+    ...(nicho === 'lanchonete' ? [
+      { name: "Cardápio", href: `/${slug}/cardapio`, icon: Utensils },
+      { name: "Painel de Pedidos", href: `/${slug}/pedidos`, icon: ClipboardList },
     ] : []),
 
     // Nicho Contabilidade
