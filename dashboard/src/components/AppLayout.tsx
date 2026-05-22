@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap, Utensils, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap, Utensils, ClipboardList, TrendingUp } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -47,11 +47,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Base Legal", href: `/${slug}/documentos`, icon: FileText },
     ] : []),
 
-    { name: "Funil de Vendas", href: `/${slug}/funil`, icon: Filter },
+    { name: "Métricas & Insights", href: `/${slug}/funil`, icon: TrendingUp },
     { name: "Marketing", href: `/${slug}/marketing`, icon: Share2 },
     { name: "Triagem da IA", href: `/${slug}/triagem`, icon: Sliders },
     { name: "Disparos da IA", href: `/${slug}/disparos`, icon: Zap },
-    { name: "Insights", href: `/${slug}/insights`, icon: Lightbulb },
     { name: "Conversas", href: `/${slug}/conversas`, icon: MessageCircle },
     { name: "Configurações", href: `/${slug}/configuracoes`, icon: Settings },
     { name: "Voz e Fala", href: `/${slug}/configuracoes-fala`, icon: Mic },
