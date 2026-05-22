@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck, Tag, DollarSign, Calendar, Info, ShieldAlert, X } from "lucide-react";
+import { Save, CheckCircle2, Plus, Trash2, Users, CreditCard, MapPin, Sparkles, Clock, CalendarCheck, Tag, DollarSign, Calendar, Info, ShieldAlert, X, ChefHat, Utensils } from "lucide-react";
 
 interface Conhecimento {
   categoria: string;
@@ -35,6 +35,8 @@ interface ConfigData {
   telefones_ignorados?: string[];
   professores?: Professor[];
   aulas?: Aula[];
+  whatsapp_cozinha?: string;
+  taxa_entrega?: number;
   // Campos legados mantidos para compatibilidade
   planos?: { basico: number; vip: number };
   aviso_vencimento_1?: number;
@@ -58,7 +60,9 @@ export default function Configuracoes() {
     aviso_vencimento_2: 3,
     aviso_vencimento_3: 0,
     professores: [],
-    aulas: []
+    aulas: [],
+    whatsapp_cozinha: "",
+    taxa_entrega: 5.00
   });
   
   const [newIgnoredPhone, setNewIgnoredPhone] = useState("");
@@ -102,7 +106,9 @@ export default function Configuracoes() {
             aviso_vencimento_2: configData.aviso_vencimento_2 ?? 3,
             aviso_vencimento_3: configData.aviso_vencimento_3 ?? 0,
             professores: Array.isArray(configData.professores) ? configData.professores : [],
-            aulas: Array.isArray(configData.aulas) ? configData.aulas : []
+            aulas: Array.isArray(configData.aulas) ? configData.aulas : [],
+            whatsapp_cozinha: configData.whatsapp_cozinha || "",
+            taxa_entrega: configData.taxa_entrega ?? 5.00
           });
         }
         setWebhookToken(webhook_token || "");
@@ -430,6 +436,43 @@ export default function Configuracoes() {
               ))}
             </div>
           </section>
+
+          {/* Seção Condicional para Nicho Lanchonete: Configurações de Fila de Cozinha e Delivery */}
+          {nicho === "lanchonete" && (
+            <section className="glass-panel p-6 space-y-6">
+              <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+                <ChefHat className="text-orange-400" size={20} />
+                Fila de Cozinha e Delivery
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Telefone WhatsApp da Cozinha</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 5511977777777"
+                    value={config.whatsapp_cozinha || ""}
+                    onChange={e => setConfig({...config, whatsapp_cozinha: e.target.value.replace(/\D/g, "")})}
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <p className="text-[10px] text-[var(--color-foreground-muted)]">Número completo com DDI (55) e DDD, apenas números. A cozinha receberá alertas e responderá comandos por esse número.</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Taxa de Delivery Padrão (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="Ex: 5.00"
+                    value={config.taxa_entrega !== undefined ? config.taxa_entrega : 5.00}
+                    onChange={e => setConfig({...config, taxa_entrega: Number(e.target.value)})}
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                  />
+                  <p className="text-[10px] text-[var(--color-foreground-muted)]">Valor da taxa fixa cobrada dos clientes que fizerem pedidos no modo Delivery.</p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Seção Condicional para Nicho Academia: Professores e Grade de Aulas */}
           {nicho === "academia" && (
