@@ -71,26 +71,91 @@ def obter_empresa(authorization: str = Header(None), db: Session = Depends(get_d
 def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
     limite_data = datetime.utcnow() - timedelta(days=periodos_dias)
     
-    # Total de conversas ativas (leads)
+    # Nicho Lanchonete: Metricas 100% customizadas e focadas em vendas/operacao
+    if empresa.nicho == "lanchonete":
+        from app.database import Pedido, ItemPedido, Transbordo
+        
+        # Total de pedidos (nao cancelados)
+        total_pedidos = db.query(Pedido).filter(Pedido.empresa_id == empresa.id, Pedido.status != "cancelado").count()
+        # Pedidos em preparo/fila
+        pedidos_fila = db.query(Pedido).filter(Pedido.empresa_id == empresa.id, Pedido.status.in_(["aguardando", "em_preparo", "pronto"])).count()
+        # Faturamento total
+        faturamento_total = db.query(func.sum(Pedido.total)).filter(Pedido.empresa_id == empresa.id, Pedido.status != "cancelado").scalar() or 0.0
+        # Ticket medio
+        ticket_medio = faturamento_total / total_pedidos if total_pedidos > 0 else 0.0
+        # Mesas ativas (com pedidos em andamento)
+        mesas_ativas = db.query(func.count(func.distinct(Pedido.numero_mesa))).filter(
+            Pedido.empresa_id == empresa.id,
+            Pedido.modo == "mesa",
+            Pedido.status.in_(["aguardando", "em_preparo"])
+        ).scalar() or 0
+        
+        # Transbordos pausados (aguardando humano)
+        total_pausados = db.query(Transbordo).filter(Transbordo.empresa_id == empresa.id, Transbordo.status == "pausado").count()
+        
+        # Faturamento por dia (Ultimos 7 dias)
+        faturamento_query = db.query(
+            func.date(Pedido.criado_em).label('dia'),
+            func.sum(Pedido.total).label('valor')
+        ).filter(
+            Pedido.empresa_id == empresa.id,
+            Pedido.status != "cancelado",
+            Pedido.criado_em >= limite_data
+        ).group_by(func.date(Pedido.criado_em)).all()
+        
+        # Gerar os ultimos 7 dias deterministicos
+        dias_dict = {(datetime.utcnow().date() - timedelta(days=i)): 0.0 for i in range(periodos_dias - 1, -1, -1)}
+        for row in faturamento_query:
+            if row.dia in dias_dict:
+                dias_dict[row.dia] = row.valor
+                
+        grafico_conversas = [{"dia": str(dia), "mensagens": valor} for dia, valor in sorted(dias_dict.items())]
+        
+        # Distribuicao de Modos de Pedido (Delivery vs Mesa vs Balcao)
+        modos_query = db.query(
+            Pedido.modo,
+            func.count(Pedido.id)
+        ).filter(
+            Pedido.empresa_id == empresa.id,
+            Pedido.status != "cancelado"
+        ).group_by(Pedido.modo).all()
+        
+        total_modos = sum(count for _, count in modos_query)
+        dist_modos = {"delivery": 0, "mesa": 0, "balcao": 0}
+        for modo, count in modos_query:
+            if modo in dist_modos:
+                dist_modos[modo] = round((count / total_modos * 100), 1) if total_modos > 0 else 0
+                
+        return {
+            "nicho": "lanchonete",
+            "cards": {
+                "total_pedidos": total_pedidos,
+                "pedidos_fila": pedidos_fila,
+                "faturamento_total": round(faturamento_total, 2),
+                "ticket_medio": round(ticket_medio, 2),
+                "mesas_ativas": mesas_ativas,
+                "pausados": total_pausados,
+                "dist_delivery": dist_modos["delivery"],
+                "dist_mesa": dist_modos["mesa"],
+                "dist_balcao": dist_modos["balcao"]
+            },
+            "grafico_conversas": grafico_conversas
+        }
+        
+    # Nichos Generico / Academia / Outros: Fluxo padrao de leads
     total_leads = db.query(Lead).filter(Lead.empresa_id == empresa.id).count()
-    
-    # Leads criados no período
     leads_recentes = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.criado_em >= limite_data).count()
-    
-    # Leads interessados
     leads_interessados = db.query(Lead).filter(
         Lead.empresa_id == empresa.id, 
         Lead.stage.in_(["interessado", "quente", "agendado"])
     ).count()
     
-    # Visitas (eventos relacionados a visita)
     visitas = db.query(Evento).filter(
         Evento.empresa_id == empresa.id,
         Evento.tipo.in_(["visita_aceita", "perguntou_visita"]),
         Evento.timestamp >= limite_data
     ).count()
     
-    # Mensagens por dia (Gráfico)
     mensagens_query = db.query(
         func.date(Mensagem.timestamp).label('dia'),
         func.count(Mensagem.id).label('quantidade')
@@ -100,9 +165,13 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
         Mensagem.timestamp >= limite_data
     ).group_by(func.date(Mensagem.timestamp)).all()
     
-    grafico_conversas = [{"dia": str(row.dia), "mensagens": row.quantidade} for row in mensagens_query]
+    dias_dict = {(datetime.utcnow().date() - timedelta(days=i)): 0 for i in range(periodos_dias - 1, -1, -1)}
+    for row in mensagens_query:
+        if row.dia in dias_dict:
+            dias_dict[row.dia] = row.quantidade
+            
+    grafico_conversas = [{"dia": str(dia), "mensagens": qtd} for dia, qtd in sorted(dias_dict.items())]
     
-    # Cálculo Horário Comercial (Seg a Sex, 08h-18h)
     mensagens_recentes = db.query(Mensagem.timestamp).filter(
         Mensagem.empresa_id == empresa.id,
         Mensagem.tipo == "usuario",
@@ -114,12 +183,9 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
     tz = pytz.timezone('America/Sao_Paulo')
     
     for (ts,) in mensagens_recentes:
-        # Converter para o fuso local
         if ts.tzinfo is None:
             ts = pytz.utc.localize(ts)
         local_ts = ts.astimezone(tz)
-        
-        # 0 = Seg, 4 = Sex
         if local_ts.weekday() <= 4 and 8 <= local_ts.hour < 18:
             comercial += 1
         else:
@@ -129,7 +195,6 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
     pct_comercial = (comercial / total_msgs * 100) if total_msgs > 0 else 0
     pct_fora = (fora_comercial / total_msgs * 100) if total_msgs > 0 else 0
     
-    # Transbordos pausados (aguardando humano)
     from app.database import Transbordo
     total_pausados = db.query(Transbordo).filter(Transbordo.empresa_id == empresa.id, Transbordo.status == "pausado").count()
     
