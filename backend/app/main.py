@@ -680,6 +680,29 @@ async def webhook(token: str, request: Request):
             if "@s.whatsapp.net" in remote_jid:
                 telefone = remote_jid.split("@")[0]
             
+            # Sincronização automática do nome de perfil (pushName) do WhatsApp
+            push_name = data.get("pushName") or data.get("senderName")
+            if "data" in data and isinstance(data["data"], dict):
+                push_name = push_name or data["data"].get("pushName") or data["data"].get("senderName")
+            
+            if push_name and isinstance(push_name, str):
+                push_name = push_name.strip()
+                
+            if telefone and push_name:
+                try:
+                    from app.database import Lead
+                    lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
+                    if not lead:
+                        lead = Lead(empresa_id=empresa.id, telefone=telefone, nome=push_name, stage="novo")
+                        db.add(lead)
+                        db.commit()
+                    elif not lead.nome or lead.nome == lead.telefone:
+                        lead.nome = push_name
+                        db.commit()
+                    logger.info(f"👤 [CONTACT SYNC] Nome do WhatsApp sincronizado para {telefone}: {push_name}")
+                except Exception as e:
+                    logger.error(f"Erro ao salvar nome de perfil do WhatsApp para {telefone}: {e}")
+            
             # 2. Evitar Auto-Resposta (Loop)
             if event_data.get("key", {}).get("fromMe") == True:
                 # Verificação de comando de reativação via chat
