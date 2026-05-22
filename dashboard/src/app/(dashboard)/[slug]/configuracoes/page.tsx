@@ -26,7 +26,17 @@ interface ConfigData {
   nome_agente: string;
   nome_empresa: string;
   endereco: string;
-  horarios: { semana: string; sabado: string; domingo?: string; feriado?: string };
+  horarios: { 
+    semana: string; 
+    sabado: string; 
+    domingo?: string; 
+    feriado?: string;
+    segunda?: string;
+    terca?: string;
+    quarta?: string;
+    quinta?: string;
+    sexta?: string;
+  };
   faq: { pergunta: string; resposta: string }[];
   conhecimento: Conhecimento[];
   planos_detalhados: { nome: string; valor: number; periodicidade: string; descricao: string }[];
@@ -49,7 +59,17 @@ export default function Configuracoes() {
     nome_agente: "",
     nome_empresa: "",
     endereco: "",
-    horarios: { semana: "", sabado: "", domingo: "", feriado: "" },
+    horarios: { 
+      semana: "", 
+      segunda: "", 
+      terca: "", 
+      quarta: "", 
+      quinta: "", 
+      sexta: "", 
+      sabado: "", 
+      domingo: "", 
+      feriado: "" 
+    },
     faq: [],
     conhecimento: [],
     planos_detalhados: [],
@@ -92,6 +112,11 @@ export default function Configuracoes() {
             endereco: configData.endereco || "",
             horarios: {
               semana: configData.horarios?.semana || "",
+              segunda: configData.horarios?.segunda || configData.horarios?.semana || "",
+              terca: configData.horarios?.terca || configData.horarios?.semana || "",
+              quarta: configData.horarios?.quarta || configData.horarios?.semana || "",
+              quinta: configData.horarios?.quinta || configData.horarios?.semana || "",
+              sexta: configData.horarios?.sexta || configData.horarios?.semana || "",
               sabado: configData.horarios?.sabado || "",
               domingo: configData.horarios?.domingo || "",
               feriado: configData.horarios?.feriado || ""
@@ -251,8 +276,8 @@ export default function Configuracoes() {
     return { start, end };
   };
 
-  const updateTime = (day: 'semana' | 'sabado' | 'domingo' | 'feriado', type: 'start' | 'end', val: string) => {
-    const current = parseTime(config.horarios[day] || "");
+  const updateTime = (day: string, type: 'start' | 'end', val: string) => {
+    const current = parseTime((config.horarios as any)[day] || "");
     const updated = { ...current, [type]: val };
     const newStr = (updated.start || updated.end) ? `${updated.start || ""} as ${updated.end || ""}` : "";
     setConfig(prev => ({ ...prev, horarios: { ...prev.horarios, [day]: newStr } }));
@@ -624,7 +649,8 @@ export default function Configuracoes() {
         {/* Sidebar: Configurações Rápidas */}
         <div className="space-y-8">
           {/* 4. Planos e Mensalidades (Dinamizado) */}
-          <section className="glass-panel p-6 space-y-6">
+          {nicho !== "lanchonete" && (
+            <section className="glass-panel p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
               <div className="flex items-center gap-2 text-white font-semibold text-lg">
                 <CreditCard className="text-orange-400" size={20} />
@@ -727,6 +753,7 @@ export default function Configuracoes() {
               )}
             </div>
           </section>
+          )}
 
           {/* Horários */}
           <section className="glass-panel p-6 space-y-6">
@@ -735,115 +762,157 @@ export default function Configuracoes() {
               Horário de Funcionamento
             </div>
             <div className="space-y-2">
-              {/* Segunda a Sexta */}
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  <Clock size={12} className="text-green-400" />
-                  Segunda a Sexta
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="08:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.semana || "").start}
-                    onChange={e => updateTime('semana', 'start', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
-                  />
-                  <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
-                  <input 
-                    type="text" 
-                    placeholder="18:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.semana || "").end}
-                    onChange={e => updateTime('semana', 'end', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
-                  />
-                </div>
-              </div>
+              {nicho === "lanchonete" ? (
+                [
+                  { key: "segunda", label: "Segunda-feira", color: "text-green-400" },
+                  { key: "terca", label: "Terça-feira", color: "text-emerald-400" },
+                  { key: "quarta", label: "Quarta-feira", color: "text-teal-400" },
+                  { key: "quinta", label: "Quinta-feira", color: "text-cyan-400" },
+                  { key: "sexta", label: "Sexta-feira", color: "text-blue-400" },
+                  { key: "sabado", label: "Sábado", color: "text-indigo-400" },
+                  { key: "domingo", label: "Domingo", color: "text-purple-400" },
+                  { key: "feriado", label: "Feriados", color: "text-red-400" },
+                ].map((dia) => (
+                  <div key={dia.key} className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <Clock size={12} className={dia.color} />
+                      {dia.label}
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Fechado"
+                        maxLength={5}
+                        value={parseTime((config.horarios as any)[dia.key] || "").start}
+                        onChange={e => updateTime(dia.key, 'start', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                      <input 
+                        type="text" 
+                        placeholder="Fechado"
+                        maxLength={5}
+                        value={parseTime((config.horarios as any)[dia.key] || "").end}
+                        onChange={e => updateTime(dia.key, 'end', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
+                  </div>
+                ))
+              ) : (
+                <>
+                  {/* Segunda a Sexta */}
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <Clock size={12} className="text-green-400" />
+                      Segunda a Sexta
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="08:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.semana || "").start}
+                        onChange={e => updateTime('semana', 'start', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                      <input 
+                        type="text" 
+                        placeholder="18:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.semana || "").end}
+                        onChange={e => updateTime('semana', 'end', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-green-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
 
-              {/* Sábados */}
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  <Clock size={12} className="text-blue-400" />
-                  Sábados
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="08:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.sabado || "").start}
-                    onChange={e => updateTime('sabado', 'start', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
-                  />
-                  <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
-                  <input 
-                    type="text" 
-                    placeholder="12:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.sabado || "").end}
-                    onChange={e => updateTime('sabado', 'end', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
-                  />
-                </div>
-              </div>
+                  {/* Sábados */}
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <Clock size={12} className="text-blue-400" />
+                      Sábados
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="08:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.sabado || "").start}
+                        onChange={e => updateTime('sabado', 'start', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                      <input 
+                        type="text" 
+                        placeholder="12:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.sabado || "").end}
+                        onChange={e => updateTime('sabado', 'end', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-blue-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
 
-              {/* Domingos */}
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  <Clock size={12} className="text-purple-400" />
-                  Domingos
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Fechado"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.domingo || "").start}
-                    onChange={e => updateTime('domingo', 'start', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
-                  />
-                  <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
-                  <input 
-                    type="text" 
-                    placeholder="Fechado"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.domingo || "").end}
-                    onChange={e => updateTime('domingo', 'end', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
-                  />
-                </div>
-                <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
-              </div>
+                  {/* Domingos */}
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <Clock size={12} className="text-purple-400" />
+                      Domingos
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Fechado"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.domingo || "").start}
+                        onChange={e => updateTime('domingo', 'start', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                      <input 
+                        type="text" 
+                        placeholder="Fechado"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.domingo || "").end}
+                        onChange={e => updateTime('domingo', 'end', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-purple-500/50 transition-colors"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
+                  </div>
 
-              {/* Feriados */}
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  <Clock size={12} className="text-red-400" />
-                  Feriados
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="09:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.feriado || "").start}
-                    onChange={e => updateTime('feriado', 'start', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
-                  />
-                  <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
-                  <input 
-                    type="text" 
-                    placeholder="13:00"
-                    maxLength={5}
-                    value={parseTime(config.horarios?.feriado || "").end}
-                    onChange={e => updateTime('feriado', 'end', e.target.value)}
-                    className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
-                  />
-                </div>
-                <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
-              </div>
+                  {/* Feriados */}
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <Clock size={12} className="text-red-400" />
+                      Feriados
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="09:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.feriado || "").start}
+                        onChange={e => updateTime('feriado', 'start', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">as</span>
+                      <input 
+                        type="text" 
+                        placeholder="13:00"
+                        maxLength={5}
+                        value={parseTime(config.horarios?.feriado || "").end}
+                        onChange={e => updateTime('feriado', 'end', e.target.value)}
+                        className="w-full text-center bg-slate-900/50 border border-white/5 rounded-lg py-2 px-2 text-white text-xs focus:outline-none focus:border-red-500/50 transition-colors"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-600 italic mt-2">Deixe em branco se estiver fechado.</p>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-1 pt-4">
                 <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Fuso Horário (Timezone)</label>
@@ -908,7 +977,8 @@ export default function Configuracoes() {
           </section>
 
           {/* Avisos de Vencimento */}
-          <section className="glass-panel p-6 space-y-6">
+          {nicho !== "lanchonete" && (
+            <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <CalendarCheck className="text-blue-400" size={20} />
               Avisos de Vencimento
@@ -958,6 +1028,7 @@ export default function Configuracoes() {
               Dica: Use 0 para avisar no dia exato do vencimento.
             </p>
           </section>
+          )}
           {/* Relatório de Performance */}
           <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
