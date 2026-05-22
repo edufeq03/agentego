@@ -739,19 +739,45 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, i
         empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
         if not empresa: return
 
-        membros = db.query(MembroAcademia).filter(
-            MembroAcademia.empresa_id == empresa_id,
-            MembroAcademia.ativo == True
-        ).all()
+        recipients = []
+        if empresa.nicho == "corretora":
+            from app.database import LeadSeguro, Lead
+            leads = db.query(LeadSeguro).filter(LeadSeguro.empresa_id == empresa_id).all()
+            for l in leads:
+                lead = db.query(Lead).filter(Lead.id == l.id).first()
+                recipients.append({
+                    "telefone": l.telefone,
+                    "nome": lead.nome if lead else (l.telefone or "Lead de Seguros")
+                })
+        elif empresa.nicho == "lanchonete":
+            from app.database import Lead
+            leads = db.query(Lead).filter(Lead.empresa_id == empresa_id).all()
+            for l in leads:
+                recipients.append({
+                    "telefone": l.telefone,
+                    "nome": l.nome or l.telefone or "Cliente"
+                })
+        else:
+            from app.database import MembroAcademia
+            membros = db.query(MembroAcademia).filter(
+                MembroAcademia.empresa_id == empresa_id,
+                MembroAcademia.ativo == True
+            ).all()
+            for m in membros:
+                recipients.append({
+                    "telefone": m.telefone,
+                    "nome": m.nome
+                })
 
         from app.whatsapp import enviar_whatsapp, enviar_imagem_whatsapp
         from app.database import ComunicadoLog, Comunicado
         import asyncio
         import random
 
-        logger.info(f"Iniciando disparo em massa para empresa {empresa.nome} ({len(membros)} membros)")
+        logger.info(f"Iniciando disparo em massa para empresa {empresa.nome} ({len(recipients)} contatos)")
 
-        for membro in membros:
+        for rc in recipients:
+            telefone_rec = rc["telefone"]
             try:
                 final_image_url = imagem_url
                 if imagem_url and imagem_url.startswith("/uploads/"):
@@ -759,13 +785,13 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, i
                     final_image_url = f"{base_url}{imagem_url}"
 
                 if final_image_url:
-                    enviar_imagem_whatsapp(membro.telefone, final_image_url, mensagem, empresa.evolution_instance)
+                    enviar_imagem_whatsapp(telefone_rec, final_image_url, mensagem, empresa.evolution_instance)
                 else:
-                    enviar_whatsapp(membro.telefone, mensagem, empresa.evolution_instance)
+                    enviar_whatsapp(telefone_rec, mensagem, empresa.evolution_instance)
                 
                 # Log de sucesso
                 if comunicado_id:
-                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=membro.telefone, status="sucesso")
+                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=telefone_rec, status="sucesso")
                     db.add(log)
                     db.query(Comunicado).filter(Comunicado.id == comunicado_id).update({
                         "enviados": Comunicado.enviados + 1
@@ -776,9 +802,9 @@ async def disparar_comunicado_background(empresa_id: uuid.UUID, mensagem: str, i
                 delay = 5 + random.uniform(0, 5)
                 await asyncio.sleep(delay) 
             except Exception as e:
-                logger.error(f"Erro ao enviar comunicado para {membro.telefone}: {e}")
+                logger.error(f"Erro ao enviar comunicado para {telefone_rec}: {e}")
                 if comunicado_id:
-                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=membro.telefone, status="erro", erro=str(e))
+                    log = ComunicadoLog(comunicado_id=comunicado_id, telefone=telefone_rec, status="erro", erro=str(e))
                     db.add(log)
                     db.query(Comunicado).filter(Comunicado.id == comunicado_id).update({
                         "erros": Comunicado.erros + 1
@@ -804,12 +830,20 @@ async def criar_comunicado(
     empresa: Empresa = Depends(obter_empresa),
     db: Session = Depends(get_db)
 ):
-    from app.database import Comunicado, MembroAcademia
+    from app.database import Comunicado
     if not req.mensagem.strip():
         raise HTTPException(status_code=400, detail="Mensagem vazia")
     
-    # Conta membros ativos para o resumo
-    total = db.query(MembroAcademia).filter(MembroAcademia.empresa_id == empresa.id, MembroAcademia.ativo == True).count()
+    # Conta membros ativos para o resumo de acordo com o nicho
+    if empresa.nicho == "corretora":
+        from app.database import LeadSeguro
+        total = db.query(LeadSeguro).filter(LeadSeguro.empresa_id == empresa.id).count()
+    elif empresa.nicho == "lanchonete":
+        from app.database import Lead
+        total = db.query(Lead).filter(Lead.empresa_id == empresa.id).count()
+    else:
+        from app.database import MembroAcademia
+        total = db.query(MembroAcademia).filter(MembroAcademia.empresa_id == empresa.id, MembroAcademia.ativo == True).count()
 
     novo = Comunicado(
         empresa_id=empresa.id,

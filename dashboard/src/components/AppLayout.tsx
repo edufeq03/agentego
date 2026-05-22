@@ -38,6 +38,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ...(nicho === 'lanchonete' ? [
       { name: "Cardápio", href: `/${slug}/cardapio`, icon: Utensils },
       { name: "Painel de Pedidos", href: `/${slug}/pedidos`, icon: ClipboardList },
+      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
     ] : []),
 
     // Nicho Contabilidade
