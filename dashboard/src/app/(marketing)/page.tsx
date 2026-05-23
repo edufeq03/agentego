@@ -367,7 +367,7 @@ export default function AgenteGoLanding() {
 
           <div className="reveal" style={{marginTop:'40px'}}>
             <div className="highlight-box" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '16px'}}>
-              <div style={{display: 'flex', items: 'center', gap: '12px'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#00e5d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width: '24px', height: '24px', flexShrink: 0}}>
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
