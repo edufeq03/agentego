@@ -366,11 +366,23 @@ export default function AgenteGoLanding() {
           </div>
 
           <div className="reveal" style={{marginTop:'40px'}}>
-            <div className="highlight-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#00e5d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <p>Não são respostas genéricas. O conteúdo é <strong>configurado com base no seu produto</strong>, serviço e forma de vender — para parecer natural e humano.</p>
+            <div className="highlight-box" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '16px'}}>
+              <div style={{display: 'flex', items: 'center', gap: '12px'}}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#00e5d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width: '24px', height: '24px', flexShrink: 0}}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p style={{fontSize: '1.05rem', fontWeight: 700, margin: 0}}>Atendimento com Inteligência Avançada e Personalizada</p>
+              </div>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%', marginTop: '8px', fontSize: '0.88rem', color: 'var(--text-muted)'}} className="highlight-features-grid">
+                <div>
+                  <strong style={{color: 'var(--cyan)'}}>🎙️ Vozes HD & Premium Sem Sotaque:</strong>
+                  <p style={{margin: '4px 0 0', lineHeight: 1.5}}>Escolha vozes HD ultra-realistas (OpenAI) ou integre vozes premium (ElevenLabs) focadas no Português do Brasil, eliminando o tom mecânico ou sotaques artificiais.</p>
+                </div>
+                <div>
+                  <strong style={{color: 'var(--cyan)'}}>🎯 Controle de Precisão de IA:</strong>
+                  <p style={{margin: '4px 0 0', lineHeight: 1.5}}>Ajuste a temperatura e criatividade da sua IA. Deixe o agente 100% focado e fiel às tabelas de preço, planos e regras do seu negócio, evitando desvios conversacionais.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -514,9 +526,7 @@ export default function AgenteGoLanding() {
               <div className="pc-tag">Individual</div>
               <h3 className="pc-title">Plano Starter</h3>
               <div className="pc-price">
-                <span className="currency">R$</span>
-                <span className="amount">97</span>
-                <span className="period">/mês</span>
+                <span className="amount" style={{fontSize: '2rem'}}>Sob Consulta</span>
               </div>
               <p className="pc-desc">Ideal para pequenos negócios que estão começando a automatizar.</p>
               
@@ -528,7 +538,7 @@ export default function AgenteGoLanding() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Suporte por e-mail</li>
               </ul>
 
-              <a href="https://wa.me/5519996737713?text=Olá! Quero assinar o Plano Starter e ativar meu Agente." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Começar agora</a>
+              <a href="https://wa.me/5519996737713?text=Olá! Gostaria de consultar os valores e recursos do Plano Starter do AgenteGo para o meu negócio." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Consultar valores</a>
             </div>
 
             {/* Plan 2 - Featured */}
@@ -537,9 +547,7 @@ export default function AgenteGoLanding() {
               <div className="pc-tag" style={{color:'var(--cyan)'}}>Escalabilidade</div>
               <h3 className="pc-title">Plano Pro</h3>
               <div className="pc-price">
-                <span className="currency">R$</span>
-                <span className="amount">197</span>
-                <span className="period">/mês</span>
+                <span className="amount" style={{fontSize: '2rem'}}>Sob Consulta</span>
               </div>
               <p className="pc-desc">Perfeito para quem quer separar vendas de suporte ou escalar volume.</p>
               
@@ -551,7 +559,7 @@ export default function AgenteGoLanding() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Suporte Prioritário</li>
               </ul>
 
-              <a href="https://wa.me/5519996737713?text=Olá! Quero assinar o Plano Pro e escalar meus Agentes." className="btn-primary" style={{width:'100%',justifyContent:'center'}}>Assinar Plano Pro</a>
+              <a href="https://wa.me/5519996737713?text=Olá! Gostaria de consultar os valores e recursos do Plano Pro do AgenteGo para a minha empresa." className="btn-primary" style={{width:'100%',justifyContent:'center'}}>Falar com consultor</a>
             </div>
 
             {/* Plan 3 */}
@@ -559,9 +567,7 @@ export default function AgenteGoLanding() {
               <div className="pc-tag">Corporativo</div>
               <h3 className="pc-title">Plano Business</h3>
               <div className="pc-price">
-                <span className="currency">R$</span>
-                <span className="amount">397</span>
-                <span className="period">/mês</span>
+                <span className="amount" style={{fontSize: '2rem'}}>Personalizado</span>
               </div>
               <p className="pc-desc">Para empresas que precisam de inteligência sob medida e alto volume.</p>
               
@@ -573,13 +579,13 @@ export default function AgenteGoLanding() {
                 <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Gerente de Conta Dedicado</li>
               </ul>
 
-              <a href="https://wa.me/5519996737713?text=Olá! Quero saber mais sobre o Plano Business e Agentes sob medida." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Falar com consultor</a>
+              <a href="https://wa.me/5519996737713?text=Olá! Quero saber mais sobre o Plano Business e solicitar um orçamento sob medida para o AgenteGo." className="btn-secondary" style={{width:'100%',justifyContent:'center'}}>Falar com consultor</a>
             </div>
           </div>
 
           <div className="pricing-bottom reveal" style={{marginTop:'40px', textAlign:'center'}}>
-            <p style={{fontSize:'0.85rem', color:'var(--text-faint)'}}>
-              * Planos Business podem exigir taxa de setup única para treinamento personalizado da IA.
+            <p style={{fontSize:'0.9rem', color:'var(--text-muted)'}}>
+              Planos a partir de <strong>R$ 97/mês</strong>. Fale com nosso time comercial para selecionar a melhor opção e calcular a taxa de implantação sob medida para a sua base de dados!
             </p>
           </div>
         </div>
