@@ -56,13 +56,14 @@ def simular_gravacao_audio(numero, instance_name):
     }
     
     headers = {
-        "apikey": os.getenv("EVOLUTION_API_KEY")
+        "apikey": os.getenv("EVOLUTION_API_KEY"),
+        "Content-Type": "application/json"
     }
     
     try:
-        requests.post(url, json=payload, headers=headers, timeout=2)
+        requests.post(url, json=payload, headers=headers, timeout=5)
     except Exception as e:
-        logger.error(f"Erro ao simular gravacao de audio: {e}")
+        logger.warning(f"Erro ao simular gravacao de audio (não crítico): {e}")
 
 def enviar_audio_whatsapp(numero, caminho_audio, instance_name):
     base_url = whatsapp_service.get_evolution_base_url()
@@ -74,9 +75,7 @@ def enviar_audio_whatsapp(numero, caminho_audio, instance_name):
         
     payload = {
         "number": numero,
-        "audioMessage": {
-            "audio": audio_base64
-        },
+        "audio": audio_base64,
         "options": {
             "delay": 1200,
             "presence": "recording",
