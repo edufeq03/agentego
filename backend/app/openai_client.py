@@ -1,9 +1,10 @@
 from openai import OpenAI
 import os
+import requests
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def perguntar(mensagem_usuario, contexto_sistema, historico=None):
+def perguntar(mensagem_usuario, contexto_sistema, historico=None, temperature=0.2):
     if historico is None:
         historico = []
         
@@ -29,10 +30,19 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None):
         )
         mensagens.append({"role": "system", "content": lembrete_sistema})
     
+    # Usar temperatura configurável (garantir que esteja nos limites permitidos)
+    temp_val = 0.2
+    try:
+        if temperature is not None:
+            temp_val = float(temperature)
+            temp_val = max(0.0, min(1.0, temp_val))
+    except Exception:
+        temp_val = 0.2
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=mensagens,
-        temperature=0.2
+        temperature=temp_val
     )
     texto = response.choices[0].message.content
     t_in = response.usage.prompt_tokens
@@ -47,10 +57,48 @@ def transcrever_audio(caminho_arquivo):
         )
     return transcription.text
 
-def gerar_audio(texto, caminho_salvar, voice="nova"):
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice=voice,
-        input=texto
-    )
-    response.write_to_file(caminho_salvar)
+def gerar_audio(texto, caminho_salvar, provider="openai", voice="nova", api_key=None, voice_id=None):
+    # Se o provedor for ElevenLabs, tenta gerar o áudio
+    if provider == "elevenlabs":
+        api_key_to_use = api_key or os.getenv("ELEVENLABS_API_KEY")
+        voice_id_to_use = voice_id or os.getenv("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"
+        
+        if not api_key_to_use:
+            print("ElevenLabs API Key não configurada. Usando fallback para OpenAI TTS.")
+            provider = "openai"
+        else:
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id_to_use}"
+            headers = {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": api_key_to_use
+            }
+            data = {
+                "text": texto,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.5,
+                    "similarity_boost": 0.75
+                }
+            }
+            try:
+                response = requests.post(url, json=data, headers=headers, timeout=15)
+                if response.status_code == 200:
+                    with open(caminho_salvar, "wb") as f:
+                        f.write(response.content)
+                    return
+                else:
+                    print(f"Erro ElevenLabs (Status {response.status_code}): {response.text}. Usando fallback para OpenAI TTS.")
+                    provider = "openai"
+            except Exception as e:
+                print(f"Exceção ao chamar ElevenLabs: {e}. Usando fallback para OpenAI TTS.")
+                provider = "openai"
+
+    # Fallback ou padrão: OpenAI
+    if provider == "openai" or not provider:
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice=voice or "nova",
+            input=texto
+        )
+        response.write_to_file(caminho_salvar)

@@ -14,7 +14,8 @@ class EspecialistaLanchonete(BaseAgent):
             "(ex: [DEFINIR_MODO: modo=...], [ADICIONAR_ITEM: nome=..., quantidade=..., obs=...], [REMOVER_ITEM: nome=...], [SOLICITAR_CONFIRMACAO] ou [CONFIRMAR_PEDIDO]) no final da sua resposta!]"
         )
         mensagem_com_lembrete = mensagem + lembrete
-        return perguntar(mensagem_com_lembrete, prompt, openai_hist)
+        temperature = contexto.get("config", {}).get("openai_temperature", 0.2)
+        return perguntar(mensagem_com_lembrete, prompt, openai_hist, temperature=temperature)
 
     def _montar_prompt(self, ctx: dict) -> str:
         config = ctx["config"]

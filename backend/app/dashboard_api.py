@@ -342,7 +342,12 @@ def enviar_mensagem_humana(telefone: str, payload: dict, empresa: Empresa = Depe
 def get_config(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
     # Busca a configuração de forma explícita para evitar cache de relacionamento
     config_obj = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
-    config_data = config_obj.config if config_obj else {}
+    config_data = dict(config_obj.config) if config_obj and config_obj.config else {}
+    
+    # Decriptografar a chave do ElevenLabs se existir
+    from app.utils_crypto import decrypt_key
+    if "elevenlabs_api_key" in config_data:
+        config_data["elevenlabs_api_key"] = decrypt_key(config_data["elevenlabs_api_key"])
     
     # Log apenas da ação, sem expor o conteúdo sensível de config_data em INFO
     logger.info(f"Config solicitada: Empresa={empresa.nome} ID={empresa.id} Telefone={empresa.telefone_proprietario}")
@@ -364,6 +369,12 @@ def update_config(payload: dict, empresa: Empresa = Depends(obter_empresa), db: 
     telefone = payload.get("telefone_proprietario")
     
     if config_data:
+        config_data = dict(config_data)
+        # Criptografar a chave do ElevenLabs antes de salvar
+        from app.utils_crypto import encrypt_key
+        if "elevenlabs_api_key" in config_data:
+            config_data["elevenlabs_api_key"] = encrypt_key(config_data["elevenlabs_api_key"])
+            
         if empresa.configuracoes:
             empresa.configuracoes.config = config_data
         else:

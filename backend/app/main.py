@@ -610,12 +610,25 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
         tts_enabled = config.get("tts_enabled", True)
         tts_always = config.get("tts_always", False)
         tts_voice = config.get("tts_voice", "nova")
+        provedor_tts = config.get("provedor_tts", "openai")
+        elevenlabs_voice_id = config.get("elevenlabs_voice_id")
+        
+        # Obter e decriptografar a chave API do ElevenLabs
+        from app.utils_crypto import decrypt_key
+        elevenlabs_api_key = decrypt_key(config.get("elevenlabs_api_key", ""))
 
         if tts_enabled and (cliente_enviou_audio or tts_always):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_out:
                 caminho_audio_resposta = temp_out.name
             try:
-                gerar_audio(resposta, caminho_audio_resposta, voice=tts_voice)
+                gerar_audio(
+                    resposta, 
+                    caminho_audio_resposta, 
+                    provider=provedor_tts, 
+                    voice=tts_voice,
+                    api_key=elevenlabs_api_key,
+                    voice_id=elevenlabs_voice_id
+                )
                 enviar_audio_whatsapp(telefone, caminho_audio_resposta, empresa.evolution_instance)
             except Exception as e:
                 logger.error(f"Erro ao gerar/enviar audio de resposta: {e}")
