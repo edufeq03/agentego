@@ -475,12 +475,12 @@ export default function Configuracoes() {
                   <label className="text-xs font-medium text-[var(--color-foreground-muted)] uppercase tracking-wider">Telefone WhatsApp da Cozinha</label>
                   <input 
                     type="text" 
-                    placeholder="Ex: 5511977777777"
+                    placeholder="Configure na Central de WhatsApp"
                     value={config.whatsapp_cozinha || ""}
-                    onChange={e => setConfig({...config, whatsapp_cozinha: e.target.value.replace(/\D/g, "")})}
-                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 px-4 text-white focus:outline-none focus:border-[var(--color-brand-500)]"
+                    disabled
+                    className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2.5 px-4 text-white focus:outline-none opacity-60 cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-[var(--color-foreground-muted)]">Número completo com DDI (55) e DDD, apenas números. A cozinha receberá alertas e responderá comandos por esse número.</p>
+                  <p className="text-[10px] text-[var(--color-foreground-muted)]">Configure e gerencie esta linha diretamente na <a href="whatsapp" className="text-blue-400 font-bold hover:underline">Central de WhatsApp</a>.</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -928,52 +928,15 @@ export default function Configuracoes() {
                 </select>
               </div>
             </div>
-          </section>          {/* Telefones Ignorados (Blacklist) */}
-          <section className="glass-panel p-6 space-y-6">
+          </section>          {/* Redirecionamento de Telefones */}
+          <section className="glass-panel p-6 space-y-4">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
-              <ShieldAlert className="text-red-400" size={20} />
-              Telefones Ignorados (Blacklist)
+              <ShieldAlert className="text-blue-400" size={20} />
+              Telefones e Alertas
             </div>
-            <div className="space-y-4">
-              <p className="text-xs text-slate-500 italic">
-                O robô ignorará qualquer mensagem vinda destes números. Útil para spam, testes ou números internos.
-              </p>
-              <div className="space-y-2">
-                <input 
-                  type="text" 
-                  placeholder="Ex: 5511999999999"
-                  value={newIgnoredPhone}
-                  onChange={e => setNewIgnoredPhone(e.target.value)}
-                  onKeyPress={e => e.key === 'Enter' && addIgnoredPhone()}
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 px-4 text-white focus:outline-none focus:border-red-500/50"
-                />
-                <div className="flex justify-end">
-                  <button 
-                    onClick={addIgnoredPhone}
-                    className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-6 py-2 rounded-lg text-sm font-medium transition-all"
-                  >
-                    Adicionar Número
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {(config.telefones_ignorados || []).map(phone => (
-                  <div key={phone} className="flex items-center gap-2 bg-slate-900 border border-white/5 rounded-full px-3 py-1 text-xs text-slate-300">
-                    <span>{phone}</span>
-                    <button 
-                      onClick={() => removeIgnoredPhone(phone)}
-                      className="text-slate-500 hover:text-red-400 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-                {(config.telefones_ignorados || []).length === 0 && (
-                  <span className="text-[10px] text-slate-600">Nenhum número na lista negra.</span>
-                )}
-              </div>
-            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              As configurações de <strong>Telefones Ignorados (Blacklist)</strong>, <strong>WhatsApp do Proprietário (Alertas)</strong> e <strong>WhatsApp da Cozinha</strong> foram unificadas em nossa nova <a href="whatsapp" className="text-blue-400 font-bold hover:underline">Central de WhatsApp</a> para simplificar sua gestão.
+            </p>
           </section>
 
           {/* Avisos de Vencimento */}
@@ -1046,11 +1009,12 @@ export default function Configuracoes() {
                 <input 
                   type="text" 
                   value={telefoneProprietario}
-                  onChange={e => setTelefoneProprietario(e.target.value)}
-                  placeholder="Ex: 5511999999999"
-                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-[var(--color-brand-500)]"
+                  disabled
+                  placeholder="Configure na Central de WhatsApp"
+                  className="w-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] rounded-lg py-2 pl-10 pr-4 text-white text-sm focus:outline-none opacity-60 cursor-not-allowed"
                 />
               </div>
+              <p className="text-[10px] text-slate-500 italic mt-1">Este telefone pode ser configurado e alterado diretamente na <a href="whatsapp" className="text-blue-400 font-bold hover:underline">Central de WhatsApp</a>.</p>
             </div>
 
             <button 

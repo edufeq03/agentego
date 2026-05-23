@@ -586,11 +586,52 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
             background_tasks.add_task(sync_task_background, empresa.id)
             logger.info(f"[{instance_name}] Sincronização disparada via background task.")
         
+    # Busca configurações adicionais de telefone
+    configuracao = empresa.configuracoes
+    telefones_ignorados = []
+    whatsapp_cozinha = ""
+    if configuracao and configuracao.config:
+        telefones_ignorados = configuracao.config.get("telefones_ignorados", [])
+        whatsapp_cozinha = configuracao.config.get("whatsapp_cozinha", "")
+
     return {
         "status": status,
         "qrcode": qrcode,
-        "instance": instance_name
+        "instance": instance_name,
+        "telefone_proprietario": empresa.telefone_proprietario or "",
+        "telefones_ignorados": telefones_ignorados,
+        "whatsapp_cozinha": whatsapp_cozinha,
+        "nicho": empresa.nicho or "generico"
     }
+
+class SaveWhatsappConfigRequest(BaseModel):
+    telefone_proprietario: Optional[str] = None
+    telefones_ignorados: Optional[List[str]] = None
+    whatsapp_cozinha: Optional[str] = None
+
+@router.post("/whatsapp/config")
+def save_whatsapp_config(req: SaveWhatsappConfigRequest, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    if req.telefone_proprietario is not None:
+        empresa.telefone_proprietario = req.telefone_proprietario.strip()
+    
+    configuracao = empresa.configuracoes
+    if not configuracao:
+        configuracao = Configuracao(empresa_id=empresa.id, config={})
+        db.add(configuracao)
+        db.commit()
+        db.refresh(configuracao)
+        
+    config_dict = dict(configuracao.config) if configuracao.config else {}
+    
+    if req.telefones_ignorados is not None:
+        config_dict["telefones_ignorados"] = req.telefones_ignorados
+        
+    if req.whatsapp_cozinha is not None:
+        config_dict["whatsapp_cozinha"] = req.whatsapp_cozinha.strip()
+        
+    configuracao.config = config_dict
+    db.commit()
+    return {"status": "ok", "mensagem": "Configurações de telefones salvas com sucesso!"}
 
 @router.post("/whatsapp/connect")
 def connect_whatsapp(empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
