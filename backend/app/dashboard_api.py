@@ -6,8 +6,8 @@ import pytz
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
-from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario, MembroAcademia
-from app.auth import verify_password, create_access_token, decode_access_token
+from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario, MembroAcademia, CodigoRecuperacao
+from app.auth import verify_password, create_access_token, decode_access_token, get_password_hash
 import logging
 import os
 import csv
@@ -48,6 +48,121 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
         "slug": usuario.empresa.slug,
         "nicho": usuario.empresa.nicho or "generico"
     }
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    import random
+    from app.whatsapp import enviar_whatsapp
+    
+    email_clean = req.email.strip().lower()
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email_clean).first()
+    if not usuario:
+        # Por segurança, retornamos 200 mesmo se o usuário não for encontrado para evitar enumeração de e-mails
+        return {"status": "ok", "mensagem": "Código de recuperação enviado caso o e-mail esteja cadastrado."}
+        
+    # Gera código aleatório de 6 dígitos
+    code = f"{random.randint(100000, 999999)}"
+    expira_em = datetime.utcnow() + timedelta(minutes=15)
+    
+    # Invalida códigos antigos
+    db.query(CodigoRecuperacao).filter(CodigoRecuperacao.usuario_id == usuario.id).delete()
+    
+    # Salva o novo código
+    novo_codigo = CodigoRecuperacao(
+        usuario_id=usuario.id,
+        codigo=code,
+        expira_em=expira_em
+    )
+    db.add(novo_codigo)
+    db.commit()
+    
+    # Determina para qual número enviar o WhatsApp
+    # Prioriza o telefone pessoal do proprietário, caso contrário envia para o whatsapp principal da empresa
+    empresa = usuario.empresa
+    destinatario = empresa.telefone_proprietario or empresa.telefone_whatsapp
+    instance_name = empresa.evolution_instance or "agente-default"
+    
+    mensagem = (
+        f"🔒 *Código de Recuperação - AgenteGo*\n\n"
+        f"Olá! Você solicitou a redefinição de senha para o e-mail: *{usuario.email}*.\n\n"
+        f"Seu código de verificação temporário é:\n"
+        f"👉 *{code[0:3]} {code[3:6]}*\n\n"
+        f"Este código expira em 15 minutos. Se você não solicitou esta redefinição, apenas desconsidere esta mensagem."
+    )
+    
+    try:
+        enviar_whatsapp(destinatario, mensagem, instance_name)
+    except Exception as e:
+        logger.error(f"Erro ao enviar código de recuperação via WhatsApp: {e}")
+        # Mesmo se falhar o envio (ex: instância offline), não lançamos erro interno para o cliente
+        
+    return {"status": "ok", "mensagem": "Código de recuperação enviado com sucesso."}
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+
+@router.post("/verify-reset-code")
+@limiter.limit("10/minute")
+def verify_reset_code(request: Request, req: VerifyCodeRequest, db: Session = Depends(get_db)):
+    email_clean = req.email.strip().lower()
+    code_clean = req.code.strip().replace(" ", "")
+    
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email_clean).first()
+    if not usuario:
+        raise HTTPException(status_code=400, detail="E-mail inválido ou código incorreto.")
+        
+    rec = db.query(CodigoRecuperacao).filter(
+        CodigoRecuperacao.usuario_id == usuario.id,
+        CodigoRecuperacao.codigo == code_clean
+    ).first()
+    
+    if not rec:
+        raise HTTPException(status_code=400, detail="Código incorreto.")
+        
+    if datetime.utcnow() > rec.expira_em:
+        raise HTTPException(status_code=400, detail="Código expirado. Solicite um novo.")
+        
+    return {"status": "ok", "mensagem": "Código válido."}
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    email_clean = req.email.strip().lower()
+    code_clean = req.code.strip().replace(" ", "")
+    
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email_clean).first()
+    if not usuario:
+        raise HTTPException(status_code=400, detail="Operação inválida.")
+        
+    rec = db.query(CodigoRecuperacao).filter(
+        CodigoRecuperacao.usuario_id == usuario.id,
+        CodigoRecuperacao.codigo == code_clean
+    ).first()
+    
+    if not rec:
+        raise HTTPException(status_code=400, detail="Código inválido.")
+        
+    if datetime.utcnow() > rec.expira_em:
+        raise HTTPException(status_code=400, detail="Código expirado. Solicite um novo.")
+        
+    # Atualiza a senha
+    usuario.senha_hash = get_password_hash(req.new_password)
+    
+    # Invalida/deleta todos os códigos de recuperação do usuário
+    db.query(CodigoRecuperacao).filter(CodigoRecuperacao.usuario_id == usuario.id).delete()
+    
+    db.commit()
+    return {"status": "ok", "mensagem": "Senha redefinida com sucesso."}
 
 def obter_empresa(authorization: str = Header(None), db: Session = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):

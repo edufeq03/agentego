@@ -89,6 +89,16 @@ class Usuario(Base):
     
     empresa = relationship("Empresa", back_populates="usuarios")
 
+class CodigoRecuperacao(Base):
+    __tablename__ = "codigos_recuperacao"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    codigo = Column(String, nullable=False)
+    expira_em = Column(DateTime, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    
+    usuario = relationship("Usuario")
+
 class Configuracao(Base):
     __tablename__ = "configuracoes"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
