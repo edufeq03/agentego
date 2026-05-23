@@ -74,13 +74,19 @@ def enviar_audio_whatsapp(numero, caminho_audio, instance_name):
         
     payload = {
         "number": numero,
-        "audio": audio_base64,
-        "delay": 1200,
-        "encoding": True
+        "audioMessage": {
+            "audio": audio_base64
+        },
+        "options": {
+            "delay": 1200,
+            "presence": "recording",
+            "encoding": True
+        }
     }
 
     headers = {
-        "apikey": os.getenv("EVOLUTION_API_KEY")
+        "apikey": os.getenv("EVOLUTION_API_KEY"),
+        "Content-Type": "application/json"
     }
 
     response = requests.post(url, json=payload, headers=headers)

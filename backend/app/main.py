@@ -607,7 +607,7 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 
         # Enviar Resposta via Evolution API
         config = empresa.configuracoes.config if empresa.configuracoes else {}
-        tts_enabled = config.get("tts_enabled", False)
+        tts_enabled = config.get("tts_enabled", True)
         tts_always = config.get("tts_always", False)
         tts_voice = config.get("tts_voice", "nova")
 
@@ -725,7 +725,7 @@ async def webhook(token: str, request: Request):
             # 4. Tratar Áudio
             if message_type == "audioMessage" or "audioMessage" in msg_obj:
                 config = empresa.configuracoes.config if empresa.configuracoes else {}
-                if not config.get("stt_enabled", False):
+                if not config.get("stt_enabled", True):
                     logger.warning(f"[{telefone}] Áudio recebido, mas STT está DESATIVADO nas configurações.")
                     return {"status": "ignorado", "motivo": "stt_desativado"}
 
