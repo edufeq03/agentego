@@ -18,8 +18,9 @@ class EspecialistaGenerico(BaseAgent):
             "Gere a tag para o dado que ele acabou de fornecer!]"
         )
         mensagem_com_lembrete = mensagem + lembrete
+        temperature = contexto.get("config", {}).get("openai_temperature", 0.2)
         
-        return perguntar(mensagem_com_lembrete, prompt, openai_hist)
+        return perguntar(mensagem_com_lembrete, prompt, openai_hist, temperature=temperature)
 
     def _montar_prompt(self, ctx: dict) -> str:
         config = ctx["config"]

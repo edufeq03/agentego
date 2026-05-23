@@ -759,7 +759,8 @@ def gerar_mensagem_reengajamento_ia(db, empresa, lead, prompt_roteiro, campos_pe
         
     # 5. Chamar a OpenAI para gerar a resposta
     logger.info(f"Gerando mensagem de reengajamento por IA para o lead {lead.telefone}...")
-    texto_resposta, t_in, t_out = perguntar(mensagem_usuario, contexto_sistema, historico=historico_openai)
+    temperature = configuracao.get("openai_temperature", 0.2)
+    texto_resposta, t_in, t_out = perguntar(mensagem_usuario, contexto_sistema, historico=historico_openai, temperature=temperature)
     
     # Limpar qualquer tag residual por segurança
     texto_resposta = limpar_tags(texto_resposta).strip()

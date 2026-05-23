@@ -7,7 +7,8 @@ class EspecialistaContabilidade(BaseAgent):
     def processar(self, mensagem: str, contexto: dict, historico: list) -> tuple[str, int, int]:
         prompt = self._montar_prompt(contexto)
         openai_hist = self.montar_historico_openai(historico)
-        return perguntar(mensagem, prompt, openai_hist)
+        temperature = contexto.get("config", {}).get("openai_temperature", 0.2)
+        return perguntar(mensagem, prompt, openai_hist, temperature=temperature)
 
     def _montar_prompt(self, ctx: dict) -> str:
         config = ctx["config"]
