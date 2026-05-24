@@ -236,7 +236,7 @@ def montar_resumo_agendamento(dados: dict, hora_fim: str) -> str:
     return resumo
 
 def montar_mensagem_confirmacao_cliente(agendamento: Any, config: dict) -> str:
-    nome_agente = config.get("agenda", {}).get("nome_agente", "Rosana")
+    nome_agente = config.get("agenda", {}).get("nome_agente") or config.get("nome_agente") or "Rosana"
     empresa_nome = config.get("nome", "Agente Go")
 
     try:

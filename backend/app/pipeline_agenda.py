@@ -149,9 +149,10 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             "obs": agenda_obs
         }
 
+        config_root = empresa.configuracoes.config if empresa.configuracoes else {}
         contexto_agente = {
-            "config": empresa.configuracoes.config if empresa.configuracoes else {},
-            "nome_agente": config_agenda.get("nome_agente", "Rosana"),
+            "config": config_root,
+            "nome_agente": config_agenda.get("nome_agente") or config_root.get("nome_agente") or "Rosana",
             "nome_empresa": empresa.nome,
             "contexto_tempo": f"Data/Hora Atual: {datetime.now(TZ_SP).strftime('%d/%m/%Y %H:%M')}",
             "intencao": "agendamento",
