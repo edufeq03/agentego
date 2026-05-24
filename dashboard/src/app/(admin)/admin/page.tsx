@@ -350,7 +350,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="glass-panel overflow-hidden">
+            <div className="hidden md:block glass-panel overflow-hidden">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
@@ -476,6 +476,138 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+            {/* Mobile View: Cards List */}
+            <div className="block md:hidden divide-y divide-[var(--color-border)] bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+              {filteredEmpresas.length === 0 ? (
+                <div className="p-12 text-center text-slate-500">
+                  Nenhuma empresa cadastrada ou correspondente aos filtros.
+                </div>
+              ) : (
+                filteredEmpresas.map((emp) => (
+                  <div key={emp.id} className="p-4 space-y-4 hover:bg-white/[0.02] transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-lg text-white block leading-tight">{emp.nome}</span>
+                        <span className="text-blue-400 font-mono text-sm block mt-1">/{emp.slug}</span>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                            emp.plano === 'trial' ? 'bg-yellow-500/20 text-yellow-500' :
+                            emp.plano === 'starter' ? 'bg-blue-500/20 text-blue-500' :
+                            emp.plano === 'pro' ? 'bg-green-500/20 text-green-500' :
+                            'bg-purple-500/20 text-purple-400'
+                          }`}>
+                            {emp.plano}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {emp.conversas_mes_atual} / {emp.limite_conversas_mes} conv.
+                          </span>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="mt-2 h-1 w-32 bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${
+                              (emp.conversas_mes_atual / emp.limite_conversas_mes) > 0.9 ? 'bg-red-500' :
+                              (emp.conversas_mes_atual / emp.limite_conversas_mes) > 0.7 ? 'bg-yellow-500' :
+                              'bg-blue-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (emp.conversas_mes_atual / emp.limite_conversas_mes) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        {emp.ativo ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20">
+                            <CheckCircle2 size={10} /> ATIVO
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20">
+                            <XCircle size={10} /> INATIVO
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 pt-3 border-t border-white/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-semibold text-slate-500">Mensalidade</span>
+                          <span className="font-bold text-white text-sm">R$ {emp.valor_mensalidade.toFixed(2)}</span>
+                          <span className="text-[9px] text-slate-500 font-mono">Custo IA: ${emp.custo_estimado_usd?.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setEditingEmpresa(emp);
+                              setFormData({
+                                nome: emp.nome,
+                                slug: emp.slug || "",
+                                telefone_whatsapp: emp.telefone_whatsapp || "",
+                                telefone_proprietario: emp.telefone_proprietario || "",
+                                valor_mensalidade: emp.valor_mensalidade,
+                                dias_teste: 0,
+                                cupom_vendedor: "",
+                                template_id: emp.template_id || "", 
+                                email_admin: emp.email_admin || "",
+                                senha_admin: "",
+                                plano: emp.plano,
+                                limite_conversas_mes: emp.limite_conversas_mes,
+                                nicho: emp.nicho || "generico"
+                              });
+                              setShowModal(true);
+                            }}
+                            className="p-2.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg hover:bg-purple-500/20"
+                            title="Editar"
+                          >
+                            <Settings size={16} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleImpersonate(emp.id)}
+                            className="p-2.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20"
+                            title="Acessar Dashboard"
+                          >
+                            <ExternalLink size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                        <span className="text-[10px] uppercase font-semibold text-slate-500">Ferramentas</span>
+                        <div className="flex items-center gap-2">
+                          <Link 
+                            href={`/admin/diagnostico/${emp.id}`}
+                            className="p-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20"
+                            title="Diagnóstico"
+                          >
+                            <Activity size={16} />
+                          </Link>
+                          <button 
+                            type="button"
+                            onClick={() => toggleStatus(emp.id)}
+                            className={`p-2 rounded-lg transition-all border ${emp.ativo ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20'}`}
+                            title={emp.ativo ? "Desativar" : "Ativar"}
+                          >
+                            {emp.ativo ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleDeleteEmpresa(emp.id, emp.nome)}
+                            className="p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
         </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
