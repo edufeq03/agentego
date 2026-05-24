@@ -254,6 +254,12 @@ def processar_comando_cozinha(empresa: Empresa, mensagem_texto: str, telefone_au
         texto = mensagem_texto.strip().lower()
         logger.info(f"[AUXILIAR/COZINHA] Mensagem recebida: '{texto}' de {telefone_auxiliar}")
 
+        # Comando de reset para recomeçar o fluxo auxiliar
+        if texto in ["reset", "reiniciar", "recomeçar", "limpar"]:
+            from app.estado_auxiliar import limpar_estado_auxiliar
+            limpar_estado_auxiliar(db, empresa.id)
+            return {"status": "ok", "resposta": "🔄 *Estado do painel auxiliar reiniciado!*"}
+
         # 1. Verificar comandos rápidos de aprovação de agendamento: "[ID] confirmar" ou "[ID] recusar"
         match_quick_agenda = re.match(r'^(\d+)\s+(confirmar|recusar)(?:\s+(.+))?$', texto)
         if match_quick_agenda:

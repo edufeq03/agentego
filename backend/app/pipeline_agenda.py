@@ -89,6 +89,28 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         agenda_hora = dados_custom.get("agenda_hora", None)
         agenda_obs = dados_custom.get("agenda_obs", "")
 
+        # Comando de reset para recomeçar o fluxo de agendamento do zero
+        if mensagem_texto.strip().lower() in ["reset", "reiniciar", "recomeçar", "limpar"]:
+            dados_custom["agenda_estado"] = "inicio"
+            dados_custom["agenda_servico_id"] = None
+            dados_custom["agenda_servico_nome"] = None
+            dados_custom["agenda_data"] = None
+            dados_custom["agenda_hora"] = None
+            dados_custom["agenda_obs"] = ""
+            lead.dados_customizados = dados_custom
+            flag_modified(lead, "dados_customizados")
+            
+            # Limpa o histórico de mensagens do lead para a IA recomeçar limpa
+            db.query(Mensagem).filter(Mensagem.lead_id == lead.id).delete()
+            db.commit()
+            
+            return {
+                "status": "ok",
+                "resposta": "🔄 *Conversa reiniciada!* Como posso te ajudar hoje?",
+                "tokens_in": 0,
+                "tokens_out": 0
+            }
+
         # 3. REGISTRAR MENSAGEM DO USUÁRIO
         msg_usuario = Mensagem(
             empresa_id=empresa.id,
