@@ -178,13 +178,24 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         match_serv = re.search(r'\[ESCOLHER_SERVICO:\s*id=([^\]]+)\]', resposta_raw, re.IGNORECASE)
         if match_serv:
             serv_id_str = match_serv.group(1).strip()
-            servico_obj = db.query(Servico).filter(Servico.id == serv_id_str, Servico.empresa_id == empresa.id).first()
-            if servico_obj:
-                agenda_servico_id = str(servico_obj.id)
-                agenda_servico_nome = servico_obj.nome
-                if agenda_estado == "inicio":
-                    agenda_estado = "escolhendo_data"
-                logger.info(f"[{telefone}] Tag escolheu serviço: {agenda_servico_nome}")
+            import uuid
+            is_valid_uuid = False
+            try:
+                uuid.UUID(serv_id_str)
+                is_valid_uuid = True
+            except ValueError:
+                pass
+            
+            if is_valid_uuid:
+                servico_obj = db.query(Servico).filter(Servico.id == serv_id_str, Servico.empresa_id == empresa.id).first()
+                if servico_obj:
+                    agenda_servico_id = str(servico_obj.id)
+                    agenda_servico_nome = servico_obj.nome
+                    if agenda_estado == "inicio":
+                        agenda_estado = "escolhendo_data"
+                    logger.info(f"[{telefone}] Tag escolheu serviço: {agenda_servico_nome}")
+            else:
+                logger.warning(f"[{telefone}] Tag [ESCOLHER_SERVICO] ignorada devido a ID de serviço inválido/placeholder: '{serv_id_str}'")
 
         # B. [ESCOLHER_DATA: data=...]
         match_data_tag = re.search(r'\[ESCOLHER_DATA:\s*data=([^\]]+)\]', resposta_raw, re.IGNORECASE)
