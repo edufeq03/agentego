@@ -181,7 +181,7 @@ export default function AlunosPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[var(--color-surface-hover)]/50 text-[var(--color-foreground-muted)] text-sm font-medium">
@@ -257,6 +257,78 @@ export default function AlunosPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View Card List */}
+        <div className="block md:hidden divide-y divide-[var(--color-border)]">
+          {loading ? (
+            <div className="px-6 py-12 text-center text-[var(--color-foreground-muted)]">
+              {isCorretora ? "Carregando leads..." : "Carregando alunos..."}
+            </div>
+          ) : filteredMembros.length === 0 ? (
+            <div className="px-6 py-12 text-center text-[var(--color-foreground-muted)]">
+              {isCorretora ? "Nenhum lead encontrado." : "Nenhum aluno encontrado."}
+            </div>
+          ) : (
+            filteredMembros.map((membro) => (
+              <div key={membro.id} className="p-4 space-y-4 hover:bg-[var(--color-surface-hover)]/10 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[var(--color-brand-500)]/10 flex items-center justify-center text-[var(--color-brand-400)] font-bold">
+                      {membro.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-bold text-white block">{membro.nome}</span>
+                      <span className="text-xs text-[var(--color-foreground-muted)]">{membro.telefone}</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(membro.id)}
+                    className="p-2.5 text-[var(--color-foreground-muted)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                    title="Remover"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[var(--color-border)]/50">
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-[var(--color-foreground-muted)] block">
+                      {isCorretora ? "Produto / Seguro" : "Plano"}
+                    </span>
+                    <span className="text-sm font-medium text-white">
+                      {membro.plano_nome || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-[var(--color-foreground-muted)] block">
+                      {isCorretora ? "Atualização" : "Vencimento"}
+                    </span>
+                    <span className="text-sm font-medium text-white flex items-center gap-1.5 mt-0.5">
+                      <Calendar size={13} className="text-[var(--color-brand-400)]" />
+                      {membro.data_vencimento}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[10px] uppercase font-semibold text-[var(--color-foreground-muted)]">Status</span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    membro.status === 'ativo' ? 'bg-emerald-500/10 text-emerald-500' :
+                    membro.status === 'vencendo' ? 'bg-amber-500/10 text-amber-500' :
+                    'bg-red-500/10 text-red-500'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      membro.status === 'ativo' ? 'bg-emerald-500' :
+                      membro.status === 'vencendo' ? 'bg-amber-500' :
+                      'bg-red-500'
+                    }`} />
+                    {isCorretora ? (membro.status === 'ativo' ? 'OK' : membro.status === 'vencendo' ? 'PENDENTE' : 'SEM DOCS') : membro.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
