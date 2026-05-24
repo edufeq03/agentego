@@ -99,7 +99,7 @@ export default function ConfigAgendaPage() {
       const confRes = await api.get("dashboard/agenda/config");
       const c = confRes.data;
       setAprovacaoManual(c.aprovacao_manual ?? true);
-      setWhatsappProfissional(c.whatsapp_professional ?? "");
+      setWhatsappProfissional(c.whatsapp_profissional ?? c.whatsapp_professional ?? "");
       setLembreteClienteMin(c.lembrete_cliente_min ?? 120);
       setLembreteProfissionalHora(c.lembrete_profissional_hora ?? "08:00");
       setAprovacaoTimeoutMin(c.aprovacao_timeout_min ?? 60);

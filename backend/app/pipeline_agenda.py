@@ -29,7 +29,7 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
     db = SessionLocal()
     try:
         config_agenda = empresa.configuracoes.config.get("agenda", {}) if empresa.configuracoes else {}
-        whatsapp_prof = config_agenda.get("whatsapp_professional")
+        whatsapp_prof = config_agenda.get("whatsapp_profissional") or config_agenda.get("whatsapp_professional")
         
         # 1. PROCESSAR COMANDOS DO PROFISSIONAL
         # Comandos: "<id> confirmar" ou "<id> recusar [motivo]"
