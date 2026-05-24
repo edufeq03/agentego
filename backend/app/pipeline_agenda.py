@@ -295,11 +295,19 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
 
         # 13. LIMPAR TAGS DA RESPOSTA PARA O CLIENTE
         resposta_limpa = resposta_raw
-        resposta_limpa = re.sub(r'\[ESCOLHER_SERVICO:[^\]]*\]', '', resposta_limpa)
-        resposta_limpa = re.sub(r'\[ESCOLHER_DATA:[^\]]*\]', '', resposta_limpa)
-        resposta_limpa = re.sub(r'\[ESCOLHER_HORA:[^\]]*\]', '', resposta_limpa)
-        resposta_limpa = re.sub(r'\[DEFINIR_OBS:[^\]]*\]', '', resposta_limpa)
-        resposta_limpa = re.sub(r'\[SOLICITAR_AGENDAMENTO\]', '', resposta_limpa)
+        
+        # Regex robusto que remove a tag e opcionalmente o prefixo "Tag:" ou "Tags:" (case-insensitive) que a IA gera
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_SERVICO:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_DATA:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_HORA:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[DEFINIR_OBS:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[SOLICITAR_AGENDAMENTO\]', '', resposta_limpa)
+        
+        # Limpa linhas remanescentes contendo apenas "Tag:" ou "Tags:"
+        resposta_limpa = re.sub(r'(?i)^\s*tags?\s*:\s*$', '', resposta_limpa, flags=re.MULTILINE)
+        
+        # Limpa quebras de linhas consecutivas causadas pela remoção das tags
+        resposta_limpa = re.sub(r'\n{3,}', '\n\n', resposta_limpa)
         resposta_limpa = resposta_limpa.strip()
 
         # Registrar resposta da assistente no banco

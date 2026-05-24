@@ -1013,7 +1013,7 @@ async def webhook(token: str, request: Request):
         # Verificar se a mensagem é do WhatsApp da Cozinha ou do WhatsApp do Profissional (Agenda)
         config = empresa.configuracoes.config if empresa.configuracoes else {}
         tel_cozinha = config.get("whatsapp_cozinha")
-        tel_profissional = config.get("agenda", {}).get("whatsapp_profissional")
+        tel_profissional = config.get("agenda", {}).get("whatsapp_profissional") or config.get("agenda", {}).get("whatsapp_professional")
         
         is_auxiliar = False
         telefone_norm = "".join(filter(str.isdigit, str(telefone)))
@@ -1035,7 +1035,7 @@ async def webhook(token: str, request: Request):
             enviar_whatsapp(
                 telefone,
                 res_aux["resposta"],
-                empresa.evolution_instance or empresa.nome_slug
+                empresa.evolution_instance or empresa.slug
             )
             return {"status": "ok", "mensagem": "auxiliar_processado"}
 

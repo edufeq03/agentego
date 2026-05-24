@@ -196,7 +196,7 @@ async def resolver_cliente(db: Session, empresa_id: Any, dados: dict, telefone_a
             "leads_encontrados": [str(l.id) for l in leads]
         })
 
-        instance_name = config.get("evolution_instance") or config.get("nome_slug")
+        instance_name = config.get("evolution_instance") or config.get("nome_slug") or config.get("slug")
         enviar_whatsapp(telefone_auxiliar, msg, instance_name)
         return "aguardando_telefone"
     else:
@@ -209,7 +209,7 @@ async def resolver_cliente(db: Session, empresa_id: Any, dados: dict, telefone_a
             "dados_parciais": dados
         })
 
-        instance_name = config.get("evolution_instance") or config.get("nome_slug")
+        instance_name = config.get("evolution_instance") or config.get("nome_slug") or config.get("slug")
         enviar_whatsapp(telefone_auxiliar, msg, instance_name)
         return "aguardando_telefone"
 
