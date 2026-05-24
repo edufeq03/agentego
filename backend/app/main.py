@@ -49,6 +49,9 @@ app.add_middleware(
 from app.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
+from app.agenda_api import router as agenda_router
+app.include_router(agenda_router, prefix="/api/dashboard/agenda", tags=["agenda"])
+
 from app.admin_api import router as admin_router
 from app.middleware import security_middleware
 
@@ -558,8 +561,12 @@ def on_startup():
     scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0, id="tarefa_avisos_obrigacoes")
     scheduler.add_job(tarefa_disparo_agendado, 'interval', minutes=10, id="tarefa_disparo_agendado")
     scheduler.add_job(tarefa_reengajamento_automatico, 'interval', minutes=5, id="tarefa_reengajamento_automatico")
+    
+    from app.agenda_service import tarefa_processar_agenda
+    scheduler.add_job(tarefa_processar_agenda, 'interval', minutes=5, id="tarefa_processar_agenda")
+    
     scheduler.start()
-    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção e Reengajamento Inteligente.")
+    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção, Reengajamento e Agenda.")
 
 
 @app.on_event("shutdown")
@@ -587,7 +594,14 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
 
         # Processar no Pipeline Central
         logger.info(f"🤖 [IA] Gerando resposta para {telefone}...")
-        if empresa.nicho == "lanchonete":
+        
+        config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
+        modulos = config_dict.get("modulos_ativos", [])
+        
+        if "agenda" in modulos or empresa.nicho == "agenda":
+            from app.pipeline_agenda import processar_pipeline_agenda
+            resultado = processar_pipeline_agenda(empresa, telefone, texto_combinado)
+        elif empresa.nicho == "lanchonete":
             from app.pipeline_lanchonete import processar_pipeline_lanchonete
             resultado = processar_pipeline_lanchonete(empresa, telefone, texto_combinado)
         else:

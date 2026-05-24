@@ -16,11 +16,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [temConversaPausada, setTemConversaPausada] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [nicho, setNicho] = useState<string | null>(null);
+  const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
   const [empresa, setEmpresa] = useState<{ nome: string; plano: string } | null>(null);
 
   const navigation = [
     { name: "Visão Geral", href: `/${slug}`, icon: LayoutDashboard },
     { name: "Conectar WhatsApp", href: `/${slug}/whatsapp`, icon: Smartphone },
+    
+    // Módulo Agenda
+    ...(modulosAtivos.includes('agenda') || nicho === 'agenda' ? [
+      { name: "Visualizar Agenda", href: `/${slug}/agenda`, icon: CalendarCheck },
+      { name: "Serviços", href: `/${slug}/agenda/servicos`, icon: ClipboardList },
+      { name: "Configurar Agenda", href: `/${slug}/agenda/disponibilidade`, icon: Sliders },
+    ] : []),
     
     // Nicho Academia
     ...(nicho === 'academia' ? [
@@ -112,6 +120,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const response = await api.get('dashboard/config');
         setNicho(response.data.nicho || 'generico');
+        setModulosAtivos(response.data.config?.modulos_ativos || []);
         setEmpresa({
           nome: response.data.config?.nome_empresa || response.data.nome || 'Minha Empresa',
           plano: response.data.plano?.toUpperCase() || 'PRO'
