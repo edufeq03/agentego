@@ -197,9 +197,9 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
             )
             # Envia usando a instância do WhatsApp associada à empresa
             enviar_whatsapp(
-                instance_name=empresa.evolution_instance or empresa.nome_slug,
-                to_number=whatsapp_profissional,
-                message=mensagem_prof
+                whatsapp_profissional,
+                mensagem_prof,
+                empresa.evolution_instance or empresa.nome_slug
             )
             logger.info(f"Notificação de aprovação do agendamento {agendamento.id} enviada ao profissional {whatsapp_profissional}")
         else:
@@ -294,9 +294,9 @@ def confirmar_agendamento(db: Session, agendamento_id: int) -> bool:
                 f"Aguardamos você! Qualquer dúvida, estamos à disposição."
             )
             enviar_whatsapp(
-                instance_name=empresa.evolution_instance or empresa.nome_slug,
-                to_number=lead.telefone,
-                message=msg_cliente
+                lead.telefone,
+                msg_cliente,
+                empresa.evolution_instance or empresa.nome_slug
             )
             
             # Atualiza o funil de vendas do Lead para 'agendado'
@@ -334,9 +334,9 @@ def recusar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> b
                 f"Você pode tentar escolher outro dia ou horário. Digite *agendar* para reiniciar."
             )
             enviar_whatsapp(
-                instance_name=empresa.evolution_instance or empresa.nome_slug,
-                to_number=lead.telefone,
-                message=msg_cliente
+                lead.telefone,
+                msg_cliente,
+                empresa.evolution_instance or empresa.nome_slug
             )
             
         return True
@@ -371,9 +371,9 @@ def cancelar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> 
                 f"Se precisar reagendar, basta enviar *agendar* novamente."
             )
             enviar_whatsapp(
-                instance_name=empresa.evolution_instance or empresa.nome_slug,
-                to_number=lead.telefone,
-                message=msg_cliente
+                lead.telefone,
+                msg_cliente,
+                empresa.evolution_instance or empresa.nome_slug
             )
             
             # Avisa o profissional se já estava confirmado
@@ -389,9 +389,9 @@ def cancelar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> 
                         f"⏰ *Horário:* {agendamento.hora_inicio}{motivo_txt}\n"
                     )
                     enviar_whatsapp(
-                        instance_name=empresa.evolution_instance or empresa.nome_slug,
-                        to_number=whatsapp_profissional,
-                        message=msg_prof
+                        whatsapp_profissional,
+                        msg_prof,
+                        empresa.evolution_instance or empresa.nome_slug
                     )
             
         return True
@@ -460,9 +460,9 @@ def tarefa_processar_agenda():
                             f"Se precisar alterar ou cancelar, por favor nos avise com antecedência!"
                         )
                         enviar_whatsapp(
-                            instance_name=empresa.evolution_instance or empresa.nome_slug,
-                            to_number=lead.telefone,
-                            message=msg_lembrete
+                            lead.telefone,
+                            msg_lembrete,
+                            empresa.evolution_instance or empresa.nome_slug
                         )
                         a.lembrete_cliente_enviado = True
                         db.commit()
@@ -513,9 +513,9 @@ def tarefa_processar_agenda():
                         msg_resumo = f"📅 *RESUMO DE HOJE ({agora.strftime('%d/%m/%Y')})*\n\nVocê não possui agendamentos confirmados para hoje."
                         
                     enviar_whatsapp(
-                        instance_name=emp.evolution_instance or emp.nome_slug,
-                        to_number=whatsapp_prof,
-                        message=msg_resumo
+                        whatsapp_prof,
+                        msg_resumo,
+                        emp.evolution_instance or emp.nome_slug
                     )
                     
                     config_data = dict(emp.configuracoes.config) if emp.configuracoes else {}

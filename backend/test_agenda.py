@@ -95,9 +95,9 @@ class TestAgendaModule(unittest.TestCase):
         self.assertEqual(mock_agendamento.status, "confirmado")
         self.assertEqual(mock_lead.stage, "agendado")
         mock_enviar_wa.assert_called_with(
-            instance_name="inst_1",
-            to_number="5511999999999",
-            message="✅ *Seu agendamento foi confirmado!*\n\n💼 *Serviço:* Consulta\n📅 *Data:* 01/06/2026\n⏰ *Horário:* 14:00\n\nAguardamos você! Qualquer dúvida, estamos à disposição."
+            "5511999999999",
+            "✅ *Seu agendamento foi confirmado!*\n\n💼 *Serviço:* Consulta\n📅 *Data:* 01/06/2026\n⏰ *Horário:* 14:00\n\nAguardamos você! Qualquer dúvida, estamos à disposição.",
+            "inst_1"
         )
 
         # Recusar (precisa resetar status para pendente para poder recusar no teste)

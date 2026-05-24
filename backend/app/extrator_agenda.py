@@ -197,7 +197,7 @@ async def resolver_cliente(db: Session, empresa_id: Any, dados: dict, telefone_a
         })
 
         instance_name = config.get("evolution_instance") or config.get("nome_slug")
-        enviar_whatsapp(instance_name, telefone_auxiliar, msg)
+        enviar_whatsapp(telefone_auxiliar, msg, instance_name)
         return "aguardando_telefone"
     else:
         from app.whatsapp import enviar_whatsapp
@@ -210,7 +210,7 @@ async def resolver_cliente(db: Session, empresa_id: Any, dados: dict, telefone_a
         })
 
         instance_name = config.get("evolution_instance") or config.get("nome_slug")
-        enviar_whatsapp(instance_name, telefone_auxiliar, msg)
+        enviar_whatsapp(telefone_auxiliar, msg, instance_name)
         return "aguardando_telefone"
 
 def calcular_hora_fim(hora_inicio: str, duracao: int) -> str:
