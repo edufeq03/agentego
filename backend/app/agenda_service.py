@@ -415,7 +415,7 @@ def tarefa_processar_agenda():
         for emp in empresas:
             config_agenda = emp.configuracoes.config.get("agenda", {}) if emp.configuracoes else {}
             modulos = emp.configuracoes.config.get("modulos_ativos", []) if emp.configuracoes else []
-            if "agenda" not in modulos and emp.nicho != "agenda":
+            if "agenda" not in modulos and emp.nicho != "agenda" and emp.nicho != "higienizacao":
                 continue
                 
             whatsapp_prof = config_agenda.get("whatsapp_professional")
