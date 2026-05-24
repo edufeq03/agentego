@@ -711,30 +711,22 @@ export default function AdminPage() {
                   required
                   className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
                   value={formData.template_id}
-                  onChange={(e) => setFormData({...formData, template_id: e.target.value})}
+                  onChange={(e) => {
+                    const tId = e.target.value;
+                    const selectedTemplate = templates.find(t => t.id === tId);
+                    setFormData({
+                      ...formData,
+                      template_id: tId,
+                      nicho: selectedTemplate ? (selectedTemplate.nicho || "generico") : "generico"
+                    });
+                  }}
                 >
                   <option value="">Selecione um Nicho...</option>
                   {templates.map(t => (
                     <option key={t.id} value={t.id}>{t.nome_nicho}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-500">A IA deste cliente será inicializada com as regras deste template.</p>
-              </div>
-
-              <div className="col-span-full space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nicho de Mercado</label>
-                <select 
-                  required
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-                  value={formData.nicho}
-                  onChange={(e) => setFormData({...formData, nicho: e.target.value})}
-                >
-                  <option value="generico">Genérico / Outros</option>
-                  <option value="academia">Academia (Gestão de Alunos)</option>
-                  <option value="contabilidade">Contabilidade (Obrigações)</option>
-                  <option value="corretora">Corretora de Seguros (Gestão de Leads)</option>
-                </select>
-                <p className="text-[10px] text-slate-500">Isso define quais ferramentas aparecerão no Dashboard do cliente.</p>
+                <p className="text-[10px] text-slate-500">A IA deste cliente e as ferramentas do dashboard serão inicializadas a partir deste template de nicho.</p>
               </div>
 
               <div className="space-y-2">
