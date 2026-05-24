@@ -49,6 +49,7 @@ class EmpresaCreate(BaseModel):
     plano: Optional[str] = "trial"
     limite_conversas_mes: Optional[int] = 100
     nicho: Optional[str] = "generico"
+    modulos_ativos: Optional[List[str]] = None
 
 class EmpresaResponse(BaseModel):
     id: uuid.UUID
@@ -71,6 +72,7 @@ class EmpresaResponse(BaseModel):
     telefone_whatsapp: Optional[str] = None
     template_id: Optional[uuid.UUID] = None
     email_admin: Optional[str] = None
+    modulos_ativos: Optional[List[str]] = []
 
     class Config:
         from_attributes = True
@@ -123,6 +125,10 @@ def listar_empresas(db: Session = Depends(get_db)):
         # Popula o email do admin
         usuario = db.query(Usuario).filter(Usuario.empresa_id == emp.id).first()
         emp.email_admin = usuario.email if usuario else None
+
+        # Popula os módulos ativos
+        config_dict = emp.configuracoes.config if emp.configuracoes else {}
+        emp.modulos_ativos = config_dict.get("modulos_ativos", [])
     
     db.commit()
     return empresas
@@ -215,6 +221,9 @@ def criar_empresa(data: EmpresaCreate, db: Session = Depends(get_db)):
                 "missao": template.missao,
                 "objetivo": template.objetivo
             }
+    
+    # Define modulos_ativos
+    config_data["modulos_ativos"] = data.modulos_ativos if data.modulos_ativos is not None else []
     
     # Cria a configuração inicial
     nova_config = Configuracao(
@@ -327,6 +336,17 @@ def atualizar_empresa(empresa_id: uuid.UUID, data: EmpresaCreate, db: Session = 
                     "objetivo": template.objetivo
                 })
                 config.config = new_config
+
+    # Sempre atualiza os modulos_ativos se fornecido
+    if data.modulos_ativos is not None:
+        config = db.query(Configuracao).filter(Configuracao.empresa_id == empresa.id).first()
+        if config:
+            new_config = config.config.copy() if config.config else {}
+            new_config["modulos_ativos"] = data.modulos_ativos
+            config.config = new_config
+        else:
+            nova_config = Configuracao(empresa_id=empresa.id, config={"modulos_ativos": data.modulos_ativos})
+            db.add(nova_config)
 
     db.commit()
     return {"status": "ok", "message": "Empresa atualizada com sucesso"}

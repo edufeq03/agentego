@@ -38,6 +38,7 @@ interface Empresa {
   telefone_whatsapp?: string;
   template_id?: string;
   email_admin?: string;
+  modulos_ativos?: string[];
 }
 
 interface Template {
@@ -79,7 +80,8 @@ export default function AdminPage() {
     senha_admin: "",
     plano: "trial",
     limite_conversas_mes: 100,
-    nicho: "generico"
+    nicho: "generico",
+    modulos_ativos: [] as string[]
   });
 
   const [templateData, setTemplateData] = useState({
@@ -275,7 +277,26 @@ export default function AdminPage() {
           <div className="flex gap-3">
             {activeTab === "empresas" ? (
               <button 
-                onClick={() => setShowModal(true)}
+                onClick={() => {
+                  setEditingEmpresa(null);
+                  setFormData({
+                    nome: "",
+                    slug: "",
+                    telefone_whatsapp: "",
+                    telefone_proprietario: "",
+                    valor_mensalidade: 197.00,
+                    dias_teste: 30,
+                    cupom_vendedor: "",
+                    template_id: "",
+                    email_admin: "",
+                    senha_admin: "",
+                    plano: "trial",
+                    limite_conversas_mes: 100,
+                    nicho: "generico",
+                    modulos_ativos: []
+                  });
+                  setShowModal(true);
+                }}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20"
               >
                 <Plus size={20} />
@@ -434,7 +455,8 @@ export default function AdminPage() {
                               senha_admin: "", // A senha não é retornada por segurança, se vazia, não altera no backend.
                               plano: emp.plano,
                               limite_conversas_mes: emp.limite_conversas_mes,
-                              nicho: emp.nicho || "generico"
+                              nicho: emp.nicho || "generico",
+                              modulos_ativos: emp.modulos_ativos || []
                             });
                             setShowModal(true);
                           }}
@@ -555,7 +577,8 @@ export default function AdminPage() {
                                 senha_admin: "",
                                 plano: emp.plano,
                                 limite_conversas_mes: emp.limite_conversas_mes,
-                                nicho: emp.nicho || "generico"
+                                nicho: emp.nicho || "generico",
+                                modulos_ativos: emp.modulos_ativos || []
                               });
                               setShowModal(true);
                             }}
@@ -751,6 +774,30 @@ export default function AdminPage() {
                   <option value="pro">Pro (2.000 conversas)</option>
                   <option value="ilimitado">Ilimitado</option>
                 </select>
+              </div>
+
+              <div className="col-span-full border-t border-white/5 pt-4">
+                <h3 className="text-xs font-bold text-blue-400 uppercase tracking-[2px] mb-4">Módulos Ativos</h3>
+                <div className="flex items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3">
+                  <input 
+                    type="checkbox"
+                    id="modulo-agenda"
+                    className="w-5 h-5 rounded border-[var(--color-border)] text-blue-600 focus:ring-blue-500 accent-blue-600 bg-slate-900 cursor-pointer"
+                    checked={formData.modulos_ativos.includes("agenda")}
+                    onChange={(e) => {
+                      const active = e.target.checked;
+                      setFormData(prev => ({
+                        ...prev,
+                        modulos_ativos: active 
+                          ? [...prev.modulos_ativos.filter(m => m !== "agenda"), "agenda"]
+                          : prev.modulos_ativos.filter(m => m !== "agenda")
+                      }));
+                    }}
+                  />
+                  <label htmlFor="modulo-agenda" className="text-sm font-semibold text-slate-300 cursor-pointer select-none">
+                    Módulo de Agenda (Habilitar calendário, serviços e agendamentos)
+                  </label>
+                </div>
               </div>
 
               <div className="col-span-full border-t border-white/5 pt-4">
