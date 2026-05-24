@@ -6,7 +6,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.database import SessionLocal, Lead, Mensagem, Empresa, Servico, Agendamento
 from app.agents.especialistas import get_especialista
-from app.parser_data import parse_data, parse_hora, obter_hoje_local
+from app.parser_data import parse_data, parse_hora, obter_hoje_local, TZ_SP
 from app.agenda_service import calcular_slots, criar_agendamento_cliente, confirmar_agendamento, recusar_agendamento, cancelar_agendamento
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,7 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
                     msg_resposta = f"⚠️ Agendamento #{agendamento_id} *cancelado*!" if sucesso else f"❌ Não foi possível cancelar o agendamento #{agendamento_id}."
                 
                 return {
+                    "status": "ok",
                     "resposta": msg_resposta,
                     "tokens_in": 0,
                     "tokens_out": 0
@@ -279,6 +280,7 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         db.commit()
 
         return {
+            "status": "ok",
             "resposta": resposta_limpa,
             "tokens_in": t_in,
             "tokens_out": t_out
@@ -287,6 +289,7 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         logger.error(f"Erro no pipeline de agenda para {telefone}: {e}")
         db.rollback()
         return {
+            "status": "erro",
             "resposta": "Desculpe, ocorreu um erro ao processar o seu agendamento. Por favor, tente novamente mais tarde.",
             "tokens_in": 0,
             "tokens_out": 0
