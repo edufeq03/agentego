@@ -129,7 +129,7 @@ def calcular_slots(db: Session, empresa_id: Any, servico_id: Any, data_str: str)
         logger.error(f"Erro ao calcular slots para empresa={empresa_id}, servico={servico_id}, data={data_str}: {e}")
         return []
 
-def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "") -> Agendamento | None:
+def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", endereco: str = "") -> Agendamento | None:
     """
     Cria um agendamento com status 'pendente' e envia notificação de aprovação manual para o profissional.
     """
@@ -169,7 +169,8 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
             hora_inicio=hora_inicio,
             hora_fim=hora_fim,
             status='pendente',
-            observacao=observacao
+            observacao=observacao,
+            endereco=endereco
         )
         db.add(agendamento)
         db.commit()
@@ -182,12 +183,13 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
 
         if aprovacao_manual and whatsapp_profissional:
             # Envia mensagem para o profissional
+            endereco_txt = f"\n📍 *Endereço:* {endereco}" if endereco else ""
             mensagem_prof = (
                 f"🚨 *NOVA SOLICITAÇÃO DE AGENDAMENTO (ID: {agendamento.id})*\n\n"
                 f"👤 *Cliente:* {lead.nome} ({lead.telefone})\n"
                 f"💼 *Serviço:* {servico.nome}\n"
                 f"📅 *Data:* {datetime.strptime(data_str, '%Y-%m-%d').strftime('%d/%m/%Y')}\n"
-                f"⏰ *Horário:* {hora_inicio} às {hora_fim}\n"
+                f"⏰ *Horário:* {hora_inicio} às {hora_fim}{endereco_txt}\n"
                 f"📝 *Obs:* {observacao or 'Nenhuma'}\n\n"
                 f"Para responder, envie:\n"
                 f"👉 *{agendamento.id} confirmar* (para aceitar)\n"
@@ -208,6 +210,64 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
     except Exception as e:
         logger.error(f"Erro ao criar agendamento para empresa={empresa_id}: {e}")
         db.rollback()
+        return None
+
+def criar_agendamento(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", status: str = "pendente", endereco: str = "") -> Agendamento | None:
+    try:
+        servico = db.query(Servico).filter(Servico.id == servico_id).first()
+        if not servico:
+            raise ValueError("Serviço não encontrado.")
+            
+        lead = None
+        if lead_id:
+            lead = db.query(Lead).filter(Lead.id == lead_id).first()
+            
+        empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+        if not empresa:
+            raise ValueError("Empresa não encontrada.")
+
+        # Calcula hora_fim
+        duracao = servico.duracao_min
+        t_start = hm_to_min(hora_inicio)
+        hora_fim = min_to_hm(t_start + duracao)
+
+        agendamento = Agendamento(
+            empresa_id=empresa_id,
+            lead_id=lead_id,
+            servico_id=servico_id,
+            servico_nome=servico.nome,
+            servico_duracao=duracao,
+            data=data_str,
+            hora_inicio=hora_inicio,
+            hora_fim=hora_fim,
+            status=status,
+            observacao=observacao,
+            endereco=endereco
+        )
+        db.add(agendamento)
+        db.commit()
+        db.refresh(agendamento)
+
+        if status == 'confirmado' and lead:
+            lead.stage = 'agendado'
+            db.commit()
+
+        return agendamento
+    except Exception as e:
+        logger.error(f"Erro ao criar agendamento direto: {e}")
+        db.rollback()
+        return None
+
+def buscar_agendamento_por_cliente_data(db: Session, empresa_id: Any, lead_id: Any, data_str: str) -> Agendamento | None:
+    try:
+        return db.query(Agendamento).filter(
+            Agendamento.empresa_id == empresa_id,
+            Agendamento.lead_id == lead_id,
+            Agendamento.data == data_str,
+            Agendamento.status.in_(['confirmado', 'pendente'])
+        ).order_by(Agendamento.criado_em.desc()).first()
+    except Exception as e:
+        logger.error(f"Erro ao buscar agendamento: {e}")
         return None
 
 def confirmar_agendamento(db: Session, agendamento_id: int) -> bool:

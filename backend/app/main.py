@@ -1010,19 +1010,34 @@ async def webhook(token: str, request: Request):
             logger.info(f"[{telefone}] Webhook ignorado: Mensagem sem texto ou tipo não suportado.")
             return {"status": "ignorado", "motivo": "sem_texto"}
 
-        # Verificar se a mensagem é do WhatsApp da Cozinha
+        # Verificar se a mensagem é do WhatsApp da Cozinha ou do WhatsApp do Profissional (Agenda)
         config = empresa.configuracoes.config if empresa.configuracoes else {}
         tel_cozinha = config.get("whatsapp_cozinha")
+        tel_profissional = config.get("agenda", {}).get("whatsapp_profissional")
+        
+        is_auxiliar = False
+        telefone_norm = "".join(filter(str.isdigit, str(telefone)))
+        
         if tel_cozinha:
             tel_cozinha_norm = "".join(filter(str.isdigit, str(tel_cozinha)))
-            telefone_norm = "".join(filter(str.isdigit, str(telefone)))
-            # Comparacao segura usando os ultimos 9 digitos para evitar falsos positivos
             if len(tel_cozinha_norm) >= 8 and len(telefone_norm) >= 8 and tel_cozinha_norm[-9:] == telefone_norm[-9:]:
-                logger.info(f"🍳 [COZINHA] Processando comando síncrono para {telefone}...")
-                from app.pipeline_cozinha import processar_comando_cozinha
-                res_cozinha = processar_comando_cozinha(empresa, mensagem)
-                enviar_whatsapp(telefone, res_cozinha["resposta"], empresa.evolution_instance)
-                return {"status": "ok", "mensagem": "cozinha_processada"}
+                is_auxiliar = True
+                
+        if not is_auxiliar and tel_profissional:
+            tel_prof_norm = "".join(filter(str.isdigit, str(tel_profissional)))
+            if len(tel_prof_norm) >= 8 and len(telefone_norm) >= 8 and tel_prof_norm[-9:] == telefone_norm[-9:]:
+                is_auxiliar = True
+                
+        if is_auxiliar:
+            logger.info(f"📱 [AUXILIAR/PROFISSIONAL] Processando comando síncrono para {telefone}...")
+            from app.pipeline_cozinha import processar_comando_cozinha
+            res_aux = processar_comando_cozinha(empresa, mensagem, telefone)
+            enviar_whatsapp(
+                instance_name=empresa.evolution_instance or empresa.nome_slug,
+                to_number=telefone,
+                message=res_aux["resposta"]
+            )
+            return {"status": "ok", "mensagem": "auxiliar_processado"}
 
         # 3. Adicionar mensagem ao Buffer (Debounce)
         # O cliente pode ter enviado áudio, e depois texto.

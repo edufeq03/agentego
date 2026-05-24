@@ -469,6 +469,7 @@ class Agendamento(Base):
     status = Column(String, default="pendente")
     observacao = Column(Text, default="")
     motivo_cancelamento = Column(Text, default="")
+    endereco = Column(Text, default="")
     lembrete_cliente_enviado = Column(Boolean, default=False)
     lembrete_profissional_enviado = Column(Boolean, default=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
@@ -477,6 +478,15 @@ class Agendamento(Base):
     empresa = relationship("Empresa")
     lead = relationship("Lead")
     servico = relationship("Servico")
+
+class EstadoAuxiliar(Base):
+    __tablename__ = "estado_auxiliar"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), unique=True, nullable=False)
+    estado_json = Column(Text, nullable=False, default="{}")
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
 
 
 def init_db():
@@ -847,9 +857,23 @@ def init_db():
                     status VARCHAR(50) DEFAULT 'pendente',
                     observacao TEXT DEFAULT '',
                     motivo_cancelamento TEXT DEFAULT '',
+                    endereco TEXT DEFAULT '',
                     lembrete_cliente_enviado BOOLEAN DEFAULT FALSE,
                     lembrete_profissional_enviado BOOLEAN DEFAULT FALSE,
                     criado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            # Migração: adiciona coluna endereco caso não exista
+            conn.execute(text("ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS endereco TEXT DEFAULT ''"))
+
+            # Criar tabela de estado_auxiliar
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS estado_auxiliar (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id UUID UNIQUE NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+                    estado_json TEXT NOT NULL DEFAULT '{}',
                     atualizado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
