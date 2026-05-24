@@ -290,7 +290,11 @@ def confirmar_agendamento(db: Session, agendamento_id: int) -> bool:
     """Confirma um agendamento e avisa o cliente."""
     try:
         agendamento = db.query(Agendamento).filter(Agendamento.id == agendamento_id).first()
-        if not agendamento or agendamento.status != 'pendente':
+        if not agendamento:
+            return False
+        if agendamento.status == 'confirmado':
+            return True
+        if agendamento.status != 'pendente':
             return False
             
         agendamento.status = 'confirmado'

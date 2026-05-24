@@ -279,6 +279,7 @@ def create_agendamento_manual(payload: AgendamentoManualSchema, empresa: Empresa
     return agendamento
 
 @router.patch("/agendamentos/{id}/status")
+@router.put("/agendamentos/{id}/status")
 def update_agendamento_status(id: int, payload: StatusUpdateSchema, empresa: Empresa = Depends(verificar_agenda_ativa), db: Session = Depends(get_db)):
     agendamento = db.query(Agendamento).filter(Agendamento.id == id, Agendamento.empresa_id == empresa.id).first()
     if not agendamento:
