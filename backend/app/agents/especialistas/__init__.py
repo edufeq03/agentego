@@ -12,6 +12,7 @@ _ESPECIALISTAS = {
     "contabilidade": EspecialistaContabilidade(),
     "lanchonete": EspecialistaLanchonete(),
     "agenda": EspecialistaAgenda(),
+    "higienizacao": EspecialistaAgenda(),
 }
 
 def get_especialista(nicho: str) -> BaseAgent:

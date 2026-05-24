@@ -24,7 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Conectar WhatsApp", href: `/${slug}/whatsapp`, icon: Smartphone },
     
     // Módulo Agenda
-    ...(modulosAtivos.includes('agenda') || nicho === 'agenda' ? [
+    ...(modulosAtivos.includes('agenda') || nicho === 'agenda' || nicho === 'higienizacao' ? [
       { name: "Visualizar Agenda", href: `/${slug}/agenda`, icon: CalendarCheck },
       { name: "Serviços", href: `/${slug}/agenda/servicos`, icon: ClipboardList },
       { name: "Configurar Agenda", href: `/${slug}/agenda/disponibilidade`, icon: Sliders },
