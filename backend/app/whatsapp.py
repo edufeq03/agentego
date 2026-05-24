@@ -6,13 +6,22 @@ logger = logging.getLogger(__name__)
 
 from app import whatsapp_service
 
-def enviar_whatsapp(numero, mensagem, instance_name):
+def enviar_whatsapp(numero=None, mensagem=None, instance_name=None, *args, **kwargs):
+    # Suporta argumentos nomeados (ex: to_number, message, etc)
+    num = numero or kwargs.get("to_number") or kwargs.get("numero")
+    msg = mensagem or kwargs.get("message") or kwargs.get("mensagem")
+    inst = instance_name or kwargs.get("instance_name")
+
+    if not num or not msg or not inst:
+        logger.error(f"FALHA NO ENVIO: Parâmetros obrigatórios ausentes. numero={num}, mensagem={msg}, instance_name={inst}")
+        return
+
     base_url = whatsapp_service.get_evolution_base_url()
-    url = f"{base_url}/message/sendText/{instance_name}"
+    url = f"{base_url}/message/sendText/{inst}"
     
     payload = {
-        "number": numero,
-        "text": mensagem
+        "number": num,
+        "text": msg
     }
 
     headers = {
@@ -22,9 +31,9 @@ def enviar_whatsapp(numero, mensagem, instance_name):
     response = requests.post(url, json=payload, headers=headers)
     
     if response.status_code in [200, 201]:
-        logger.info(f"[{numero}] Mensagem despachada para o WhatsApp com sucesso (Instância: {instance_name}).")
+        logger.info(f"[{num}] Mensagem despachada para o WhatsApp com sucesso (Instância: {inst}).")
     else:
-        logger.error(f"[{numero}] FALHA NO ENVIO (Status {response.status_code}): {response.text}")
+        logger.error(f"[{num}] FALHA NO ENVIO (Status {response.status_code}): {response.text}")
 
 def simular_digitacao(numero, instance_name):
     base_url = whatsapp_service.get_evolution_base_url()

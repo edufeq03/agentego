@@ -1033,9 +1033,9 @@ async def webhook(token: str, request: Request):
             from app.pipeline_cozinha import processar_comando_cozinha
             res_aux = processar_comando_cozinha(empresa, mensagem, telefone)
             enviar_whatsapp(
-                instance_name=empresa.evolution_instance or empresa.nome_slug,
-                to_number=telefone,
-                message=res_aux["resposta"]
+                telefone,
+                res_aux["resposta"],
+                empresa.evolution_instance or empresa.nome_slug
             )
             return {"status": "ok", "mensagem": "auxiliar_processado"}
 
