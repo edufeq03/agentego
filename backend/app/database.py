@@ -416,6 +416,69 @@ class ItemPedido(Base):
     pedido = relationship("Pedido", back_populates="itens")
     cardapio = relationship("Cardapio")
 
+class Servico(Base):
+    __tablename__ = "servicos"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    nome = Column(String, nullable=False)
+    descricao = Column(Text, default="")
+    duracao_min = Column(Integer, nullable=False)
+    preco = Column(Float, nullable=True)
+    ativo = Column(Boolean, default=True)
+    cor = Column(String, default="#3b82f6")
+    ordem = Column(Integer, default=0)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
+class Disponibilidade(Base):
+    __tablename__ = "disponibilidade"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    dia_semana = Column(Integer, nullable=True)
+    data_especifica = Column(String(10), nullable=True)
+    hora_inicio = Column(String(5), nullable=False)
+    hora_fim = Column(String(5), nullable=False)
+    intervalo_min = Column(Integer, default=30)
+    ativo = Column(Boolean, default=True)
+
+    empresa = relationship("Empresa")
+
+class Bloqueio(Base):
+    __tablename__ = "bloqueios"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    data = Column(String(10), nullable=False)
+    hora_inicio = Column(String(5), nullable=False)
+    hora_fim = Column(String(5), nullable=False)
+    motivo = Column(Text, default="")
+
+    empresa = relationship("Empresa")
+
+class Agendamento(Base):
+    __tablename__ = "agendamentos"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    servico_id = Column(UUID(as_uuid=True), ForeignKey("servicos.id", ondelete="SET NULL"), nullable=True)
+    servico_nome = Column(String, nullable=False)
+    servico_duracao = Column(Integer, nullable=False)
+    data = Column(String(10), nullable=False)
+    hora_inicio = Column(String(5), nullable=False)
+    hora_fim = Column(String(5), nullable=False)
+    status = Column(String, default="pendente")
+    observacao = Column(Text, default="")
+    motivo_cancelamento = Column(Text, default="")
+    lembrete_cliente_enviado = Column(Boolean, default=False)
+    lembrete_profissional_enviado = Column(Boolean, default=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    lead = relationship("Lead")
+    servico = relationship("Servico")
+
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -727,6 +790,67 @@ def init_db():
                     preco_unit DECIMAL(8,2) NOT NULL,
                     quantidade INTEGER NOT NULL,
                     observacao TEXT
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS servicos (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    nome VARCHAR(200) NOT NULL,
+                    descricao TEXT DEFAULT '',
+                    duracao_min INTEGER NOT NULL,
+                    preco REAL,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    cor VARCHAR(20) DEFAULT '#3b82f6',
+                    ordem INTEGER DEFAULT 0,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS disponibilidade (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    dia_semana INTEGER,
+                    data_especifica VARCHAR(10),
+                    hora_inicio VARCHAR(5) NOT NULL,
+                    hora_fim VARCHAR(5) NOT NULL,
+                    intervalo_min INTEGER DEFAULT 30,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    UNIQUE(empresa_id, dia_semana, data_especifica)
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS bloqueios (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    data VARCHAR(10) NOT NULL,
+                    hora_inicio VARCHAR(5) NOT NULL,
+                    hora_fim VARCHAR(5) NOT NULL,
+                    motivo TEXT DEFAULT ''
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS agendamentos (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+                    servico_id UUID REFERENCES servicos(id) ON DELETE SET NULL,
+                    servico_nome VARCHAR(200) NOT NULL,
+                    servico_duracao INTEGER NOT NULL,
+                    data VARCHAR(10) NOT NULL,
+                    hora_inicio VARCHAR(5) NOT NULL,
+                    hora_fim VARCHAR(5) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pendente',
+                    observacao TEXT DEFAULT '',
+                    motivo_cancelamento TEXT DEFAULT '',
+                    lembrete_cliente_enviado BOOLEAN DEFAULT FALSE,
+                    lembrete_profissional_enviado BOOLEAN DEFAULT FALSE,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
 
