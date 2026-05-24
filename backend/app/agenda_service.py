@@ -478,7 +478,7 @@ def tarefa_processar_agenda():
             if "agenda" not in modulos and emp.nicho != "agenda" and emp.nicho != "higienizacao":
                 continue
                 
-            whatsapp_prof = config_agenda.get("whatsapp_professional")
+            whatsapp_prof = config_agenda.get("whatsapp_profissional") or config_agenda.get("whatsapp_professional")
             if not whatsapp_prof:
                 continue
                 
