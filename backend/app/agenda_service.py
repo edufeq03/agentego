@@ -53,7 +53,23 @@ def calcular_slots(db: Session, empresa_id: Any, servico_id: Any, data_str: str)
         ).all()
         
         if not disps:
-            return []
+            # Fallback: se a empresa não tem NENHUMA disponibilidade cadastrada no BD,
+            # oferece um padrão de Segunda a Sexta das 09:00 às 18:00
+            has_any_config = db.query(Disponibilidade).filter(
+                Disponibilidade.empresa_id == empresa_id
+            ).first() is not None
+            
+            if not has_any_config and dia_semana in [0, 1, 2, 3, 4]:
+                class TempDisp:
+                    def __init__(self, dia, inicio, fim, intervalo, ativo):
+                        self.dia_semana = dia
+                        self.hora_inicio = inicio
+                        self.hora_fim = fim
+                        self.intervalo_min = intervalo
+                        self.ativo = ativo
+                disps = [TempDisp(dia_semana, "09:00", "18:00", 30, True)]
+            else:
+                return []
             
         # 4. Carregar bloqueios para a data
         bloqueios = db.query(Bloqueio).filter(
@@ -199,7 +215,7 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
             enviar_whatsapp(
                 whatsapp_profissional,
                 mensagem_prof,
-                empresa.evolution_instance or empresa.nome_slug
+                empresa.evolution_instance or empresa.slug
             )
             logger.info(f"Notificação de aprovação do agendamento {agendamento.id} enviada ao profissional {whatsapp_profissional}")
         else:
@@ -296,7 +312,7 @@ def confirmar_agendamento(db: Session, agendamento_id: int) -> bool:
             enviar_whatsapp(
                 lead.telefone,
                 msg_cliente,
-                empresa.evolution_instance or empresa.nome_slug
+                empresa.evolution_instance or empresa.slug
             )
             
             # Atualiza o funil de vendas do Lead para 'agendado'
@@ -336,7 +352,7 @@ def recusar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> b
             enviar_whatsapp(
                 lead.telefone,
                 msg_cliente,
-                empresa.evolution_instance or empresa.nome_slug
+                empresa.evolution_instance or empresa.slug
             )
             
         return True
@@ -373,7 +389,7 @@ def cancelar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> 
             enviar_whatsapp(
                 lead.telefone,
                 msg_cliente,
-                empresa.evolution_instance or empresa.nome_slug
+                empresa.evolution_instance or empresa.slug
             )
             
             # Avisa o profissional se já estava confirmado
@@ -391,7 +407,7 @@ def cancelar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> 
                     enviar_whatsapp(
                         whatsapp_profissional,
                         msg_prof,
-                        empresa.evolution_instance or empresa.nome_slug
+                        empresa.evolution_instance or empresa.slug
                     )
             
         return True
@@ -462,7 +478,7 @@ def tarefa_processar_agenda():
                         enviar_whatsapp(
                             lead.telefone,
                             msg_lembrete,
-                            empresa.evolution_instance or empresa.nome_slug
+                            empresa.evolution_instance or empresa.slug
                         )
                         a.lembrete_cliente_enviado = True
                         db.commit()
@@ -515,7 +531,7 @@ def tarefa_processar_agenda():
                     enviar_whatsapp(
                         whatsapp_prof,
                         msg_resumo,
-                        emp.evolution_instance or emp.nome_slug
+                        emp.evolution_instance or emp.slug
                     )
                     
                     config_data = dict(emp.configuracoes.config) if emp.configuracoes else {}
