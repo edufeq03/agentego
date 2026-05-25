@@ -4,6 +4,7 @@ from .corretora import EspecialistaCorretora
 from .contabilidade import EspecialistaContabilidade
 from .lanchonete import EspecialistaLanchonete
 from .agenda import EspecialistaAgenda
+from .beleza import EspecialistaBeleza
 
 _ESPECIALISTAS = {
     "generico": EspecialistaGenerico(),
@@ -13,6 +14,7 @@ _ESPECIALISTAS = {
     "lanchonete": EspecialistaLanchonete(),
     "agenda": EspecialistaAgenda(),
     "higienizacao": EspecialistaAgenda(),
+    "beleza": EspecialistaBeleza(),
 }
 
 def get_especialista(nicho: str) -> BaseAgent:

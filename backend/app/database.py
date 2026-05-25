@@ -427,6 +427,9 @@ class Servico(Base):
     ativo = Column(Boolean, default=True)
     cor = Column(String, default="#3b82f6")
     ordem = Column(Integer, default=0)
+    tem_variacao_caracteristica = Column(Boolean, default=False)
+    caracteristicas = Column(JSONB, default=list, nullable=True)
+    recorrencia_sugerida_dias = Column(Integer, default=0)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -474,6 +477,52 @@ class Agendamento(Base):
     lembrete_profissional_enviado = Column(Boolean, default=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    lead = relationship("Lead")
+    servico = relationship("Servico")
+    itens = relationship("ItemAgendamento", back_populates="agendamento", cascade="all, delete-orphan")
+
+class ItemAgendamento(Base):
+    __tablename__ = "itens_agendamento"
+    id = Column(Integer, primary_key=True)
+    agendamento_id = Column(Integer, ForeignKey("agendamentos.id", ondelete="CASCADE"), nullable=False)
+    servico_id = Column(UUID(as_uuid=True), ForeignKey("servicos.id", ondelete="SET NULL"), nullable=True)
+    servico_nome = Column(String, nullable=False)
+    duracao_min = Column(Integer, nullable=False)
+    preco = Column(Float, nullable=True)
+
+    agendamento = relationship("Agendamento", back_populates="itens")
+    servico = relationship("Servico")
+
+class ListaEspera(Base):
+    __tablename__ = "lista_espera"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    servico_id = Column(UUID(as_uuid=True), ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
+    data = Column(String(10), nullable=False)
+    data_flexivel = Column(Boolean, default=False)
+    posicao = Column(Integer, nullable=False)
+    status = Column(String, default="aguardando") # aguardando | notificado | confirmado | expirado
+    notificado_em = Column(DateTime, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    lead = relationship("Lead")
+    servico = relationship("Servico")
+
+class SerieRecorrencia(Base):
+    __tablename__ = "series_recorrencia"
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    servico_id = Column(UUID(as_uuid=True), ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
+    intervalo_dias = Column(Integer, nullable=False)
+    ultimo_agendamento = Column(String(10), nullable=False)
+    proximo_sugerido = Column(String(10), nullable=False)
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
     lead = relationship("Lead")
@@ -877,6 +926,51 @@ def init_db():
                     atualizado_em TIMESTAMP DEFAULT NOW()
                 )
             '''))
+
+            # Tabelas do Nicho Beleza
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS itens_agendamento (
+                    id SERIAL PRIMARY KEY,
+                    agendamento_id INTEGER NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
+                    servico_id UUID REFERENCES servicos(id) ON DELETE SET NULL,
+                    servico_nome VARCHAR(200) NOT NULL,
+                    duracao_min INTEGER NOT NULL,
+                    preco REAL
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS lista_espera (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+                    lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
+                    servico_id UUID REFERENCES servicos(id) ON DELETE CASCADE,
+                    data VARCHAR(10) NOT NULL,
+                    data_flexivel BOOLEAN DEFAULT FALSE,
+                    posicao INTEGER NOT NULL,
+                    status VARCHAR(50) DEFAULT 'aguardando',
+                    notificado_em TIMESTAMP,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS series_recorrencia (
+                    id SERIAL PRIMARY KEY,
+                    empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+                    lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
+                    servico_id UUID REFERENCES servicos(id) ON DELETE CASCADE,
+                    intervalo_dias INTEGER NOT NULL,
+                    ultimo_agendamento VARCHAR(10) NOT NULL,
+                    proximo_sugerido VARCHAR(10) NOT NULL,
+                    ativo BOOLEAN DEFAULT TRUE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS tem_variacao_caracteristica BOOLEAN DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS caracteristicas JSONB DEFAULT '[]'::jsonb"))
+            conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia_sugerida_dias INTEGER DEFAULT 0"))
 
             conn.commit()
             

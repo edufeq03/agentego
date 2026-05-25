@@ -43,6 +43,9 @@ class ServicoSchema(BaseModel):
     ativo: Optional[bool] = True
     cor: Optional[str] = "#3b82f6"
     ordem: Optional[int] = 0
+    tem_variacao_caracteristica: Optional[bool] = False
+    caracteristicas: Optional[dict] = None
+    recorrencia_sugerida_dias: Optional[int] = None
 
 class DisponibilidadeSchema(BaseModel):
     dia_semana: int
@@ -94,7 +97,10 @@ def create_servico(payload: ServicoSchema, empresa: Empresa = Depends(verificar_
         preco=payload.preco,
         ativo=payload.ativo,
         cor=payload.cor,
-        ordem=payload.ordem
+        ordem=payload.ordem,
+        tem_variacao_caracteristica=payload.tem_variacao_caracteristica,
+        caracteristicas=payload.caracteristicas,
+        recorrencia_sugerida_dias=payload.recorrencia_sugerida_dias
     )
     db.add(servico)
     db.commit()
@@ -114,6 +120,9 @@ def update_servico(id: str, payload: ServicoSchema, empresa: Empresa = Depends(v
     servico.ativo = payload.ativo
     servico.cor = payload.cor
     servico.ordem = payload.ordem
+    servico.tem_variacao_caracteristica = payload.tem_variacao_caracteristica
+    servico.caracteristicas = payload.caracteristicas
+    servico.recorrencia_sugerida_dias = payload.recorrencia_sugerida_dias
     
     db.commit()
     db.refresh(servico)
@@ -217,6 +226,7 @@ def get_agendamentos(
             "motivo_cancelamento": a.motivo_cancelamento,
             "servico_nome": a.servico_nome,
             "servico_duracao": a.servico_duracao,
+            "caracteristica": a.caracteristica,
             "lead": {
                 "id": lead.id if lead else None,
                 "nome": lead.nome if lead else "Cliente Manual",
@@ -256,26 +266,22 @@ def create_agendamento_manual(payload: AgendamentoManualSchema, empresa: Empresa
     if not servico:
         raise HTTPException(status_code=404, detail="Serviço não encontrado")
         
-    t_start = hm_to_min(payload.hora_inicio)
-    hora_fim = min_to_hm(t_start + servico.duracao_min)
-
-    # Cria agendamento já como 'confirmado' para agendamentos manuais do dashboard
-    agendamento = Agendamento(
+    from app.agenda_service import criar_agendamento
+    
+    agendamento = criar_agendamento(
+        db=db,
         empresa_id=empresa.id,
         lead_id=lead_id,
-        servico_id=servico.id,
-        servico_nome=servico.nome,
-        servico_duracao=servico.duracao_min,
-        data=payload.data,
+        servico_id=payload.servico_id,
+        data_str=payload.data,
         hora_inicio=payload.hora_inicio,
-        hora_fim=hora_fim,
-        status="confirmado",
-        observacao=payload.observacao
+        observacao=payload.observacao,
+        status="confirmado"
     )
     
-    db.add(agendamento)
-    db.commit()
-    db.refresh(agendamento)
+    if not agendamento:
+        raise HTTPException(status_code=400, detail="Não foi possível criar o agendamento.")
+        
     return agendamento
 
 @router.patch("/agendamentos/{id}/status")
@@ -348,3 +354,31 @@ def save_agenda_config(payload: AgendaConfigSchema, empresa: Empresa = Depends(v
     config_obj.config = config_data
     db.commit()
     return {"status": "ok", "mensagem": "Configurações da agenda salvas com sucesso"}
+
+@router.get("/lista_espera")
+def get_lista_espera(empresa: Empresa = Depends(verificar_agenda_ativa), db: Session = Depends(get_db)):
+    from app.database import ListaEspera
+    items = db.query(ListaEspera).filter(ListaEspera.empresa_id == empresa.id).order_by(ListaEspera.data.desc(), ListaEspera.posicao.asc()).all()
+    result = []
+    for item in items:
+        result.append({
+            "id": item.id,
+            "data": item.data,
+            "status": item.status,
+            "posicao": item.posicao,
+            "notificado_em": item.notificado_em.isoformat() if item.notificado_em else None,
+            "cliente_nome": item.lead.nome if item.lead else "Cliente",
+            "cliente_telefone": item.lead.telefone if item.lead else "",
+            "servico_nome": item.servico.nome if item.servico else "Serviço"
+        })
+    return result
+
+@router.delete("/lista_espera/{id}")
+def delete_lista_espera(id: int, empresa: Empresa = Depends(verificar_agenda_ativa), db: Session = Depends(get_db)):
+    from app.database import ListaEspera
+    item = db.query(ListaEspera).filter(ListaEspera.id == id, ListaEspera.empresa_id == empresa.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item da lista de espera não encontrado")
+    db.delete(item)
+    db.commit()
+    return {"status": "ok", "mensagem": "Removido da lista de espera com sucesso"}

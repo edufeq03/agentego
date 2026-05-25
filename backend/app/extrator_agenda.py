@@ -20,7 +20,8 @@ Serviços disponíveis: {lista_servicos}
 Extraia os seguintes campos da mensagem:
 {{
   "intencao": "criar_agendamento" | "editar_agendamento" | "cancelar_agendamento" | "outro",
-  "servico": "nome do serviço ou null",
+  "servicos": ["nome do serviço 1", "nome do serviço 2"] ou null,
+  "caracteristica": "característica de cabelo/barba extraída (ex: longo, curto, média) ou null",
   "cliente_nome": "nome do cliente ou null",
   "cliente_telefone": "telefone formatado (só números) ou null",
   "data": "YYYY-MM-DD ou null",
@@ -35,9 +36,12 @@ Regras:
 - "amanhã" = {data_amanha}
 - "semana que vem" = próxima segunda-feira = {proxima_segunda}
 - "próxima [dia]" = o [dia] da semana que vem
-- Se o serviço não bater exatamente, escolha o mais próximo da lista
+- Se o cliente mencionar mais de um serviço, extraia todos na lista "servicos". Exemplo: "quero corte e escova" -> servicos: ["Corte feminino", "Escova"].
+- Se for apenas um serviço, retorne uma lista com um item. Exemplo: "corte masculino" -> servicos: ["Corte masculino"].
+- Se a mensagem informar o tamanho/tipo (ex: "corte longo", "cabelo médio"), extraia em "caracteristica" (ex: "longo", "médio").
+- Se o serviço não bater exatamente, escolha o mais próximo da lista.
 - Telefone: remover parênteses, traços, espaços. Adicionar 55 no DDI se for celular brasileiro sem DDI e não tiver.
-- Se intencao for "outro" → todos os outros campos podem ser null
+- Se intencao for "outro" → todos os outros campos podem ser null.
 """
 
 def carregar_servicos(db: Session, empresa_id: Any) -> List[Dict[str, Any]]:
@@ -103,18 +107,42 @@ def buscar_servico_por_nome(db: Session, empresa_id: Any, nome_pesquisa: str):
 def validar_extracao(db: Session, dados: dict, empresa_id: Any) -> Tuple[dict, List[str]]:
     faltando = []
 
-    # 1. Serviço
-    if not dados.get("servico"):
+    lista_servicos = dados.get("servicos")
+    if not lista_servicos and dados.get("servico"):
+        lista_servicos = [dados["servico"]]
+
+    if not lista_servicos:
         faltando.append("servico")
     else:
-        servico = buscar_servico_por_nome(db, empresa_id, dados["servico"])
-        if not servico:
-            faltando.append("servico")
-        else:
-            dados["servico_id"] = str(servico.id)
-            dados["servico_duracao"] = servico.duracao_min
-            dados["servico_preco"] = servico.preco
-            dados["servico"] = servico.nome
+        ids_resolvidos = []
+        nomes_resolvidos = []
+        duracao_total = 0
+        preco_total = 0
+        tem_preco = False
+
+        caracteristica = dados.get("caracteristica")
+
+        for s_nome in lista_servicos:
+            serv = buscar_servico_por_nome(db, empresa_id, s_nome)
+            if serv:
+                from app.agenda_service import obter_duracao_preco_servico
+                dur_s, preco_s = obter_duracao_preco_servico(db, empresa_id, serv.id, caracteristica)
+                
+                ids_resolvidos.append(str(serv.id))
+                nomes_resolvidos.append(serv.nome)
+                duracao_total += dur_s
+                if preco_s is not None:
+                    preco_total += preco_s
+                    tem_preco = True
+            else:
+                faltando.append("servico")
+                break
+
+        if not faltando:
+            dados["servico_id"] = ",".join(ids_resolvidos)
+            dados["servico_duracao"] = duracao_total
+            dados["servico_preco"] = preco_total if tem_preco else None
+            dados["servico"] = " + ".join(nomes_resolvidos)
 
     # 2. Data
     if not dados.get("data"):
@@ -132,9 +160,8 @@ def validar_extracao(db: Session, dados: dict, empresa_id: Any) -> Tuple[dict, L
         faltando.append("hora")
     elif dados.get("data") and dados.get("servico_id"):
         from app.agenda_service import calcular_slots
-        slots = calcular_slots(db, empresa_id, dados["servico_id"], dados["data"])
+        slots = calcular_slots(db, empresa_id, dados["servico_id"], dados["data"], dados.get("caracteristica"))
         if dados["hora"] not in slots:
-            # Tentar normalizar formato HH:MM
             hora_norm = dados["hora"]
             if len(hora_norm) == 4 and ":" in hora_norm:
                 hora_norm = "0" + hora_norm
@@ -142,7 +169,6 @@ def validar_extracao(db: Session, dados: dict, empresa_id: Any) -> Tuple[dict, L
                 dados["hora"] = hora_norm
             else:
                 faltando.append("hora_indisponivel")
-
     return dados, faltando
 
 def buscar_lead_por_nome(db: Session, empresa_id: Any, nome_parcial: str) -> List[Lead]:

@@ -24,9 +24,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Conectar WhatsApp", href: `/${slug}/whatsapp`, icon: Smartphone },
     
     // Módulo Agenda
-    ...(modulosAtivos.includes('agenda') || nicho === 'agenda' || nicho === 'higienizacao' ? [
+    ...(modulosAtivos.includes('agenda') || nicho === 'agenda' || nicho === 'higienizacao' || nicho === 'beleza' ? [
       { name: "Agenda", href: `/${slug}/agenda`, icon: CalendarCheck },
       { name: "Serviços", href: `/${slug}/agenda/servicos`, icon: ClipboardList },
+      ...(nicho === 'beleza' ? [
+        { name: "Lista de Espera", href: `/${slug}/agenda/lista-espera`, icon: Users },
+      ] : []),
     ] : []),
     
     // Nicho Academia

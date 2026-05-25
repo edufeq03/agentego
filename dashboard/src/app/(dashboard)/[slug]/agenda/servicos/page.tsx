@@ -31,7 +31,7 @@ export default function ServicosPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
-  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Modal states
@@ -46,6 +46,11 @@ export default function ServicosPage() {
   const [ativo, setAtivo] = useState(true);
   const [cor, setCor] = useState("#3b82f6");
   const [ordem, setOrdem] = useState(0);
+
+  // Niche Beleza specific states
+  const [temVariacaoCaracteristica, setTemVariacaoCaracteristica] = useState(false);
+  const [caracteristicas, setCaracteristicas] = useState("");
+  const [recorrenciaSugeridaDias, setRecorrenciaSugeridaDias] = useState<string>("");
 
   const coresPreset = [
     "#3b82f6", // Azul
@@ -82,10 +87,13 @@ export default function ServicosPage() {
     setAtivo(true);
     setCor("#3b82f6");
     setOrdem(0);
+    setTemVariacaoCaracteristica(false);
+    setCaracteristicas("");
+    setRecorrenciaSugeridaDias("");
     setIsOpen(true);
   }
 
-  function handleOpenEdit(s: Servico) {
+  function handleOpenEdit(s: any) {
     setEditId(s.id);
     setNome(s.nome);
     setDescricao(s.descricao || "");
@@ -94,11 +102,25 @@ export default function ServicosPage() {
     setAtivo(s.ativo);
     setCor(s.cor || "#3b82f6");
     setOrdem(s.ordem);
+    setTemVariacaoCaracteristica(s.tem_variacao_caracteristica || false);
+    setCaracteristicas(s.caracteristicas ? JSON.stringify(s.caracteristicas, null, 2) : "");
+    setRecorrenciaSugeridaDias(s.recorrencia_sugerida_dias !== null ? s.recorrencia_sugerida_dias.toString() : "");
     setIsOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    let parsedCaract = null;
+    if (temVariacaoCaracteristica && caracteristicas) {
+      try {
+        parsedCaract = JSON.parse(caracteristicas);
+      } catch (err) {
+        alert("O campo de características deve ser um JSON válido!");
+        return;
+      }
+    }
+
     const payload = {
       nome,
       descricao,
@@ -106,7 +128,10 @@ export default function ServicosPage() {
       preco: preco ? parseFloat(preco) : null,
       ativo,
       cor,
-      ordem
+      ordem,
+      tem_variacao_caracteristica: temVariacaoCaracteristica,
+      caracteristicas: parsedCaract,
+      recorrencia_sugerida_dias: recorrenciaSugeridaDias ? parseInt(recorrenciaSugeridaDias) : null
     };
 
     try {
@@ -335,6 +360,57 @@ export default function ServicosPage() {
                     </label>
                   </div>
                 </div>
+              </div>
+
+              {/* Niche Beleza Specifics */}
+              <div className="space-y-4 border-t border-[var(--color-border)] pt-4">
+                <h4 className="text-xs font-bold text-[var(--color-brand-400)] uppercase tracking-wider">Configurações de Beleza</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-white block">Recorrência Sugerida (Dias)</label>
+                    <input 
+                      type="number" 
+                      value={recorrenciaSugeridaDias}
+                      onChange={(e) => setRecorrenciaSugeridaDias(e.target.value)}
+                      placeholder="Ex: 15, 30"
+                      className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2 flex flex-col justify-end pb-1.5">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="temVariacaoCaracteristica"
+                        checked={temVariacaoCaracteristica}
+                        onChange={(e) => setTemVariacaoCaracteristica(e.target.checked)}
+                        className="w-5 h-5 accent-[var(--color-brand-500)] rounded bg-[var(--color-background)] border border-[var(--color-border)]"
+                      />
+                      <label htmlFor="temVariacaoCaracteristica" className="text-sm font-semibold text-white cursor-pointer select-none">
+                        Variação por Característica
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {temVariacaoCaracteristica && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-white block">Regras de Características (JSON)</label>
+                    <textarea 
+                      value={caracteristicas}
+                      onChange={(e) => setCaracteristicas(e.target.value)}
+                      placeholder='Ex: {
+  "curto": { "duracao": 30, "preco": 80 },
+  "longo": { "duracao": 60, "preco": 120 }
+}'
+                      rows={4}
+                      className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 transition-all font-mono text-xs resize-none"
+                    />
+                    <span className="text-[10px] text-[var(--color-foreground-muted)] block">
+                      Defina um objeto JSON com as chaves de características e seus overrides de duração (em min) e preço.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
