@@ -5,16 +5,16 @@ def seed():
     db = SessionLocal()
     try:
         # 1. Template Academia
-        academia = db.query(PromptTemplate).filter(PromptTemplate.nicho == "academia").first()
+        academia = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Academia").first()
         if not academia:
-            academia = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Academia").first()
+            academia = db.query(PromptTemplate).filter(PromptTemplate.nicho == "academia").first()
             if not academia:
                 academia = PromptTemplate(nome_nicho="Academia", nicho="academia")
                 db.add(academia)
             else:
-                academia.nicho = "academia"
+                academia.nome_nicho = "Academia"
         else:
-            academia.nome_nicho = "Academia"
+            academia.nicho = "academia"
             
         academia.prompt_sistema = "Você é uma assistente virtual de atendimento ao público de uma academia. Seu tom é prestativo, amigável e focado em bem-estar. Seu objetivo é acolher os alunos e interessados, tirar dúvidas sobre planos, horários de funcionamento, regras, modalidades e fornecer suporte de forma rápida e eficiente."
         academia.tom_voz = "Prestativo, Acolhedor e Educado"
@@ -57,12 +57,15 @@ def seed():
         corretora.nicho = "corretora"
 
         # 5. Template Beleza e Estética
-        beleza = db.query(PromptTemplate).filter(PromptTemplate.nicho == "beleza").first()
+        beleza = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Beleza e Estética").first()
         if not beleza:
-            beleza = PromptTemplate(nome_nicho="Beleza e Estética", nicho="beleza")
-            db.add(beleza)
+            beleza = db.query(PromptTemplate).filter(PromptTemplate.nicho == "beleza").first()
+            if not beleza:
+                beleza = PromptTemplate(nome_nicho="Beleza e Estética", nicho="beleza")
+                db.add(beleza)
+            else:
+                beleza.nome_nicho = "Beleza e Estética"
         else:
-            beleza.nome_nicho = "Beleza e Estética"
             beleza.nicho = "beleza"
             
         beleza.prompt_sistema = "Você é uma assistente virtual de um salão de beleza e estética. Seu tom é caloroso, amigável e focado em bem-estar. Seu objetivo é ajudar clientes a escolherem serviços, sugerir recorrências e conduzi-los ao agendamento de forma suave e personalizada."
