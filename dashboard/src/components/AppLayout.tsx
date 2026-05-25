@@ -27,28 +27,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ...(modulosAtivos.includes('agenda') || nicho === 'agenda' || nicho === 'higienizacao' || nicho === 'beleza' ? [
       { name: "Agenda", href: `/${slug}/agenda`, icon: CalendarCheck },
       { name: "Serviços", href: `/${slug}/agenda/servicos`, icon: ClipboardList },
-      ...(nicho === 'beleza' ? [
+      ...(nicho === 'beleza' || modulosAtivos.includes('lista_espera') ? [
         { name: "Lista de Espera", href: `/${slug}/agenda/lista-espera`, icon: Users },
       ] : []),
     ] : []),
     
+    // Módulo de Comunicados
+    ...(nicho === 'academia' || nicho === 'corretora' || nicho === 'lanchonete' || modulosAtivos.includes('comunicados') ? [
+      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
+    ] : []),
+
     // Nicho Academia
     ...(nicho === 'academia' ? [
       { name: "Gestão de Alunos", href: `/${slug}/alunos`, icon: Dumbbell },
-      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
     ] : []),
 
     // Nicho Corretora
     ...(nicho === 'corretora' ? [
       { name: "Gestão de Leads", href: `/${slug}/alunos`, icon: Users },
-      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
     ] : []),
 
     // Nicho Lanchonete
     ...(nicho === 'lanchonete' ? [
       { name: "Cardápio", href: `/${slug}/cardapio`, icon: Utensils },
       { name: "Painel de Pedidos", href: `/${slug}/pedidos`, icon: ClipboardList },
-      { name: "Comunicados", href: `/${slug}/comunicados`, icon: Megaphone },
     ] : []),
 
     // Nicho Contabilidade
