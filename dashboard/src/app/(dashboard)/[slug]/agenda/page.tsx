@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -14,7 +15,8 @@ import {
   Filter, 
   AlertCircle, 
   CheckCircle,
-  FileText
+  FileText,
+  Settings
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -45,6 +47,22 @@ interface Servico {
   duracao_min: number;
 }
 
+function getWeekRange(dateStr: string) {
+  const current = new Date(dateStr + "T12:00:00");
+  const day = current.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(current);
+  monday.setDate(current.getDate() + diffToMonday);
+  
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d.toISOString().split("T")[0]);
+  }
+  return dates;
+}
+
 export default function AgendaPage() {
   const params = useParams();
   const slug = params?.slug as string;
@@ -55,6 +73,7 @@ export default function AgendaPage() {
     new Date().toISOString().split("T")[0]
   );
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [viewMode, setViewMode] = useState<"dia" | "semana">("dia");
 
   // Modal states for manual booking
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
@@ -73,7 +92,7 @@ export default function AgendaPage() {
 
   useEffect(() => {
     fetchAgendamentos();
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   useEffect(() => {
     if (isBookModalOpen) {
@@ -93,7 +112,14 @@ export default function AgendaPage() {
   async function fetchAgendamentos() {
     try {
       setLoading(true);
-      const res = await api.get(`dashboard/agenda/agendamentos?data=${selectedDate}`);
+      let url = `dashboard/agenda/agendamentos`;
+      if (viewMode === "dia") {
+        url += `?data_inicio=${selectedDate}&data_fim=${selectedDate}`;
+      } else {
+        const weekDates = getWeekRange(selectedDate);
+        url += `?data_inicio=${weekDates[0]}&data_fim=${weekDates[6]}`;
+      }
+      const res = await api.get(url);
       setAgendamentos(res.data);
     } catch (err) {
       console.error("Erro ao carregar agendamentos:", err);
@@ -180,6 +206,8 @@ export default function AgendaPage() {
     return a.status === statusFilter;
   });
 
+  const weekDates = getWeekRange(selectedDate);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-16">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -189,16 +217,25 @@ export default function AgendaPage() {
             Veja as solicitações, confirme horários e gerencie sua agenda diária.
           </p>
         </div>
-        <button 
-          onClick={() => {
-            setBookDate(selectedDate);
-            setIsBookModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white rounded-xl font-semibold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
-        >
-          <Plus size={18} />
-          Agendar Cliente
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/${slug}/agenda/disponibilidade`}
+            className="flex items-center justify-center p-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-brand-400)] hover:text-white rounded-xl transition-all shadow-sm"
+            title="Configurar Agenda"
+          >
+            <Settings size={20} />
+          </Link>
+          <button 
+            onClick={() => {
+              setBookDate(selectedDate);
+              setIsBookModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--color-brand-500)] hover:bg-[var(--color-brand-600)] text-white rounded-xl font-semibold transition-all shadow-lg shadow-[var(--color-brand-500)]/20"
+          >
+            <Plus size={18} />
+            Agendar Cliente
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
@@ -244,24 +281,55 @@ export default function AgendaPage() {
 
         {/* Schedule Slots / List Middle Columns */}
         <div className="lg:col-span-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden min-h-[400px]">
-          <div className="p-6 border-b border-[var(--color-border)] flex items-center justify-between">
+          <div className="p-6 border-b border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Clock className="text-[var(--color-brand-400)]" />
-              Compromissos para {selectedDate.split("-").reverse().join("/")}
+              {viewMode === "dia" 
+                ? `Compromissos para ${selectedDate.split("-").reverse().join("/")}`
+                : `Compromissos da Semana (${weekDates[0].split("-").reverse().slice(0, 2).join("/")} a ${weekDates[6].split("-").reverse().slice(0, 2).join("/")})`
+              }
             </h3>
-            <span className="text-xs bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] px-3 py-1.5 rounded-lg">
-              {filteredAgendamentos.length} Encontrados
-            </span>
+            <div className="flex items-center gap-3 self-end sm:self-center">
+              {/* Toggle View Mode */}
+              <div className="bg-[var(--color-background)] border border-[var(--color-border)] p-1 rounded-xl flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("dia")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === "dia"
+                      ? "bg-[var(--color-brand-500)] text-white shadow-sm"
+                      : "text-[var(--color-foreground-muted)] hover:text-white"
+                  }`}
+                >
+                  Dia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("semana")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === "semana"
+                      ? "bg-[var(--color-brand-500)] text-white shadow-sm"
+                      : "text-[var(--color-foreground-muted)] hover:text-white"
+                  }`}
+                >
+                  Semana
+                </button>
+              </div>
+
+              <span className="text-xs bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] px-3 py-1.5 rounded-lg whitespace-nowrap">
+                {filteredAgendamentos.length} Encontrados
+              </span>
+            </div>
           </div>
 
           {loading ? (
             <div className="text-center py-20 text-[var(--color-foreground-muted)]">Buscando compromissos...</div>
-          ) : filteredAgendamentos.length === 0 ? (
+          ) : viewMode === "dia" && filteredAgendamentos.length === 0 ? (
             <div className="text-center py-20">
               <CalendarIcon className="mx-auto text-[var(--color-foreground-muted)] mb-4" size={48} />
               <p className="text-[var(--color-foreground-muted)] font-medium">Sem compromissos nesta data.</p>
             </div>
-          ) : (
+          ) : viewMode === "dia" ? (
             <div className="divide-y divide-[var(--color-border)]">
               {filteredAgendamentos.map((a) => (
                 <div 
@@ -349,6 +417,73 @@ export default function AgendaPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--color-border)]">
+              {weekDates.map((dateStr) => {
+                const dayAgendamentos = filteredAgendamentos.filter((a) => a.data === dateStr);
+                const dateObj = new Date(dateStr + "T12:00:00");
+                const dayOfWeekName = dateObj.toLocaleDateString("pt-BR", { weekday: "long" });
+                const formattedDayName = dayOfWeekName.charAt(0).toUpperCase() + dayOfWeekName.slice(1);
+                const formattedDate = dateStr.split("-").reverse().slice(0, 2).join("/"); // "DD/MM"
+                
+                return (
+                  <div key={dateStr} className="p-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-[var(--color-border)]/50 pb-2">
+                      <h4 className="font-bold text-white flex items-center gap-2">
+                        <span className="text-[var(--color-brand-400)]">{formattedDayName}</span>
+                        <span className="text-xs text-[var(--color-foreground-muted)]">({formattedDate})</span>
+                      </h4>
+                      <span className="text-xs bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] px-2.5 py-0.5 rounded-lg">
+                        {dayAgendamentos.length} compromisso{dayAgendamentos.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    {dayAgendamentos.length === 0 ? (
+                      <p className="text-xs text-[var(--color-foreground-muted)] italic pl-2 py-1">Nenhum compromisso agendado.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {dayAgendamentos.map((a) => (
+                          <div 
+                            key={a.id}
+                            onClick={() => setActiveAgendamento(a)}
+                            className="p-4 bg-[var(--color-background)]/40 hover:bg-[var(--color-surface-hover)]/30 border border-[var(--color-border)]/50 rounded-xl transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-center min-w-[70px]">
+                                <p className="text-xs font-bold text-white">{a.hora_inicio}</p>
+                                <p className="text-[9px] text-[var(--color-foreground-muted)] mt-0.5">{a.hora_fim}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <h5 className="text-sm font-bold text-white group-hover:text-[var(--color-brand-400)] transition-colors">
+                                  {a.lead_nome || "Cliente sem Nome"}
+                                </h5>
+                                <p className="text-xs text-[var(--color-foreground-muted)]">
+                                  Serviço: <span className="text-white font-medium">{a.servico_nome}</span> ({a.servico_duracao} min)
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 self-end md:self-center">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                                a.status === "confirmado" ? "bg-emerald-500/10 text-emerald-500" :
+                                a.status === "pendente" ? "bg-amber-500/10 text-amber-500" :
+                                "bg-red-500/10 text-red-500"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                  a.status === "confirmado" ? "bg-emerald-500" :
+                                  a.status === "pendente" ? "bg-amber-500" :
+                                  "bg-red-500"
+                                }`} />
+                                {a.status.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
