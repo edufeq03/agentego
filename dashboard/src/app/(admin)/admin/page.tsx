@@ -869,19 +869,15 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Nicho Padrão do Template</label>
-                <select 
+                <label className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Identificador do Nicho (Código)</label>
+                <input 
                   required
+                  placeholder="Ex: beleza, academia, corretora, lanchonete"
                   className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 outline-none focus:border-purple-500"
                   value={templateData.nicho}
-                  onChange={(e) => setTemplateData({...templateData, nicho: e.target.value})}
-                >
-                  <option value="generico">Genérico / Outros</option>
-                  <option value="academia">Academia</option>
-                  <option value="contabilidade">Contabilidade</option>
-                  <option value="corretora">Corretora de Seguros</option>
-                </select>
-                <p className="text-[10px] text-slate-500">Novas empresas criadas com este template herdarão este nicho.</p>
+                  onChange={(e) => setTemplateData({...templateData, nicho: e.target.value.toLowerCase().trim()})}
+                />
+                <p className="text-[10px] text-slate-500">Novas empresas criadas com este template herdarão este código de nicho (vincula ao especialista no backend).</p>
               </div>
 
               <button type="submit" disabled={loading} className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
