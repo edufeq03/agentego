@@ -7,7 +7,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database import SessionLocal, Lead, Mensagem, Empresa, Servico, Agendamento
 from app.agents.especialistas import get_especialista
 from app.parser_data import parse_data, parse_hora, obter_hoje_local, TZ_SP
-from app.agenda_service import calcular_slots, criar_agendamento_cliente, confirmar_agendamento, recusar_agendamento, cancelar_agendamento
+from app.agenda_service import calcular_slots, criar_agendamento_cliente, confirmar_agendamento, recusar_agendamento, cancelar_agendamento, criar_agendamento
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,6 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             db.commit()
             db.refresh(lead)
 
-        # Inicializa dados customizados se necessário
         dados_custom = lead.dados_customizados or {}
         if not isinstance(dados_custom, dict):
             dados_custom = {}
@@ -97,10 +96,10 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             dados_custom["agenda_data"] = None
             dados_custom["agenda_hora"] = None
             dados_custom["agenda_obs"] = ""
+            dados_custom["agenda_caracteristica"] = None
             lead.dados_customizados = dados_custom
             flag_modified(lead, "dados_customizados")
             
-            # Limpa o histórico de mensagens do lead para a IA recomeçar limpa
             db.query(Mensagem).filter(Mensagem.lead_id == lead.id).delete()
             db.commit()
             
@@ -110,6 +109,107 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
                 "tokens_in": 0,
                 "tokens_out": 0
             }
+
+        # Verifica se o lead está aguardando confirmação da lista de espera
+        if agenda_estado == "aguardando_confirmacao_lista_espera":
+            from app.database import ListaEspera
+            lista_espera_id = dados_custom.get("lista_espera_id")
+            lista_espera_item = db.query(ListaEspera).filter(ListaEspera.id == lista_espera_id).first() if lista_espera_id else None
+            
+            resp_limpa = mensagem_texto.strip().lower()
+            if any(x in resp_limpa for x in ["sim", "quero", "confirmar", "aceito", "pode"]):
+                if lista_espera_item and lista_espera_item.status == 'notificado':
+                    hora_vaga = dados_custom.get("lista_espera_hora")
+                    data_vaga = dados_custom.get("lista_espera_data")
+                    serv_id = dados_custom.get("lista_espera_servico_id")
+                    
+                    ag = criar_agendamento(
+                        db=db,
+                        empresa_id=empresa.id,
+                        lead_id=lead.id,
+                        servico_id=serv_id,
+                        data_str=data_vaga,
+                        hora_inicio=hora_vaga,
+                        observacao="Agendamento via lista de espera",
+                        status="confirmado",
+                        caracteristica=dados_custom.get("agenda_caracteristica")
+                    )
+                    
+                    if ag:
+                        lista_espera_item.status = 'confirmado'
+                        db.commit()
+                        
+                        dados_custom["agenda_estado"] = "inicio"
+                        dados_custom["agenda_servico_id"] = None
+                        dados_custom["agenda_servico_nome"] = None
+                        dados_custom["agenda_data"] = None
+                        dados_custom["agenda_hora"] = None
+                        dados_custom["agenda_obs"] = ""
+                        dados_custom["agenda_caracteristica"] = None
+                        lead.dados_customizados = dados_custom
+                        flag_modified(lead, "dados_customizados")
+                        db.commit()
+                        
+                        resposta_msg = f"Maravilhoso! Seu agendamento foi confirmado para o dia {datetime.strptime(data_vaga, '%Y-%m-%d').strftime('%d/%m/%Y')} às {hora_vaga}. Te esperamos lá!"
+                        msg_assist = Mensagem(
+                            empresa_id=empresa.id,
+                            lead_id=lead.id,
+                            tipo="assistente",
+                            mensagem=resposta_msg,
+                            timestamp=datetime.utcnow()
+                        )
+                        db.add(msg_assist)
+                        db.commit()
+                        
+                        return {
+                            "status": "ok",
+                            "resposta": resposta_msg,
+                            "tokens_in": 0,
+                            "tokens_out": 0
+                        }
+                    else:
+                        resposta_msg = "Desculpe, não conseguimos confirmar o agendamento. O slot pode ter sido preenchido."
+                        dados_custom["agenda_estado"] = "inicio"
+                        lead.dados_customizados = dados_custom
+                        flag_modified(lead, "dados_customizados")
+                        db.commit()
+                        
+                        return {
+                            "status": "ok",
+                            "resposta": resposta_msg,
+                            "tokens_in": 0,
+                            "tokens_out": 0
+                        }
+            elif any(x in resp_limpa for x in ["não", "nao", "recusar", "cancelar", "outro"]):
+                if lista_espera_item:
+                    lista_espera_item.status = 'recusado'
+                    db.commit()
+                    
+                    from app.agenda_service import job_verificar_lista_espera
+                    job_verificar_lista_espera(db, empresa.id, lista_espera_item.servico_id, lista_espera_item.data)
+                
+                dados_custom["agenda_estado"] = "inicio"
+                lead.dados_customizados = dados_custom
+                flag_modified(lead, "dados_customizados")
+                db.commit()
+                
+                resposta_msg = "Tudo bem! Se precisar de outro horário ou serviço, basta mandar mensagem."
+                msg_assist = Mensagem(
+                    empresa_id=empresa.id,
+                    lead_id=lead.id,
+                    tipo="assistente",
+                    mensagem=resposta_msg,
+                    timestamp=datetime.utcnow()
+                )
+                db.add(msg_assist)
+                db.commit()
+                
+                return {
+                    "status": "ok",
+                    "resposta": resposta_msg,
+                    "tokens_in": 0,
+                    "tokens_out": 0
+                }
 
         # 3. REGISTRAR MENSAGEM DO USUÁRIO
         msg_usuario = Mensagem(
@@ -129,12 +229,11 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         # 5. PREPARAR SLOTS E DATAS SE HOUVER SERVIÇO E DATA SELECIONADOS
         slots_formatados = "Nenhum horário disponível para esta data."
         if agenda_servico_id and agenda_data:
-            slots = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data)
+            slots = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data, dados_custom.get("agenda_caracteristica"))
             if slots:
                 slots_formatados = ", ".join(slots)
 
-        # 6. DETERMINISTIC PRE-PARSING DO INPUT DO CLIENTE (Facilita muito para a IA)
-        # Tenta interpretar data e hora diretamente do input do usuário para acelerar transições
+        # 6. DETERMINISTIC PRE-PARSING DO INPUT DO CLIENTE
         if agenda_estado == "escolhendo_data":
             data_interpretada = parse_data(mensagem_texto)
             if data_interpretada:
@@ -145,9 +244,8 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         elif agenda_estado == "escolhendo_hora":
             hora_interpretada = parse_hora(mensagem_texto)
             if hora_interpretada:
-                # Se temos data e serviço, validamos se a hora é válida
                 if agenda_servico_id and agenda_data:
-                    slots_livres = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data)
+                    slots_livres = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data, dados_custom.get("agenda_caracteristica"))
                     if hora_interpretada in slots_livres:
                         agenda_hora = hora_interpretada
                         agenda_estado = "coletando_obs"
@@ -168,7 +266,8 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             "servico_nome": agenda_servico_nome or "Não definido",
             "data": agenda_data or "Não definida",
             "hora": agenda_hora or "Não definida",
-            "obs": agenda_obs
+            "obs": agenda_obs,
+            "caracteristica": dados_custom.get("agenda_caracteristica") or ""
         }
 
         config_root = empresa.configuracoes.config if empresa.configuracoes else {}
@@ -184,8 +283,9 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             "dados_agenda": dados_agenda_ctx
         }
 
-        # 9. PROCESSAR COM O ESPECIALISTA DE AGENDA
-        especialista = get_especialista("agenda")
+        # 9. PROCESSAR COM O ESPECIALISTA ADEQUADO
+        nicho = empresa.nicho or "agenda"
+        especialista = get_especialista(nicho)
         resposta_raw, t_in, t_out = especialista.processar(mensagem_texto, contexto_agente, historico)
 
         # 10. ATUALIZAR TOKENS CONSUMIDOS
@@ -193,33 +293,45 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         empresa.tokens_output_mes = (empresa.tokens_output_mes or 0) + t_out
         db.commit()
 
-        logger.info(f"[{telefone}] Resposta crua EspecialistaAgenda: {resposta_raw}")
+        logger.info(f"[{telefone}] Resposta crua {especialista.nome}: {resposta_raw}")
 
         # 11. PROCESSAR TAGS DA IA
         # A. [ESCOLHER_SERVICO: id=...]
         match_serv = re.search(r'\[ESCOLHER_SERVICO:\s*id=([^\]]+)\]', resposta_raw, re.IGNORECASE)
         if match_serv:
             serv_id_str = match_serv.group(1).strip()
-            import uuid
-            is_valid_uuid = False
-            try:
-                uuid.UUID(serv_id_str)
-                is_valid_uuid = True
-            except ValueError:
-                pass
+            # Pode ser lista separada por vírgula para multi-serviços
+            ids_split = [x.strip() for x in serv_id_str.split(",") if x.strip()]
+            valid_ids = []
+            nomes_servicos = []
+            for s_id in ids_split:
+                import uuid
+                try:
+                    uuid.UUID(s_id)
+                    servico_obj = db.query(Servico).filter(Servico.id == s_id, Servico.empresa_id == empresa.id).first()
+                    if servico_obj:
+                        valid_ids.append(str(servico_obj.id))
+                        nomes_servicos.append(servico_obj.nome)
+                except ValueError:
+                    pass
             
-            if is_valid_uuid:
-                servico_obj = db.query(Servico).filter(Servico.id == serv_id_str, Servico.empresa_id == empresa.id).first()
-                if servico_obj:
-                    agenda_servico_id = str(servico_obj.id)
-                    agenda_servico_nome = servico_obj.nome
-                    if agenda_estado == "inicio":
-                        agenda_estado = "escolhendo_data"
-                    logger.info(f"[{telefone}] Tag escolheu serviço: {agenda_servico_nome}")
+            if valid_ids:
+                agenda_servico_id = ",".join(valid_ids)
+                agenda_servico_nome = " + ".join(nomes_servicos)
+                if agenda_estado == "inicio":
+                    agenda_estado = "escolhendo_data"
+                logger.info(f"[{telefone}] Tag escolheu serviço(s): {agenda_servico_nome}")
             else:
-                logger.warning(f"[{telefone}] Tag [ESCOLHER_SERVICO] ignorada devido a ID de serviço inválido/placeholder: '{serv_id_str}'")
+                logger.warning(f"[{telefone}] Tag [ESCOLHER_SERVICO] ignorada devido a IDs inválidos: '{serv_id_str}'")
 
-        # B. [ESCOLHER_DATA: data=...]
+        # B. [DEFINIR_CARACTERISTICA: caracteristica=...]
+        match_caract = re.search(r'\[DEFINIR_CARACTERISTICA:\s*caracteristica=([^\]]+)\]', resposta_raw, re.IGNORECASE)
+        if match_caract:
+            caract_val = match_caract.group(1).strip()
+            dados_custom["agenda_caracteristica"] = caract_val
+            logger.info(f"[{telefone}] Tag característica: {caract_val}")
+
+        # C. [ESCOLHER_DATA: data=...]
         match_data_tag = re.search(r'\[ESCOLHER_DATA:\s*data=([^\]]+)\]', resposta_raw, re.IGNORECASE)
         if match_data_tag:
             data_val = match_data_tag.group(1).strip()
@@ -232,30 +344,28 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             except ValueError:
                 pass
 
-        # C. [ESCOLHER_HORA: hora=...]
+        # D. [ESCOLHER_HORA: hora=...]
         match_hora_tag = re.search(r'\[ESCOLHER_HORA:\s*hora=([^\]]+)\]', resposta_raw, re.IGNORECASE)
         if match_hora_tag:
             hora_val = match_hora_tag.group(1).strip()
-            # Valida
             if agenda_servico_id and agenda_data:
-                slots_livres = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data)
+                slots_livres = calcular_slots(db, empresa.id, agenda_servico_id, agenda_data, dados_custom.get("agenda_caracteristica"))
                 if hora_val in slots_livres:
                     agenda_hora = hora_val
                     if agenda_estado == "escolhendo_hora":
                         agenda_estado = "coletando_obs"
                     logger.info(f"[{telefone}] Tag escolheu hora: {agenda_hora}")
 
-        # D. [DEFINIR_OBS: obs=...]
+        # E. [DEFINIR_OBS: obs=...]
         match_obs_tag = re.search(r'\[DEFINIR_OBS:\s*obs=([^\]]+)\]', resposta_raw, re.IGNORECASE)
         if match_obs_tag:
             obs_val = match_obs_tag.group(1).strip()
             agenda_obs = obs_val
             logger.info(f"[{telefone}] Tag obs: {agenda_obs}")
 
-        # E. [SOLICITAR_AGENDAMENTO]
+        # F. [SOLICITAR_AGENDAMENTO]
         if "[SOLICITAR_AGENDAMENTO]" in resposta_raw:
             if agenda_servico_id and agenda_data and agenda_hora:
-                # Criar o agendamento pendente no banco e enviar para aprovação
                 agendamento_db = criar_agendamento_cliente(
                     db=db,
                     empresa_id=empresa.id,
@@ -263,23 +373,78 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
                     servico_id=agenda_servico_id,
                     data_str=agenda_data,
                     hora_inicio=agenda_hora,
-                    observacao=agenda_obs
+                    observacao=agenda_obs,
+                    caracteristica=dados_custom.get("agenda_caracteristica")
                 )
                 
                 if agendamento_db:
                     logger.info(f"[{telefone}] Agendamento #{agendamento_db.id} criado com sucesso.")
-                    # Limpa carrinho de agendamento do lead
                     agenda_estado = "inicio"
                     agenda_servico_id = None
                     agenda_servico_nome = None
                     agenda_data = None
                     agenda_hora = None
                     agenda_obs = ""
+                    dados_custom["agenda_caracteristica"] = None
                 else:
                     resposta_raw = "Desculpe, o horário escolhido não está mais disponível. Por favor, selecione outro horário."
                     agenda_estado = "escolhendo_hora"
             else:
                 logger.warning(f"[{telefone}] Tentativa de agendamento faltando dados. Servico={agenda_servico_id}, Data={agenda_data}, Hora={agenda_hora}")
+
+        # G. [CONFIRMAR_RECORRENCIA: data=...]
+        match_recor = re.search(r'\[CONFIRMAR_RECORRENCIA:\s*data=([^\]]+)\]', resposta_raw, re.IGNORECASE)
+        if match_recor:
+            data_futura = match_recor.group(1).strip()
+            ultimo_ag = db.query(Agendamento).filter(
+                Agendamento.lead_id == lead.id,
+                Agendamento.empresa_id == empresa.id
+            ).order_by(Agendamento.id.desc()).first()
+            
+            if ultimo_ag:
+                criar_agendamento(
+                    db=db,
+                    empresa_id=empresa.id,
+                    lead_id=lead.id,
+                    servico_id=ultimo_ag.servico_id,
+                    data_str=data_futura,
+                    hora_inicio=ultimo_ag.hora_inicio,
+                    observacao="Recorrência programada",
+                    status="confirmado",
+                    caracteristica=dados_custom.get("agenda_caracteristica")
+                )
+                logger.info(f"[{telefone}] Recorrência confirmada para {data_futura} às {ultimo_ag.hora_inicio}")
+
+        # H. [LISTA_ESPERA]
+        if "[LISTA_ESPERA]" in resposta_raw:
+            if agenda_servico_id and agenda_data:
+                from app.database import ListaEspera
+                ja_espera = db.query(ListaEspera).filter(
+                    ListaEspera.empresa_id == empresa.id,
+                    ListaEspera.lead_id == lead.id,
+                    ListaEspera.servico_id == agenda_servico_id,
+                    ListaEspera.data == agenda_data,
+                    ListaEspera.status == 'aguardando'
+                ).first()
+                
+                if not ja_espera:
+                    ultima_pos = db.query(ListaEspera).filter(
+                        ListaEspera.empresa_id == empresa.id,
+                        ListaEspera.servico_id == agenda_servico_id,
+                        ListaEspera.data == agenda_data
+                    ).count()
+                    
+                    novo_espera = ListaEspera(
+                        empresa_id=empresa.id,
+                        lead_id=lead.id,
+                        servico_id=agenda_servico_id,
+                        data=agenda_data,
+                        status='aguardando',
+                        posicao=ultima_pos + 1
+                    )
+                    db.add(novo_espera)
+                    db.commit()
+                    logger.info(f"[{telefone}] Adicionado à lista de espera na posição {ultima_pos + 1}")
 
         # 12. SALVAR ESTADOS NO LEAD
         dados_custom["agenda_estado"] = agenda_estado
@@ -296,17 +461,16 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         # 13. LIMPAR TAGS DA RESPOSTA PARA O CLIENTE
         resposta_limpa = resposta_raw
         
-        # Regex robusto que remove a tag e opcionalmente o prefixo "Tag:" ou "Tags:" (case-insensitive) que a IA gera
         resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_SERVICO:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_DATA:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[ESCOLHER_HORA:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[DEFINIR_OBS:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[SOLICITAR_AGENDAMENTO\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[DEFINIR_CARACTERISTICA:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[CONFIRMAR_RECORRENCIA:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'(?i)(?:tags?\s*:\s*)?\[LISTA_ESPERA\]', '', resposta_limpa)
         
-        # Limpa linhas remanescentes contendo apenas "Tag:" ou "Tags:"
         resposta_limpa = re.sub(r'(?i)^\s*tags?\s*:\s*$', '', resposta_limpa, flags=re.MULTILINE)
-        
-        # Limpa quebras de linhas consecutivas causadas pela remoção das tags
         resposta_limpa = re.sub(r'\n{3,}', '\n\n', resposta_limpa)
         resposta_limpa = resposta_limpa.strip()
 

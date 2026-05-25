@@ -33,6 +33,7 @@ interface Agendamento {
   hora_fim: string;
   status: 'confirmado' | 'pendente' | 'cancelado' | 'recusado';
   observacao?: string;
+  caracteristica?: string;
 }
 
 interface Lead {
@@ -350,6 +351,11 @@ export default function AgendaPage() {
                       </h4>
                       <p className="text-sm text-[var(--color-foreground-muted)]">
                         Serviço: <span className="text-white font-medium">{a.servico_nome}</span> ({a.servico_duracao} min)
+                        {a.caracteristica && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            {a.caracteristica}
+                          </span>
+                        )}
                       </p>
                       {a.observacao && (
                         <p className="text-xs text-[var(--color-foreground-muted)] italic truncate max-w-md">
@@ -457,9 +463,14 @@ export default function AgendaPage() {
                                 <h5 className="text-sm font-bold text-white group-hover:text-[var(--color-brand-400)] transition-colors">
                                   {a.lead_nome || "Cliente sem Nome"}
                                 </h5>
-                                <p className="text-xs text-[var(--color-foreground-muted)]">
-                                  Serviço: <span className="text-white font-medium">{a.servico_nome}</span> ({a.servico_duracao} min)
-                                </p>
+                                 <p className="text-xs text-[var(--color-foreground-muted)]">
+                                   Serviço: <span className="text-white font-medium">{a.servico_nome}</span> ({a.servico_duracao} min)
+                                   {a.caracteristica && (
+                                     <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                       {a.caracteristica}
+                                     </span>
+                                   )}
+                                 </p>
                               </div>
                             </div>
                             

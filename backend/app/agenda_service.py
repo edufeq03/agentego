@@ -22,24 +22,110 @@ def min_to_hm(m: int) -> str:
     """Converte minutos a partir da meia-noite em 'HH:MM'."""
     return f"{m // 60:02d}:{m % 60:02d}"
 
-def calcular_slots(db: Session, empresa_id: Any, servico_id: Any, data_str: str) -> List[str]:
+def obter_servicos_resolvidos(db: Session, empresa_id: Any, servico_id_input: Any, caracteristica: Optional[str] = None) -> List[dict]:
+    """
+    Dada uma entrada de servico_id (pode ser UUID único, string com múltiplos UUIDs separados por vírgula, ou lista de UUIDs),
+    retorna a lista de dicionários correspondentes aos serviços encontrados,
+    com a duração e o preço ajustados de acordo com a característica do cliente (se aplicável).
+    """
+    import uuid
+    from app.database import Servico, Empresa
+    
+    ids_busca = []
+    if isinstance(servico_id_input, list):
+        ids_busca = servico_id_input
+    elif isinstance(servico_id_input, str):
+        if servico_id_input.startswith("[") and servico_id_input.endswith("]"):
+            try:
+                import json
+                ids_busca = json.loads(servico_id_input)
+            except Exception:
+                ids_busca = [x.strip() for x in servico_id_input.split(",") if x.strip()]
+        else:
+            ids_busca = [x.strip() for x in servico_id_input.split(",") if x.strip()]
+    else:
+        ids_busca = [servico_id_input]
+
+    resolvidos = []
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    config_dict = empresa.configuracoes.config if (empresa and empresa.configuracoes) else {}
+
+    for sid in ids_busca:
+        try:
+            if isinstance(sid, str):
+                uuid.UUID(sid)
+        except ValueError:
+            continue
+
+        s = db.query(Servico).filter(Servico.id == sid, Servico.ativo == True).first()
+        if not s:
+            continue
+            
+        duracao = s.duracao_min
+        preco = s.preco
+        
+        if caracteristica:
+            # 1. Verifica no campo 'caracteristicas' do próprio serviço (JSONB)
+            has_service_override = False
+            if getattr(s, "tem_variacao_caracteristica", False) and getattr(s, "caracteristicas", None) and isinstance(s.caracteristicas, dict):
+                regras = s.caracteristicas.get(caracteristica)
+                if regras and isinstance(regras, dict):
+                    dur_override = regras.get("duracao") or regras.get("duracao_min")
+                    if dur_override is not None:
+                        duracao = int(dur_override)
+                        has_service_override = True
+                    preco_override = regras.get("preco")
+                    if preco_override is not None:
+                        preco = float(preco_override)
+                        has_service_override = True
+            
+            # 2. Caso contrário, busca na configuração global da empresa
+            if not has_service_override and config_dict:
+                dur_override = config_dict.get("duracao_por_caracteristica", {}).get(s.nome, {}).get(caracteristica)
+                if dur_override is not None:
+                    duracao = int(dur_override)
+                preco_override = config_dict.get("preco_por_caracteristica", {}).get(s.nome, {}).get(caracteristica)
+                if preco_override is not None:
+                    preco = float(preco_override)
+                
+        resolvidos.append({
+            "id": s.id,
+            "nome": s.nome,
+            "duracao_min": duracao,
+            "preco": preco,
+            "cor": s.cor
+        })
+        
+    return resolvidos
+
+def obter_duracao_preco_servico(db: Session, empresa_id: Any, servico_id: Any, caracteristica: Optional[str] = None) -> tuple[int, Optional[float]]:
+    resolvidos = obter_servicos_resolvidos(db, empresa_id, servico_id, caracteristica)
+    if not resolvidos:
+        return 0, None
+    total_duracao = sum(r["duracao_min"] for r in resolvidos)
+    total_preco = sum(r["preco"] for r in resolvidos if r["preco"] is not None)
+    tem_preco = any(r["preco"] is not None for r in resolvidos)
+    final_preco = total_preco if tem_preco else None
+    return total_duracao, final_preco
+
+def calcular_slots(db: Session, empresa_id: Any, servico_id: Any, data_str: str, caracteristica: Optional[str] = None) -> List[str]:
     """
     Calcula os slots de horários disponíveis para agendamento.
     Leva em consideração:
     1. Horários de funcionamento padrão da empresa para o dia da semana.
-    2. Duração do serviço.
+    2. Duração do serviço (e se há múltiplos serviços ou variação por característica).
     3. Bloqueios específicos de horários na data.
     4. Agendamentos existentes (status 'confirmado' ou 'pendente').
     5. Se for a data atual, remove horários passados.
     """
     try:
-        # 1. Obter serviço
-        servico = db.query(Servico).filter(Servico.id == servico_id, Servico.ativo == True).first()
-        if not servico:
-            logger.warning(f"Serviço não encontrado ou inativo: {servico_id}")
+        # 1. Obter serviço / serviços resolvidos e soma de durações
+        resolvidos = obter_servicos_resolvidos(db, empresa_id, servico_id, caracteristica)
+        if not resolvidos:
+            logger.warning(f"Nenhum serviço válido encontrado para cálculo de slots: {servico_id}")
             return []
-        
-        duracao = servico.duracao_min
+            
+        duracao = sum(r["duracao_min"] for r in resolvidos)
         
         # 2. Obter dia da semana (0=Segunda, 6=Domingo)
         data_parsed = datetime.strptime(data_str, "%Y-%m-%d").date()
@@ -145,15 +231,15 @@ def calcular_slots(db: Session, empresa_id: Any, servico_id: Any, data_str: str)
         logger.error(f"Erro ao calcular slots para empresa={empresa_id}, servico={servico_id}, data={data_str}: {e}")
         return []
 
-def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", endereco: str = "") -> Agendamento | None:
+def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", endereco: str = "", caracteristica: Optional[str] = None) -> Agendamento | None:
     """
     Cria um agendamento com status 'pendente' e envia notificação de aprovação manual para o profissional.
     """
     try:
-        # Carrega dados adicionais
-        servico = db.query(Servico).filter(Servico.id == servico_id).first()
-        if not servico:
-            raise ValueError("Serviço não encontrado.")
+        # Resolve todos os serviços
+        resolvidos = obter_servicos_resolvidos(db, empresa_id, servico_id, caracteristica)
+        if not resolvidos:
+            raise ValueError("Nenhum serviço válido encontrado.")
             
         lead = db.query(Lead).filter(Lead.id == lead_id).first()
         if not lead:
@@ -164,33 +250,53 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
             raise ValueError("Empresa não encontrada.")
 
         # Valida se o slot está de fato livre (prevenção contra concorrência/duplo clique)
-        slots_livres = calcular_slots(db, empresa_id, servico_id, data_str)
+        slots_livres = calcular_slots(db, empresa_id, servico_id, data_str, caracteristica)
         if hora_inicio not in slots_livres:
             logger.warning(f"Slot {hora_inicio} não disponível para data {data_str}")
             return None
 
-        # Calcula hora_fim
-        duracao = servico.duracao_min
+        # Calcula a duração total
+        duracao_total = sum(r["duracao_min"] for r in resolvidos)
         t_start = hm_to_min(hora_inicio)
-        hora_fim = min_to_hm(t_start + duracao)
+        hora_fim = min_to_hm(t_start + duracao_total)
+        
+        nomes_servicos = " + ".join(r["nome"] for r in resolvidos)
+
+        # Prepara a observação com característica
+        obs_completa = observacao
+        if caracteristica:
+            obs_completa = f"Característica: {caracteristica}\n{observacao}" if observacao else f"Característica: {caracteristica}"
 
         # Cria o agendamento
         agendamento = Agendamento(
             empresa_id=empresa_id,
             lead_id=lead_id,
-            servico_id=servico_id,
-            servico_nome=servico.nome,
-            servico_duracao=duracao,
+            servico_id=resolvidos[0]["id"],
+            servico_nome=nomes_servicos,
+            servico_duracao=duracao_total,
             data=data_str,
             hora_inicio=hora_inicio,
             hora_fim=hora_fim,
             status='pendente',
-            observacao=observacao,
+            observacao=obs_completa,
             endereco=endereco
         )
         db.add(agendamento)
         db.commit()
         db.refresh(agendamento)
+
+        # Cria os itens do agendamento
+        from app.database import ItemAgendamento
+        for r in resolvidos:
+            item = ItemAgendamento(
+                agendamento_id=agendamento.id,
+                servico_id=r["id"],
+                servico_nome=r["nome"],
+                duracao_min=r["duracao_min"],
+                preco=r["preco"]
+            )
+            db.add(item)
+        db.commit()
 
         # Notifica o profissional para aprovação manual se configurado
         config_agenda = empresa.configuracoes.config.get("agenda", {}) if empresa.configuracoes else {}
@@ -203,10 +309,10 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
             mensagem_prof = (
                 f"🚨 *NOVA SOLICITAÇÃO DE AGENDAMENTO (ID: {agendamento.id})*\n\n"
                 f"👤 *Cliente:* {lead.nome} ({lead.telefone})\n"
-                f"💼 *Serviço:* {servico.nome}\n"
+                f"💼 *Serviço:* {nomes_servicos}\n"
                 f"📅 *Data:* {datetime.strptime(data_str, '%Y-%m-%d').strftime('%d/%m/%Y')}\n"
                 f"⏰ *Horário:* {hora_inicio} às {hora_fim}{endereco_txt}\n"
-                f"📝 *Obs:* {observacao or 'Nenhuma'}\n\n"
+                f"📝 *Obs:* {obs_completa or 'Nenhuma'}\n\n"
                 f"Para responder, envie:\n"
                 f"👉 *{agendamento.id} confirmar* (para aceitar)\n"
                 f"👉 *{agendamento.id} recusar* (para rejeitar)\n"
@@ -228,11 +334,12 @@ def criar_agendamento_cliente(db: Session, empresa_id: Any, lead_id: Any, servic
         db.rollback()
         return None
 
-def criar_agendamento(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", status: str = "pendente", endereco: str = "") -> Agendamento | None:
+def criar_agendamento(db: Session, empresa_id: Any, lead_id: Any, servico_id: Any, data_str: str, hora_inicio: str, observacao: str = "", status: str = "pendente", endereco: str = "", caracteristica: Optional[str] = None) -> Agendamento | None:
     try:
-        servico = db.query(Servico).filter(Servico.id == servico_id).first()
-        if not servico:
-            raise ValueError("Serviço não encontrado.")
+        # Resolve todos os serviços
+        resolvidos = obter_servicos_resolvidos(db, empresa_id, servico_id, caracteristica)
+        if not resolvidos:
+            raise ValueError("Nenhum serviço válido encontrado.")
             
         lead = None
         if lead_id:
@@ -242,27 +349,47 @@ def criar_agendamento(db: Session, empresa_id: Any, lead_id: Any, servico_id: An
         if not empresa:
             raise ValueError("Empresa não encontrada.")
 
-        # Calcula hora_fim
-        duracao = servico.duracao_min
+        # Calcula a duração total
+        duracao_total = sum(r["duracao_min"] for r in resolvidos)
         t_start = hm_to_min(hora_inicio)
-        hora_fim = min_to_hm(t_start + duracao)
+        hora_fim = min_to_hm(t_start + duracao_total)
+        
+        nomes_servicos = " + ".join(r["nome"] for r in resolvidos)
+
+        # Prepara a observação com característica
+        obs_completa = observacao
+        if caracteristica:
+            obs_completa = f"Característica: {caracteristica}\n{observacao}" if observacao else f"Característica: {caracteristica}"
 
         agendamento = Agendamento(
             empresa_id=empresa_id,
             lead_id=lead_id,
-            servico_id=servico_id,
-            servico_nome=servico.nome,
-            servico_duracao=duracao,
+            servico_id=resolvidos[0]["id"],
+            servico_nome=nomes_servicos,
+            servico_duracao=duracao_total,
             data=data_str,
             hora_inicio=hora_inicio,
             hora_fim=hora_fim,
             status=status,
-            observacao=observacao,
+            observacao=obs_completa,
             endereco=endereco
         )
         db.add(agendamento)
         db.commit()
         db.refresh(agendamento)
+
+        # Cria os itens do agendamento
+        from app.database import ItemAgendamento
+        for r in resolvidos:
+            item = ItemAgendamento(
+                agendamento_id=agendamento.id,
+                servico_id=r["id"],
+                servico_nome=r["nome"],
+                duracao_min=r["duracao_min"],
+                preco=r["preco"]
+            )
+            db.add(item)
+        db.commit()
 
         if status == 'confirmado' and lead:
             lead.stage = 'agendado'
@@ -414,6 +541,15 @@ def cancelar_agendamento(db: Session, agendamento_id: int, motivo: str = "") -> 
                         empresa.evolution_instance or empresa.slug
                     )
             
+        # Dispara verificação de lista de espera
+        try:
+            if agendamento:
+                config_features = empresa.configuracoes.config.get("features", {}) if (empresa and empresa.configuracoes) else {}
+                if config_features.get("lista_espera", False):
+                    job_verificar_lista_espera(db, agendamento.empresa_id, agendamento.servico_id, agendamento.data)
+        except Exception as e:
+            logger.error(f"Erro ao verificar lista de espera ao cancelar agendamento {agendamento_id}: {e}")
+
         return True
     except Exception as e:
         logger.error(f"Erro ao cancelar agendamento {agendamento_id}: {e}")
@@ -551,5 +687,110 @@ def tarefa_processar_agenda():
 
     except Exception as e:
         logger.error(f"Erro ao processar tarefa_processar_agenda: {e}")
+    finally:
+        db.close()
+
+def job_verificar_lista_espera(db: Session, empresa_id: Any, servico_id: Any, data: str):
+    """
+    Verifica se há alguém na lista de espera para o serviço e data indicados,
+    e notifica o primeiro da fila se houver um slot livre.
+    """
+    from app.database import ListaEspera, Lead
+    
+    espectadores = db.query(ListaEspera).filter(
+        ListaEspera.empresa_id == empresa_id,
+        ListaEspera.servico_id == servico_id,
+        ListaEspera.data == data,
+        ListaEspera.status == 'aguardando'
+    ).order_by(ListaEspera.posicao.asc()).all()
+    
+    if not espectadores:
+        return
+        
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        return
+        
+    config = empresa.configuracoes.config if empresa.configuracoes else {}
+    
+    slots = calcular_slots(db, empresa_id, servico_id, data)
+    if not slots:
+        return
+        
+    proximo = espectadores[0]
+    hora_vaga = slots[0]
+    
+    msg_template = config.get("mensagens", {}).get(
+        "lista_espera_aviso",
+        "🔔 Boa notícia! Abriu uma vaga para {servico} no dia {data} às {hora}. Quer confirmar?"
+    )
+    
+    try:
+        data_formatada = datetime.strptime(data, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except Exception:
+        data_formatada = data
+        
+    msg = msg_template.format(
+        servico=proximo.servico.nome,
+        data=data_formatada,
+        hora=hora_vaga
+    )
+    
+    enviar_whatsapp(
+        proximo.lead.telefone,
+        msg,
+        empresa.evolution_instance or empresa.slug
+    )
+    
+    proximo.status = 'notificado'
+    proximo.notificado_em = datetime.utcnow()
+    db.commit()
+    
+    dados_custom = proximo.lead.dados_customizados or {}
+    if not isinstance(dados_custom, dict):
+        dados_custom = {}
+    dados_custom["agenda_estado"] = "aguardando_confirmacao_lista_espera"
+    dados_custom["lista_espera_id"] = proximo.id
+    dados_custom["lista_espera_hora"] = hora_vaga
+    dados_custom["lista_espera_data"] = data
+    dados_custom["lista_espera_servico_id"] = str(servico_id)
+    proximo.lead.dados_customizados = dados_custom
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(proximo.lead, "dados_customizados")
+    db.commit()
+    
+    logger.info(f"Lista de espera: Lead {proximo.lead.nome} ({proximo.lead.telefone}) notificado para vaga no dia {data} às {hora_vaga}")
+
+def job_expirar_lista_espera():
+    """
+    Expira notificações da lista de espera sem resposta por mais de 30 minutos.
+    Avisa o próximo da fila.
+    """
+    from app.database import SessionLocal, ListaEspera
+    db = SessionLocal()
+    try:
+        limite = datetime.utcnow() - timedelta(minutes=30)
+        expirados = db.query(ListaEspera).filter(
+            ListaEspera.status == 'notificado',
+            ListaEspera.notificado_em < limite
+        ).all()
+        
+        for item in expirados:
+            logger.info(f"Expirando vaga da lista de espera para registro {item.id} (Lead {item.lead.nome})")
+            item.status = 'expirado'
+            db.commit()
+            
+            dados_custom = item.lead.dados_customizados or {}
+            if dados_custom.get("agenda_estado") == "aguardando_confirmacao_lista_espera":
+                dados_custom["agenda_estado"] = "inicio"
+                item.lead.dados_customizados = dados_custom
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(item.lead, "dados_customizados")
+                db.commit()
+            
+            job_verificar_lista_espera(db, item.empresa_id, item.servico_id, item.data)
+            
+    except Exception as e:
+        logger.error(f"Erro no job_expirar_lista_espera: {e}")
     finally:
         db.close()

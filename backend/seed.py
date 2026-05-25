@@ -11,6 +11,9 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def run_seed():
+    from app.database import init_db
+    init_db()
+
     db = SessionLocal()
 
     # Cria as tabelas se não existirem
@@ -61,12 +64,13 @@ def run_seed():
     tel_academia = "5511999990000"
     emp_academia = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_academia).first()
     if not emp_academia:
-        emp_academia = Empresa(nome="Prime Fit", telefone_whatsapp=tel_academia, webhook_token="primefit-token-123", nicho="academia")
+        emp_academia = Empresa(nome="Prime Fit", slug="prime-fit", telefone_whatsapp=tel_academia, webhook_token="primefit-token-123", nicho="academia")
         db.add(emp_academia)
         db.commit()
         db.refresh(emp_academia)
     else:
         emp_academia.nicho = "academia"
+        emp_academia.slug = "prime-fit"
         db.commit()
     
     # Configuração Academia (Update ou Create)
@@ -87,12 +91,13 @@ def run_seed():
     tel_imobiliaria = "5511988880000"
     emp_imob = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_imobiliaria).first()
     if not emp_imob:
-        emp_imob = Empresa(nome="Viver Bem Imóveis", telefone_whatsapp=tel_imobiliaria, webhook_token="viverbem-token-456", nicho="imobiliaria")
+        emp_imob = Empresa(nome="Viver Bem Imóveis", slug="viver-bem-imoveis", telefone_whatsapp=tel_imobiliaria, webhook_token="viverbem-token-456", nicho="imobiliaria")
         db.add(emp_imob)
         db.commit()
         db.refresh(emp_imob)
     else:
         emp_imob.nicho = "imobiliaria"
+        emp_imob.slug = "viver-bem-imoveis"
         db.commit()
     
     # Configuração Imobiliária (Update ou Create)
@@ -109,9 +114,131 @@ def run_seed():
     
     db.commit()
 
-    print(f"Seed concluído! Temos 2 empresas de nichos diferentes.")
+    # --- Criando Empresa 3 (Beleza e Estética) ---
+    config_beleza = {
+        "nome_agente": "Juliana",
+        "cargo_agente": "Especialista em Beleza Virtual",
+        "nome_empresa": "Studio Elegance",
+        "missao": "Proporcionar autoestima e bem-estar através de cuidados personalizados de beleza e estética.",
+        "tom_voz": "Caloroso, sofisticado e acolhedor.",
+        "horarios": {"semana": "09h às 20h", "sabado": "09h às 18h"},
+        "endereco": "Av. Paulista, 1000 - Bela Vista - São Paulo",
+        "agenda": {
+            "aprovacao_manual": False,
+            "whatsapp_profissional": "5511977770000",
+            "lembrete_cliente_min": 60,
+            "lembrete_profissional_hora": "08:00",
+            "aprovacao_timeout_min": 60
+        }
+    }
+
+    tel_beleza = "5511977770000"
+    emp_beleza = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_beleza).first()
+    if not emp_beleza:
+        emp_beleza = Empresa(nome="Studio Elegance", slug="studio-elegance", telefone_whatsapp=tel_beleza, webhook_token="studioelegance-token-789", nicho="beleza")
+        db.add(emp_beleza)
+        db.commit()
+        db.refresh(emp_beleza)
+    else:
+        emp_beleza.nicho = "beleza"
+        emp_beleza.slug = "studio-elegance"
+        db.commit()
+
+    # Configuração Beleza
+    conf_beleza = db.query(Configuracao).filter(Configuracao.empresa_id == emp_beleza.id).first()
+    if conf_beleza:
+        conf_beleza.config = config_beleza
+    else:
+        db.add(Configuracao(empresa_id=emp_beleza.id, config=config_beleza))
+
+    # Usuário Beleza
+    user_beleza = db.query(Usuario).filter(Usuario.email == "beleza@teste.com").first()
+    if not user_beleza:
+        db.add(Usuario(empresa_id=emp_beleza.id, email="beleza@teste.com", senha_hash=get_password_hash("senha123")))
+
+    # Serviços Padrão Beleza
+    from app.database import Servico
+    servicos_padrao = [
+        {
+            "nome": "Corte Feminino",
+            "descricao": "Corte de cabelo feminino personalizado.",
+            "duracao_min": 60,
+            "preco": 120.00,
+            "ativo": True,
+            "cor": "#8b5cf6",
+            "ordem": 1,
+            "tem_variacao_caracteristica": True,
+            "caracteristicas": {
+                "curto": {"duracao": 45, "preco": 100.00},
+                "longo": {"duracao": 75, "preco": 150.00}
+            },
+            "recorrencia_sugerida_dias": 30
+        },
+        {
+            "nome": "Escova",
+            "descricao": "Lavagem e escova modeladora.",
+            "duracao_min": 30,
+            "preco": 60.00,
+            "ativo": True,
+            "cor": "#ec4899",
+            "ordem": 2,
+            "tem_variacao_caracteristica": True,
+            "caracteristicas": {
+                "curto": {"duracao": 30, "preco": 50.00},
+                "longo": {"duracao": 45, "preco": 80.00}
+            },
+            "recorrencia_sugerida_dias": 7
+        },
+        {
+            "nome": "Manicure",
+            "descricao": "Cuidado das unhas das mãos com cutilagem e esmaltação.",
+            "duracao_min": 45,
+            "preco": 45.00,
+            "ativo": True,
+            "cor": "#10b981",
+            "ordem": 3,
+            "tem_variacao_caracteristica": False,
+            "caracteristicas": None,
+            "recorrencia_sugerida_dias": 14
+        },
+        {
+            "nome": "Designer de Sobrancelhas",
+            "descricao": "Design personalizado de sobrancelhas.",
+            "duracao_min": 30,
+            "preco": 50.00,
+            "ativo": True,
+            "cor": "#3b82f6",
+            "ordem": 4,
+            "tem_variacao_caracteristica": False,
+            "caracteristicas": None,
+            "recorrencia_sugerida_dias": 21
+        }
+    ]
+
+    for s_info in servicos_padrao:
+        s_obj = db.query(Servico).filter(Servico.empresa_id == emp_beleza.id, Servico.nome == s_info["nome"]).first()
+        if not s_obj:
+            s_obj = Servico(
+                empresa_id=emp_beleza.id,
+                nome=s_info["nome"],
+                descricao=s_info["descricao"],
+                duracao_min=s_info["duracao_min"],
+                preco=s_info["preco"],
+                ativo=s_info["ativo"],
+                cor=s_info["cor"],
+                ordem=s_info["ordem"],
+                tem_variacao_caracteristica=s_info["tem_variacao_caracteristica"],
+                caracteristicas=s_info["caracteristicas"],
+                recorrencia_sugerida_dias=s_info["recorrencia_sugerida_dias"]
+            )
+            db.add(s_obj)
+
+    db.commit()
+
+    print(f"Seed concluído! Temos 3 empresas de nichos diferentes.")
     print(f"Webhook Academia: http://localhost:8000/webhook/{emp_academia.webhook_token}")
     print(f"Webhook Imobiliária: http://localhost:8000/webhook/{emp_imob.webhook_token}")
+    print(f"Webhook Beleza: http://localhost:8000/webhook/{emp_beleza.webhook_token}")
 
     db.close()
 

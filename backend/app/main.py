@@ -561,12 +561,12 @@ def on_startup():
     scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0, id="tarefa_avisos_obrigacoes")
     scheduler.add_job(tarefa_disparo_agendado, 'interval', minutes=10, id="tarefa_disparo_agendado")
     scheduler.add_job(tarefa_reengajamento_automatico, 'interval', minutes=5, id="tarefa_reengajamento_automatico")
-    
-    from app.agenda_service import tarefa_processar_agenda
+    from app.agenda_service import tarefa_processar_agenda, job_expirar_lista_espera
     scheduler.add_job(tarefa_processar_agenda, 'interval', minutes=5, id="tarefa_processar_agenda")
+    scheduler.add_job(job_expirar_lista_espera, 'interval', minutes=15, id="job_expirar_lista_espera")
     
     scheduler.start()
-    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção, Reengajamento e Agenda.")
+    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção, Reengajamento, Agenda e Lista de Espera.")
 
 
 @app.on_event("shutdown")

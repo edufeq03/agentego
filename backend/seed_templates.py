@@ -49,6 +49,21 @@ def seed():
         corretora.etapas_funil = ["novo_lead", "em_atendimento", "documentos_pendentes", "em_cotacao"]
         corretora.nicho = "corretora"
 
+        # 5. Template Beleza e Estética
+        beleza = db.query(PromptTemplate).filter(PromptTemplate.nicho == "beleza").first()
+        if not beleza:
+            beleza = PromptTemplate(nome_nicho="Beleza e Estética", nicho="beleza")
+            db.add(beleza)
+        else:
+            beleza.nome_nicho = "Beleza e Estética"
+            beleza.nicho = "beleza"
+            
+        beleza.prompt_sistema = "Você é uma assistente virtual de um salão de beleza e estética. Seu tom é caloroso, amigável e focado em bem-estar. Seu objetivo é ajudar clientes a escolherem serviços, sugerir recorrências e conduzi-los ao agendamento de forma suave e personalizada."
+        beleza.tom_voz = "Caloroso, Elegante e Acolhedor"
+        beleza.missao = "Realçar a beleza única de cada pessoa com carinho e profissionalismo."
+        beleza.objetivo = "Agendar procedimentos de beleza, gerenciar lista de espera e sugerir recorrências."
+        beleza.etapas_funil = ["novo", "curioso", "agendado"]
+
         db.commit()
         print("Templates de nicho semeados com sucesso!")
     except Exception as e:
