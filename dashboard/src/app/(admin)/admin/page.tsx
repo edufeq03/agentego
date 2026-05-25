@@ -770,25 +770,72 @@ export default function AdminPage() {
 
               <div className="col-span-full border-t border-white/5 pt-4">
                 <h3 className="text-xs font-bold text-blue-400 uppercase tracking-[2px] mb-4">Módulos Ativos</h3>
-                <div className="flex items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3">
-                  <input 
-                    type="checkbox"
-                    id="modulo-agenda"
-                    className="w-5 h-5 rounded border-[var(--color-border)] text-blue-600 focus:ring-blue-500 accent-blue-600 bg-slate-900 cursor-pointer"
-                    checked={formData.modulos_ativos.includes("agenda")}
-                    onChange={(e) => {
-                      const active = e.target.checked;
-                      setFormData(prev => ({
-                        ...prev,
-                        modulos_ativos: active 
-                          ? [...prev.modulos_ativos.filter(m => m !== "agenda"), "agenda"]
-                          : prev.modulos_ativos.filter(m => m !== "agenda")
-                      }));
-                    }}
-                  />
-                  <label htmlFor="modulo-agenda" className="text-sm font-semibold text-slate-300 cursor-pointer select-none">
-                    Módulo de Agenda (Habilitar calendário, serviços e agendamentos)
-                  </label>
+                <div className="space-y-3">
+                  {/* Módulo de Agenda */}
+                  <div className="flex items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3">
+                    <input 
+                      type="checkbox"
+                      id="modulo-agenda"
+                      className="w-5 h-5 rounded border-[var(--color-border)] text-blue-600 focus:ring-blue-500 accent-blue-600 bg-slate-900 cursor-pointer"
+                      checked={formData.modulos_ativos.includes("agenda")}
+                      onChange={(e) => {
+                        const active = e.target.checked;
+                        setFormData(prev => ({
+                          ...prev,
+                          modulos_ativos: active 
+                            ? [...prev.modulos_ativos.filter(m => m !== "agenda"), "agenda"]
+                            : prev.modulos_ativos.filter(m => m !== "agenda")
+                        }));
+                      }}
+                    />
+                    <label htmlFor="modulo-agenda" className="text-sm font-semibold text-slate-300 cursor-pointer select-none">
+                      Módulo de Agenda (Habilitar calendário, serviços e agendamentos)
+                    </label>
+                  </div>
+
+                  {/* Módulo de Lista de Espera */}
+                  <div className="flex items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3">
+                    <input 
+                      type="checkbox"
+                      id="modulo-lista-espera"
+                      className="w-5 h-5 rounded border-[var(--color-border)] text-blue-600 focus:ring-blue-500 accent-blue-600 bg-slate-900 cursor-pointer"
+                      checked={formData.modulos_ativos.includes("lista_espera")}
+                      onChange={(e) => {
+                        const active = e.target.checked;
+                        setFormData(prev => ({
+                          ...prev,
+                          modulos_ativos: active 
+                            ? [...prev.modulos_ativos.filter(m => m !== "lista_espera"), "lista_espera"]
+                            : prev.modulos_ativos.filter(m => m !== "lista_espera")
+                        }));
+                      }}
+                    />
+                    <label htmlFor="modulo-lista-espera" className="text-sm font-semibold text-slate-300 cursor-pointer select-none">
+                      Módulo de Lista de Espera (Permitir fila de espera para cancelamentos)
+                    </label>
+                  </div>
+
+                  {/* Módulo de Comunicados */}
+                  <div className="flex items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3">
+                    <input 
+                      type="checkbox"
+                      id="modulo-comunicados"
+                      className="w-5 h-5 rounded border-[var(--color-border)] text-blue-600 focus:ring-blue-500 accent-blue-600 bg-slate-900 cursor-pointer"
+                      checked={formData.modulos_ativos.includes("comunicados")}
+                      onChange={(e) => {
+                        const active = e.target.checked;
+                        setFormData(prev => ({
+                          ...prev,
+                          modulos_ativos: active 
+                            ? [...prev.modulos_ativos.filter(m => m !== "comunicados"), "comunicados"]
+                            : prev.modulos_ativos.filter(m => m !== "comunicados")
+                        }));
+                      }}
+                    />
+                    <label htmlFor="modulo-comunicados" className="text-sm font-semibold text-slate-300 cursor-pointer select-none">
+                      Módulo de Comunicados (Disparar comunicados em massa por WhatsApp)
+                    </label>
+                  </div>
                 </div>
               </div>
 
