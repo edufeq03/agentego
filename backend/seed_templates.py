@@ -5,15 +5,22 @@ def seed():
     db = SessionLocal()
     try:
         # 1. Template Academia
-        academia = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Academia").first()
+        academia = db.query(PromptTemplate).filter(PromptTemplate.nicho == "academia").first()
         if not academia:
-            academia = PromptTemplate(nome_nicho="Academia")
-            db.add(academia)
-        academia.prompt_sistema = "Você é uma assistente virtual de uma academia de alta performance. Seu tom é motivador, amigável e focado em saúde. Seu objetivo é tirar dúvidas de interessados e apresentar a academia, convidando-os de forma natural e acolhedora a fazer uma visita, sem ser inconveniente ou insistente."
-        academia.tom_voz = "Motivador e Energético"
-        academia.missao = "Transformar vidas através do exercício físico."
-        academia.objetivo = "Tirar dúvidas e convidar para conhecer a academia de forma natural."
-        academia.etapas_funil = ["novo", "curioso", "interessado", "agendado"]
+            academia = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Academia").first()
+            if not academia:
+                academia = PromptTemplate(nome_nicho="Academia", nicho="academia")
+                db.add(academia)
+            else:
+                academia.nicho = "academia"
+        else:
+            academia.nome_nicho = "Academia"
+            
+        academia.prompt_sistema = "Você é uma assistente virtual de atendimento ao público de uma academia. Seu tom é prestativo, amigável e focado em bem-estar. Seu objetivo é acolher os alunos e interessados, tirar dúvidas sobre planos, horários de funcionamento, regras, modalidades e fornecer suporte de forma rápida e eficiente."
+        academia.tom_voz = "Prestativo, Acolhedor e Educado"
+        academia.missao = "Facilitar o acesso à informação e apoiar a jornada de bem-estar dos alunos."
+        academia.objetivo = "Atendimento ao público e suporte geral para tirar dúvidas de alunos e interessados."
+        academia.etapas_funil = ["novo", "em_atendimento", "resolvido"]
 
         # 2. Template Clínica Médica
         clinica = db.query(PromptTemplate).filter(PromptTemplate.nome_nicho == "Clínica").first()
