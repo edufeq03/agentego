@@ -308,7 +308,7 @@ export default function AdminPage() {
 
 
 
-        {activeTab === "empresas" ? (
+        {activeTab === "empresas" && (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="relative w-full md:w-96">
