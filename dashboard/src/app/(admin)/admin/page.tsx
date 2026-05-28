@@ -598,7 +598,8 @@ export default function AdminPage() {
               )}
             </div>
         </div>
-        ) : (
+        )}
+        {activeTab === "templates" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.map((t) => (
               <div key={t.id} className="glass-panel p-6 space-y-4 relative group">
