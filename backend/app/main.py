@@ -651,7 +651,7 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
                 if os.path.exists(caminho_audio_resposta):
                     os.remove(caminho_audio_resposta)
         else:
-            paragrafos = [p.strip() for p in resposta.split('\n') if p.strip()]
+            paragrafos = [p.strip() for p in resposta.split('\n\n') if p.strip()]
             for i, paragrafo in enumerate(paragrafos):
                 if i > 0:
                     simular_digitacao(telefone, empresa.evolution_instance)
