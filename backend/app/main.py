@@ -598,12 +598,12 @@ async def processar_pipeline_callback(empresa_simplificada, telefone: str, texto
         config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
         modulos = config_dict.get("modulos_ativos", [])
         
-        if "agenda" in modulos or empresa.nicho == "agenda" or empresa.nicho == "higienizacao":
-            from app.pipeline_agenda import processar_pipeline_agenda
-            resultado = processar_pipeline_agenda(empresa, telefone, texto_combinado)
-        elif empresa.nicho == "lanchonete":
+        if empresa.nicho == "lanchonete":
             from app.pipeline_lanchonete import processar_pipeline_lanchonete
             resultado = processar_pipeline_lanchonete(empresa, telefone, texto_combinado)
+        elif "agenda" in modulos or empresa.nicho == "agenda" or empresa.nicho == "higienizacao":
+            from app.pipeline_agenda import processar_pipeline_agenda
+            resultado = processar_pipeline_agenda(empresa, telefone, texto_combinado)
         else:
             resultado = processar_webhook(empresa, telefone, texto_combinado)
         logger.info(f"✅ [IA] Resposta pronta para {telefone}")
