@@ -15,9 +15,13 @@ import {
   ShieldCheck,
   Trash2,
   ExternalLink,
-  Activity
+  Activity,
+  LayoutGrid,
+  TrendingUp,
+  Cpu
 } from "lucide-react";
 import Link from "next/link";
+import NichosCatalogo from "./NichosCatalogo";
 
 interface Empresa {
   id: string;
@@ -55,7 +59,7 @@ interface Template {
 export default function AdminPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [activeTab, setActiveTab] = useState<"empresas" | "templates">("empresas");
+  const [activeTab, setActiveTab] = useState<"empresas" | "templates" | "nichos">("empresas");
   const [adminToken, setAdminToken] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -261,6 +265,11 @@ export default function AdminPage() {
     );
   }
 
+  // Derived KPIs
+  const totalAtivas = empresas.filter(e => e.ativo).length;
+  const mrr = empresas.filter(e => e.ativo).reduce((acc, e) => acc + (e.valor_mensalidade || 0), 0);
+  const custoTotal = empresas.reduce((acc, e) => acc + (e.custo_estimado_usd || 0), 0);
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 text-white">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -326,6 +335,38 @@ export default function AdminPage() {
           </div>
         </header>
 
+        {/* KPI Cards - Dasher style */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass-panel p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 shrink-0"><Users size={22} /></div>
+            <div>
+              <p className="text-2xl font-bold text-white">{empresas.length}</p>
+              <p className="text-xs text-slate-400">Total Empresas</p>
+            </div>
+          </div>
+          <div className="glass-panel p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-green-500/10 text-green-400 shrink-0"><CheckCircle2 size={22} /></div>
+            <div>
+              <p className="text-2xl font-bold text-white">{totalAtivas}</p>
+              <p className="text-xs text-slate-400">Ativas</p>
+            </div>
+          </div>
+          <div className="glass-panel p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0"><TrendingUp size={22} /></div>
+            <div>
+              <p className="text-2xl font-bold text-white">R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+              <p className="text-xs text-slate-400">MRR</p>
+            </div>
+          </div>
+          <div className="glass-panel p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-yellow-500/10 text-yellow-400 shrink-0"><Cpu size={22} /></div>
+            <div>
+              <p className="text-2xl font-bold text-white">${custoTotal.toFixed(2)}</p>
+              <p className="text-xs text-slate-400">Custo IA / mês</p>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-4 border-b border-[var(--color-border)]">
           <button 
@@ -339,6 +380,13 @@ export default function AdminPage() {
             className={`pb-4 px-2 font-bold transition-all border-b-2 ${activeTab === "templates" ? "border-purple-500 text-purple-400" : "border-transparent text-slate-400 hover:text-white"}`}
           >
             Templates de Nicho ({templates.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab("nichos")}
+            className={`pb-4 px-2 font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === "nichos" ? "border-pink-500 text-pink-400" : "border-transparent text-slate-400 hover:text-white"}`}
+          >
+            <LayoutGrid size={15} />
+            Catálogo de Nichos
           </button>
         </div>
 
@@ -689,6 +737,9 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+        {activeTab === "nichos" && (
+          <NichosCatalogo />
         )}
       </div>
 
