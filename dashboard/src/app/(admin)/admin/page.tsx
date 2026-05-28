@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import NichosCatalogo from "./NichosCatalogo";
+import AdminShell from "./AdminShell";
 
 interface Empresa {
   id: string;
@@ -271,124 +272,41 @@ export default function AdminPage() {
   const custoTotal = empresas.reduce((acc, e) => acc + (e.custo_estimado_usd || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 text-white">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
-              <Users size={32} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Central do Franqueador</h1>
-              <p className="text-slate-400">Gerencie o onboarding, faturamento e templates de nicho.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            {activeTab === "empresas" ? (
-              <button 
-                onClick={() => {
-                  setEditingEmpresa(null);
-                  setFormData({
-                    nome: "",
-                    slug: "",
-                    telefone_whatsapp: "",
-                    telefone_proprietario: "",
-                    valor_mensalidade: 197.00,
-                    dias_teste: 30,
-                    cupom_vendedor: "",
-                    template_id: "",
-                    email_admin: "",
-                    senha_admin: "",
-                    plano: "trial",
-                    limite_conversas_mes: 100,
-                    nicho: "generico",
-                    modulos_ativos: []
-                  });
-                  setShowModal(true);
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20"
-              >
-                <Plus size={20} />
-                Novo Cliente
-              </button>
-            ) : (
-              <button 
-                onClick={() => {
-                  setEditingTemplate(null);
-                  setTemplateData({
-                    nome_nicho: "",
-                    prompt_sistema: "",
-                    tom_voz: "",
-                    missao: "",
-                    objetivo: "",
-                    etapas_funil: "novo, curioso, interessado, agendado",
-                    nicho: "generico"
-                  });
-                  setShowTemplateModal(true);
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold transition-all shadow-lg shadow-purple-600/20"
-              >
-                <Plus size={20} />
-                Novo Template
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* KPI Cards - Dasher style */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="glass-panel p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 shrink-0"><Users size={22} /></div>
-            <div>
-              <p className="text-2xl font-bold text-white">{empresas.length}</p>
-              <p className="text-xs text-slate-400">Total Empresas</p>
-            </div>
-          </div>
-          <div className="glass-panel p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-green-500/10 text-green-400 shrink-0"><CheckCircle2 size={22} /></div>
-            <div>
-              <p className="text-2xl font-bold text-white">{totalAtivas}</p>
-              <p className="text-xs text-slate-400">Ativas</p>
-            </div>
-          </div>
-          <div className="glass-panel p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0"><TrendingUp size={22} /></div>
-            <div>
-              <p className="text-2xl font-bold text-white">R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-              <p className="text-xs text-slate-400">MRR</p>
-            </div>
-          </div>
-          <div className="glass-panel p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-yellow-500/10 text-yellow-400 shrink-0"><Cpu size={22} /></div>
-            <div>
-              <p className="text-2xl font-bold text-white">${custoTotal.toFixed(2)}</p>
-              <p className="text-xs text-slate-400">Custo IA / mês</p>
-            </div>
-          </div>
+    <AdminShell
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      empresasCount={empresas.length}
+      templatesCount={templates.length}
+      kpis={{ empresas: empresas.length, ativas: totalAtivas, mrr, custo: custoTotal }}
+    >
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex justify-end">
+          {activeTab === "empresas" ? (
+            <button
+              onClick={() => {
+                setEditingEmpresa(null);
+                setFormData({ nome: "", slug: "", telefone_whatsapp: "", telefone_proprietario: "", valor_mensalidade: 197.00, dias_teste: 30, cupom_vendedor: "", template_id: "", email_admin: "", senha_admin: "", plano: "trial", limite_conversas_mes: 100, nicho: "generico", modulos_ativos: [] });
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20 text-sm"
+            >
+              <Plus size={16} /> Novo Cliente
+            </button>
+          ) : activeTab === "templates" ? (
+            <button
+              onClick={() => {
+                setEditingTemplate(null);
+                setTemplateData({ nome_nicho: "", prompt_sistema: "", tom_voz: "", missao: "", objetivo: "", etapas_funil: "novo, curioso, interessado, agendado", nicho: "generico" });
+                setShowTemplateModal(true);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold transition-all shadow-lg shadow-purple-600/20 text-sm"
+            >
+              <Plus size={16} /> Novo Template
+            </button>
+          ) : null}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 border-b border-[var(--color-border)]">
-          <button 
-            onClick={() => setActiveTab("empresas")}
-            className={`pb-4 px-2 font-bold transition-all border-b-2 ${activeTab === "empresas" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-white"}`}
-          >
-            Empresas ({empresas.length})
-          </button>
-          <button 
-            onClick={() => setActiveTab("templates")}
-            className={`pb-4 px-2 font-bold transition-all border-b-2 ${activeTab === "templates" ? "border-purple-500 text-purple-400" : "border-transparent text-slate-400 hover:text-white"}`}
-          >
-            Templates de Nicho ({templates.length})
-          </button>
-          <button 
-            onClick={() => setActiveTab("nichos")}
-            className={`pb-4 px-2 font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === "nichos" ? "border-pink-500 text-pink-400" : "border-transparent text-slate-400 hover:text-white"}`}
-          >
-            <LayoutGrid size={15} />
-            Catálogo de Nichos
-          </button>
-        </div>
+
 
         {activeTab === "empresas" ? (
           <div className="space-y-4">
@@ -986,6 +904,6 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminShell>
   );
 }
