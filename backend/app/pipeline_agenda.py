@@ -280,12 +280,23 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             "stage": lead.stage,
             "servicos_formatados": servicos_formatados,
             "slots_formatados": slots_formatados,
-            "dados_agenda": dados_agenda_ctx
+            "dados_agenda": dados_agenda_ctx,
+            "nicho": empresa.nicho or "agenda",
+            "triagem_dinamica": {
+                "campos_pendentes": "",
+                "campos_coletados": ""
+            }
         }
 
         # 9. PROCESSAR COM O ESPECIALISTA ADEQUADO
         nicho = empresa.nicho or "agenda"
         especialista = get_especialista(nicho)
+        
+        # Garante que um especialista focado em agenda seja usado se o nicho for genérico
+        if especialista.nome not in ["EspecialistaAgenda", "EspecialistaBeleza"]:
+            from app.agents.especialistas.agenda import EspecialistaAgenda
+            especialista = EspecialistaAgenda()
+
         resposta_raw, t_in, t_out = especialista.processar(mensagem_texto, contexto_agente, historico)
 
         # 10. ATUALIZAR TOKENS CONSUMIDOS
@@ -492,7 +503,7 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
             "tokens_out": t_out
         }
     except Exception as e:
-        logger.error(f"Erro no pipeline de agenda para {telefone}: {e}")
+        logger.error(f"Erro no pipeline de agenda para {telefone}: {e}", exc_info=True)
         db.rollback()
         return {
             "status": "erro",
