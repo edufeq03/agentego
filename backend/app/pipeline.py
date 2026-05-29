@@ -250,9 +250,43 @@ def _verificar_guardrails(db, empresa, telefone):
     # Normaliza o telefone recebido (remove caracteres não numéricos)
     tel_limpo = "".join(filter(str.isdigit, telefone))
     
+    # Guardrail 1: Blacklist manual
     if tel_limpo in telefones_ignorados or telefone in telefones_ignorados:
         logger.info(f"Mensagem de {telefone} ignorada (Blacklist)")
         return {"status": "ignorado", "motivo": "blacklist"}
+
+    # Guardrail 2: Modo de Recepção de Contatos
+    # Valores possíveis: 'todos' (padrão), 'apenas_novos', 'retomar_conhecidos'
+    modo_recepcao = configuracao.get('modo_recepcao', 'todos')
+    
+    if modo_recepcao in ('apenas_novos', 'retomar_conhecidos'):
+        lead_existente = db.query(Lead).filter(
+            Lead.empresa_id == empresa.id,
+            Lead.telefone == telefone
+        ).first()
+        
+        if lead_existente:
+            tem_historico = db.query(Mensagem).filter(
+                Mensagem.lead_id == lead_existente.id
+            ).first()
+            
+            if tem_historico:
+                if modo_recepcao == 'apenas_novos':
+                    logger.info(
+                        f"[{telefone}] Mensagem ignorada (Modo apenas_novos): "
+                        f"lead já possui histórico de conversa."
+                    )
+                    return {"status": "ignorado", "motivo": "contato_conhecido"}
+                
+                elif modo_recepcao == 'retomar_conhecidos':
+                    # Não bloqueia — permite o atendimento, mas sinaliza para a IA
+                    # não fazer apresentação formal (o especialista trata isso via config)
+                    logger.info(
+                        f"[{telefone}] Contato conhecido (Modo retomar_conhecidos): "
+                        f"atendimento liberado sem apresentação."
+                    )
+                    return {"status": "retomar", "motivo": "contato_conhecido"}
+    
     return None
 
 def _carregar_lead_com_billing(db, empresa, telefone):
@@ -404,7 +438,7 @@ def _atualizar_stage(db, empresa, lead, intencao):
     # Registra evento de intenção
     registrar_evento(db, empresa.id, lead.id, f"perguntou_{intencao}" if intencao != "duvida" else "fez_pergunta")
 
-def _montar_contexto(db, empresa, lead, triagem):
+def _montar_contexto(db, empresa, lead, triagem, is_retomar: bool = False):
     configuracao = empresa.configuracoes.config if empresa.configuracoes else {}
     contexto_tempo = gerar_contexto_tempo(configuracao)
     
@@ -425,6 +459,10 @@ def _montar_contexto(db, empresa, lead, triagem):
         configuracao["documentos"] = []
     else:
         configuracao["documentos"] = []
+
+    # Modo de Recepção: injeta flag para que o especialista omita apresentação formal
+    if is_retomar:
+        configuracao["_retomar_sem_apresentacao"] = True
         
     return {
         "configuracao": configuracao,
@@ -630,10 +668,13 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
             if res:
                 return res
 
-        # ETAPA 1: Guardrails (blacklist, limite de plano)
+        # ETAPA 1: Guardrails (blacklist, modo de recepção, limite de plano)
         guardrails = _verificar_guardrails(db, empresa, telefone)
         if guardrails:
-            return guardrails
+            if guardrails["status"] == "ignorado":
+                return guardrails
+            # status == "retomar": atendimento liberado, mas sem apresentação formal
+        is_retomar = guardrails is not None and guardrails.get("status") == "retomar"
 
         # ETAPA 2: Transbordo ativo?
         status_transbordo = obter_status_transbordo(db, empresa.id, telefone)
@@ -674,7 +715,7 @@ def processar_webhook(empresa: Empresa, telefone: str, mensagem_texto: str):
         _atualizar_stage(db, empresa, lead, triagem["intencao"])
 
         # ETAPA 7: Montar contexto
-        context_data = _montar_contexto(db, empresa, lead, triagem)
+        context_data = _montar_contexto(db, empresa, lead, triagem, is_retomar=is_retomar)
 
         # ETAPA 8: Carregar histórico recente (limitado a 6)
         historico_db = db.query(Mensagem).filter(Mensagem.lead_id == lead.id).order_by(Mensagem.timestamp.desc()).limit(6).all()

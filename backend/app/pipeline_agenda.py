@@ -69,7 +69,16 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
                     "tokens_out": 0
                 }
 
-        # 2. CARREGAR OU CRIAR LEAD DO CLIENTE
+        # 2. GUARDRAIL: Modo de Recepção de Contatos (importado do pipeline central)
+        from app.pipeline import _verificar_guardrails
+        guardrails_resultado = _verificar_guardrails(db, empresa, telefone)
+        if guardrails_resultado:
+            if guardrails_resultado["status"] == "ignorado":
+                return guardrails_resultado
+            # status == "retomar": atendimento liberado, mas sem apresentação formal
+        is_retomar = guardrails_resultado is not None and guardrails_resultado.get("status") == "retomar"
+
+        # 3. CARREGAR OU CRIAR LEAD DO CLIENTE
         lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
         if not lead:
             lead = Lead(empresa_id=empresa.id, telefone=telefone, stage="novo")
@@ -271,6 +280,11 @@ def processar_pipeline_agenda(empresa: Empresa, telefone: str, mensagem_texto: s
         }
 
         config_root = empresa.configuracoes.config if empresa.configuracoes else {}
+        
+        # Modo de Recepção: injeta flag para omitir apresentação formal para contatos conhecidos
+        if is_retomar:
+            config_root["_retomar_sem_apresentacao"] = True
+        
         contexto_agente = {
             "config": config_root,
             "nome_agente": config_agenda.get("nome_agente") or config_root.get("nome_agente") or "Rosana",
