@@ -47,6 +47,7 @@ interface ConfigData {
   aulas?: Aula[];
   whatsapp_cozinha?: string;
   taxa_entrega?: number;
+  modo_recepcao?: "todos" | "apenas_novos" | "retomar_conhecidos";
   // Campos legados mantidos para compatibilidade
   planos?: { basico: number; vip: number };
   aviso_vencimento_1?: number;
@@ -82,7 +83,8 @@ export default function Configuracoes() {
     professores: [],
     aulas: [],
     whatsapp_cozinha: "",
-    taxa_entrega: 5.00
+    taxa_entrega: 5.00,
+    modo_recepcao: "todos"
   });
   
   const [newIgnoredPhone, setNewIgnoredPhone] = useState("");
@@ -133,7 +135,8 @@ export default function Configuracoes() {
             professores: Array.isArray(configData.professores) ? configData.professores : [],
             aulas: Array.isArray(configData.aulas) ? configData.aulas : [],
             whatsapp_cozinha: configData.whatsapp_cozinha || "",
-            taxa_entrega: configData.taxa_entrega ?? 5.00
+            taxa_entrega: configData.taxa_entrega ?? 5.00,
+            modo_recepcao: (configData.modo_recepcao as "todos" | "apenas_novos" | "retomar_conhecidos") || "todos"
           });
         }
         setWebhookToken(webhook_token || "");
@@ -928,7 +931,92 @@ export default function Configuracoes() {
                 </select>
               </div>
             </div>
-          </section>          {/* Redirecionamento de Telefones */}
+          </section>          {/* Modo de Recepção de Contatos */}
+          <section className="glass-panel p-6 space-y-4">
+            <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
+              <Users className="text-violet-400" size={20} />
+              Modo de Recepção
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Define como o agente se comporta ao receber uma mensagem de quem já conversou antes.
+            </p>
+
+            <div className="space-y-3">
+              {/* Opção: Todos */}
+              <label
+                htmlFor="recepcao-todos"
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  config.modo_recepcao === "todos" || !config.modo_recepcao
+                    ? "border-[var(--color-brand-500)] bg-[var(--color-brand-500)]/10"
+                    : "border-[var(--color-border)] bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <input
+                  id="recepcao-todos"
+                  type="radio"
+                  name="modo_recepcao"
+                  value="todos"
+                  checked={config.modo_recepcao === "todos" || !config.modo_recepcao}
+                  onChange={() => setConfig({ ...config, modo_recepcao: "todos" })}
+                  className="mt-0.5 accent-[var(--color-brand-500)]"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-white">Todos os Contatos</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Agente responde a qualquer mensagem, sempre com apresentação completa. Comportamento padrão.</p>
+                </div>
+              </label>
+
+              {/* Opção: Apenas Novos */}
+              <label
+                htmlFor="recepcao-apenas-novos"
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  config.modo_recepcao === "apenas_novos"
+                    ? "border-amber-500 bg-amber-500/10"
+                    : "border-[var(--color-border)] bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <input
+                  id="recepcao-apenas-novos"
+                  type="radio"
+                  name="modo_recepcao"
+                  value="apenas_novos"
+                  checked={config.modo_recepcao === "apenas_novos"}
+                  onChange={() => setConfig({ ...config, modo_recepcao: "apenas_novos" })}
+                  className="mt-0.5 accent-amber-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-white">Somente Novos <span className="text-amber-400 text-[10px] font-bold uppercase ml-1">Silencia conhecidos</span></p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Ignora quem já conversou. Ideal para campanhas de aquisição onde o time humano assume o pós-venda.</p>
+                </div>
+              </label>
+
+              {/* Opção: Retomar Conhecidos */}
+              <label
+                htmlFor="recepcao-retomar"
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  config.modo_recepcao === "retomar_conhecidos"
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-[var(--color-border)] bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <input
+                  id="recepcao-retomar"
+                  type="radio"
+                  name="modo_recepcao"
+                  value="retomar_conhecidos"
+                  checked={config.modo_recepcao === "retomar_conhecidos"}
+                  onChange={() => setConfig({ ...config, modo_recepcao: "retomar_conhecidos" })}
+                  className="mt-0.5 accent-emerald-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-white">Retomar Sem Apresentação <span className="text-emerald-400 text-[10px] font-bold uppercase ml-1">Recomendado</span></p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Atende a todos, mas não se reapresenta para quem já conversou. Responde direto ao ponto. Fluxo natural e contínuo.</p>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          {/* Redirecionamento de Telefones */}
           <section className="glass-panel p-6 space-y-4">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <ShieldAlert className="text-blue-400" size={20} />

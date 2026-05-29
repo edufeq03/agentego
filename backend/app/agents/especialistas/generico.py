@@ -45,6 +45,24 @@ class EspecialistaGenerico(BaseAgent):
         campanha_desc = campanha_info.get("descricao") or "Nenhuma instrução especial de foco cadastrada."
         recorrente_str = "Sim" if ctx.get("lead_recorrente") else "Não"
         lead_nome = ctx.get("lead_nome") or "Cliente"
+        retomar_sem_apresentacao = config.get("_retomar_sem_apresentacao", False)
+
+        # Bloco de instrução de retomada (modo retomar_conhecidos)
+        instrucao_retomada = ""
+        if retomar_sem_apresentacao:
+            instrucao_retomada = """
+=== [MODO RETOMAR CONTATO CONHECIDO — INSTRUÇÃO OBRIGATÓRIA] ===
+Este contato já conversou com você anteriormente e está retomando o contato.
+REGRAS DE OURO para esta interação:
+1. NÃO se apresente. Não diga "Sou o/a X, assistente da empresa Y" nem variações.
+2. NÃO faça perguntas iniciais de triagem (nome, objetivo, etc.) — ele já é conhecido.
+3. SE a mensagem dele for uma saudação vaga ("oi", "olá", "e aí", "tudo bem?", etc.):
+   → Responda de forma casual e amigável, e pergunte em que pode ajudar. Ex: "Oi! Que bom te ver por aqui de novo 😊 Em que posso ajudar hoje?"
+4. SE a mensagem dele contiver uma demanda ou pergunta clara:
+   → Responda DIRETAMENTE ao que ele pediu, sem rodeios de apresentação.
+   → Exemplo: se ele perguntar sobre um serviço, responda com as informações do serviço imediatamente.
+=== [FIM DA INSTRUÇÃO DE RETOMADA] ===
+"""
 
         def limpar_placeholders(texto):
             if not texto: return ""
@@ -60,7 +78,7 @@ class EspecialistaGenerico(BaseAgent):
         secoes_conhecimento = self._montar_conhecimento(config)
         regras_str = self._montar_regras(config)
 
-        return f"""
+        return f"""{instrucao_retomada}
 Você é {nome_agente}, {cargo} da {nome_empresa}.
 
 === STATUS DO CLIENTE ===
@@ -74,7 +92,7 @@ Descrição/Foco da Campanha: {campanha_desc}
 
 === PERSONALIDADE E TOM (SAUDAÇÃO INTELIGENTE) ===
 * RECONHECIMENTO DE ANÚNCIO (Para cliente novo com Campanha ativa): Se o cliente for novo (CLIENTE RECORRENTE = Não) e houver uma Campanha ativa (diferente de 'Nenhuma'), você DEVE iniciar sua primeira resposta contextualizando o anúncio que ele viu com base no Nome e na Descrição/Foco da Campanha fornecidos acima! Adapte a recepção do lead e seu pitch inicial exatamente conforme as diretrizes descritas na Descrição/Foco da Campanha!
-* RECONHECIMENTO DE RETORNO (Para cliente recorrente): Se o CLIENTE RECORRENTE for "Sim", NÃO se apresente novamente (não diga "Eu sou o/a {nome_agente}, assistente da..."). Cumprimente-o pessoalmente (ex: "Olá, {lead_nome}! Que bom falar com você novamente! Como posso ajudar hoje?") e vá direto ao ponto sem repetir apresentações formais.
+* RECONHECIMENTO DE RETORNO (Para cliente recorrente — modo padrão): Se o CLIENTE RECORRENTE for "Sim", NÃO se apresente novamente (não diga "Eu sou o/a {nome_agente}, assistente da..."). Cumprimente-o pessoalmente (ex: "Olá, {lead_nome}! Que bom falar com você novamente! Como posso ajudar hoje?") e vá direto ao ponto sem repetir apresentações formais.
 * Seu tom geral deve ser: {tom_voz}
 
 === SUA MISSÃO ===

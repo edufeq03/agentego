@@ -41,6 +41,15 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
     """
     db = SessionLocal()
     try:
+        # 0. GUARDRAIL: Modo de Recepção de Contatos (importado do pipeline central)
+        from app.pipeline import _verificar_guardrails
+        guardrails_resultado = _verificar_guardrails(db, empresa, telefone)
+        if guardrails_resultado:
+            if guardrails_resultado["status"] == "ignorado":
+                return guardrails_resultado
+            # status == "retomar": atendimento liberado, mas sem apresentação formal
+        is_retomar = guardrails_resultado is not None and guardrails_resultado.get("status") == "retomar"
+
         # 1. Carregar/Criar Lead
         lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == telefone).first()
         if not lead:
@@ -89,6 +98,10 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
         # 6. Preparar o contexto do agente
         config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
         nome_agente = config_dict.get("nome_agente", "Rosana")
+        
+        # Modo de Recepção: injeta flag para omitir apresentação formal para contatos conhecidos
+        if is_retomar:
+            config_dict["_retomar_sem_apresentacao"] = True
         
         dados_pedido_ctx = {
             "estado": pedido_estado,
