@@ -11,7 +11,7 @@ class EspecialistaLanchonete(BaseAgent):
         # Instrução de tags de reforço
         lembrete = (
             "\n\n[INSTRUÇÃO DO SISTEMA: Lembre-se de sempre anexar as tags corretas de acordo com a ação "
-            "(ex: [DEFINIR_MODO: modo=...], [ADICIONAR_ITEM: nome=..., quantidade=..., obs=...], [REMOVER_ITEM: nome=...], [SOLICITAR_CONFIRMACAO] ou [CONFIRMAR_PEDIDO]) no final da sua resposta!]"
+            "(ex: [DEFINIR_MODO: modo=...], [ADICIONAR_ITEM: nome=..., quantidade=..., obs=...], [REMOVER_ITEM: nome=...], [SOLICITAR_CONFIRMACAO], [CONFIRMAR_PEDIDO] ou [SALVAR_AVALIACAO: nota=..., comentario=...]) no final da sua resposta!]"
         )
         mensagem_com_lembrete = mensagem + lembrete
         temperature = contexto.get("config", {}).get("openai_temperature", 0.2)
@@ -46,6 +46,14 @@ class EspecialistaLanchonete(BaseAgent):
         # Obter instruções base da lanchonete (ou usar a padrão cadastrada)
         prompt_sistema = config.get("prompt_sistema") or ""
         
+        regras_extras = []
+        if config.get("apenas_delivery"):
+            regras_extras.append("🚨 ATENÇÃO: A lanchonete está operando APENAS COM DELIVERY no momento. Não ofereça e não aceite opções de comer na mesa ou retirar no balcão.")
+        if config.get("exigir_endereco_texto"):
+            regras_extras.append("🚨 ATENÇÃO: Para o endereço de entrega, EXIJA RIGOROSAMENTE que o cliente DIGITE o endereço em texto (para evitarmos erros de transcrição de áudio). Se o cliente não digitou claramente o endereço completo, peça para ele escrever.")
+            
+        regras_extras_str = "\n".join(regras_extras)
+        
         return f"""Você é {nome_agente}, assistente virtual de atendimento da {nome_empresa}.
 Seu objetivo é guiar o cliente amigavelmente na escolha dos itens e confirmação de pedidos.
 
@@ -64,6 +72,8 @@ Nome para Retirada (Balcão): {nome_balcao_pedido or 'Não aplicável'}
 
 === SUA DIRETRIZ POR ESTADO ===
 {prompt_sistema}
+
+{regras_extras_str}
 
 === INSTRUÇÕES TÉCNICAS (OBRIGATÓRIO) ===
 Você controla o estado do pedido através de tags técnicas adicionadas na última linha da sua resposta. Sempre adicione as tags quando houver ações:
@@ -88,6 +98,10 @@ Você controla o estado do pedido através de tags técnicas adicionadas na últ
 
 5. Quando o cliente confirmar expressamente o resumo do pedido no estado 'confirmando':
    - Tag: [CONFIRMAR_PEDIDO]
+
+6. Avaliação de Pós-Venda: Se o cliente estiver respondendo a uma mensagem de pós-venda dando uma nota para o pedido (ex: de 1 a 5) e/ou um comentário sobre como foi a experiência:
+   - Tag: [SALVAR_AVALIACAO: nota=Nota numérica de 1 a 5, comentario=Comentário do cliente]
+   - Agradeça a avaliação de forma carinhosa.
 
 Nunca misture o formato das tags. Assegure-se de que a resposta final contenha a tag correta em uma nova linha no final.
 """

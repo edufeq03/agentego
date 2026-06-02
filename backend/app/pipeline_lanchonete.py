@@ -247,6 +247,31 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
             else:
                 logger.warning(f"[{telefone}] Tentou confirmar pedido com carrinho vazio!")
 
+        # G. [SALVAR_AVALIACAO: nota=..., comentario=...]
+        match_avaliacao = re.search(r'\[SALVAR_AVALIACAO:\s*nota=([^,\]]+)(?:,\s*comentario=([^\]]+))?\]', resposta_raw, re.IGNORECASE)
+        if match_avaliacao:
+            nota_val = match_avaliacao.group(1).strip()
+            comentario_val = match_avaliacao.group(2).strip() if match_avaliacao.group(2) else ""
+            
+            # Tentar achar o último pedido deste lead que não foi cancelado
+            from app.database import Pedido
+            ultimo_pedido = db.query(Pedido).filter(
+                Pedido.empresa_id == empresa.id,
+                Pedido.lead_id == lead.id,
+                Pedido.status != "cancelado"
+            ).order_by(Pedido.criado_em.desc()).first()
+            
+            if ultimo_pedido:
+                try:
+                    ultimo_pedido.avaliacao_nota = int(nota_val)
+                    ultimo_pedido.avaliacao_comentario = comentario_val
+                    db.commit()
+                    logger.info(f"[{telefone}] Avaliação salva no Pedido #{ultimo_pedido.numero_pedido}: Nota={nota_val}, Comentário={comentario_val}")
+                except ValueError:
+                    logger.error(f"[{telefone}] Erro ao converter nota de avaliação: {nota_val}")
+            else:
+                logger.warning(f"[{telefone}] Avaliação recebida, mas nenhum pedido encontrado para o lead.")
+
         # 10. Atualizar o lead com o novo estado do carrinho
         dados_custom["pedido_estado"] = pedido_estado
         dados_custom["pedido_modo"] = pedido_modo
@@ -268,6 +293,7 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
         resposta_limpa = re.sub(r'\[ATUALIZAR_LEAD:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'\[ADICIONAR_ITEM:[^\]]*\]', '', resposta_limpa)
         resposta_limpa = re.sub(r'\[REMOVER_ITEM:[^\]]*\]', '', resposta_limpa)
+        resposta_limpa = re.sub(r'\[SALVAR_AVALIACAO:[^\]]*\]', '', resposta_limpa)
         
         resposta_limpa = resposta_limpa.strip()
         

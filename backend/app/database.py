@@ -396,12 +396,27 @@ class Pedido(Base):
     endereco = Column(Text, nullable=True)
     nome_balcao = Column(String, nullable=True)
     numero_mesa = Column(Integer, nullable=True)
+    avaliacao_nota = Column(Integer, nullable=True)
+    avaliacao_comentario = Column(Text, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     empresa = relationship("Empresa")
     lead = relationship("Lead")
     itens = relationship("ItemPedido", back_populates="pedido", cascade="all, delete-orphan")
+
+class FollowupDelivery(Base):
+    __tablename__ = "followup_delivery"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    pedido_id = Column(UUID(as_uuid=True), ForeignKey("pedidos.id", ondelete="CASCADE"), nullable=False)
+    telefone = Column(String, nullable=False)
+    agendado_para = Column(DateTime, nullable=False)
+    status = Column(String, default="pendente") # pendente, enviado, avaliado
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+    pedido = relationship("Pedido")
 
 class ItemPedido(Base):
     __tablename__ = "itens_pedido"
@@ -638,6 +653,22 @@ def init_db():
                 conn.execute(text('ALTER TABLE comunicados ADD CONSTRAINT comunicados_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE'))
             except Exception as e:
                 logger.warning(f"Erro ao aplicar migração de cascade (pode já existir): {e}")
+
+            # Migração de campos no Pedido e tabela FollowupDelivery
+            conn.execute(text('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS avaliacao_nota INTEGER'))
+            conn.execute(text('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS avaliacao_comentario TEXT'))
+            
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS followup_delivery (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    pedido_id UUID REFERENCES pedidos(id) ON DELETE CASCADE,
+                    telefone VARCHAR NOT NULL,
+                    agendado_para TIMESTAMP NOT NULL,
+                    status VARCHAR DEFAULT 'pendente',
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
             
             # Tabelas específicas (manualmente se create_all falhar por algum motivo)
             conn.execute(text('''
