@@ -198,6 +198,45 @@ def tarefa_disparo_agendado():
     finally:
         db.close()
 
+async def tarefa_followup_delivery():
+    """Verifica e dispara as pesquisas de satisfação de delivery agendadas."""
+    from app.database import SessionLocal, Empresa, FollowupDelivery
+    from app.whatsapp import enviar_whatsapp
+    from datetime import datetime
+    
+    db = SessionLocal()
+    try:
+        agora = datetime.utcnow()
+        pendentes = db.query(FollowupDelivery).filter(
+            FollowupDelivery.status == 'pendente',
+            FollowupDelivery.agendado_para <= agora
+        ).all()
+        
+        for followup in pendentes:
+            empresa = db.query(Empresa).filter(Empresa.id == followup.empresa_id, Empresa.ativo == True).first()
+            if not empresa:
+                continue
+                
+            logger.info(f"Disparando pesquisa de satisfação para {followup.telefone} (Pedido {followup.pedido_id})")
+            
+            mensagem = (
+                f"Olá! Vi aqui que o seu pedido foi entregue há pouco. Chegou tudo certinho e quentinho? 😋\n\n"
+                f"Aproveitando, como foi sua experiência com a gente hoje? Sua avaliação nos ajuda muito!\n"
+                f"👉 *Por favor, responda com uma nota de 1 a 5* (sendo 1 muito ruim e 5 excelente), e se quiser, deixe um comentário!"
+            )
+            
+            try:
+                enviar_whatsapp(followup.telefone, mensagem, empresa.evolution_instance)
+                followup.status = "enviado"
+            except Exception as e:
+                logger.error(f"Erro ao enviar pesquisa de satisfação para {followup.telefone}: {e}")
+            finally:
+                db.commit()
+    except Exception as e:
+        logger.error(f"Erro na tarefa_followup_delivery: {e}")
+    finally:
+        db.close()
+
 async def tarefa_avisos_vencimento():
     """Roda diariamente às 09:00 e envia avisos de vencimento de plano."""
     logger.info("Iniciando tarefa de avisos de vencimento...")
@@ -564,9 +603,10 @@ def on_startup():
     from app.agenda_service import tarefa_processar_agenda, job_expirar_lista_espera
     scheduler.add_job(tarefa_processar_agenda, 'interval', minutes=5, id="tarefa_processar_agenda")
     scheduler.add_job(job_expirar_lista_espera, 'interval', minutes=15, id="job_expirar_lista_espera")
+    scheduler.add_job(tarefa_followup_delivery, 'interval', minutes=5, id="tarefa_followup_delivery")
     
     scheduler.start()
-    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção, Reengajamento, Agenda e Lista de Espera.")
+    logger.info("Scheduler iniciado: Relatórios semanais, Manutenção, Reengajamento, Agenda, Lista de Espera e Followup Delivery.")
 
 
 @app.on_event("shutdown")

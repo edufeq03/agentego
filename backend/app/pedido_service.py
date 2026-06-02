@@ -2,8 +2,9 @@ import uuid
 from typing import List, Optional, Dict, Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.database import Pedido, ItemPedido, Empresa, Lead
+from app.database import Pedido, ItemPedido, Empresa, Lead, FollowupDelivery
 from app.whatsapp import enviar_whatsapp
+from datetime import datetime, timedelta
 
 def criar_pedido(
     db: Session,
@@ -102,6 +103,25 @@ def atualizar_status_pedido(db: Session, pedido_id: uuid.UUID, novo_status: str)
     if empresa:
         # Notificar o cliente sobre a mudança de status
         notificar_cliente_status(db, empresa, pedido)
+        
+        # 2. Agendar pesquisa de satisfação se for entregue e configurado
+        if novo_status == "entregue":
+            config = empresa.configuracoes.config if empresa.configuracoes else {}
+            if config.get("habilitar_pesquisa_satisfacao"):
+                lead = db.query(Lead).filter(Lead.id == pedido.lead_id).first()
+                if lead and lead.telefone:
+                    tempo_minutos = int(config.get("tempo_pesquisa_minutos", 60))
+                    agendado = datetime.utcnow() + timedelta(minutes=tempo_minutos)
+                    
+                    novo_followup = FollowupDelivery(
+                        empresa_id=empresa.id,
+                        pedido_id=pedido.id,
+                        telefone=lead.telefone,
+                        agendado_para=agendado
+                    )
+                    db.add(novo_followup)
+                    db.commit()
+                    print(f"Followup de pesquisa agendado para o pedido {pedido.numero_pedido} às {agendado}")
         
     return pedido
 
