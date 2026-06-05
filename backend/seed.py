@@ -235,10 +235,71 @@ def run_seed():
 
     db.commit()
 
-    print(f"Seed concluído! Temos 3 empresas de nichos diferentes.")
-    print(f"Webhook Academia: http://localhost:8000/webhook/{emp_academia.webhook_token}")
-    print(f"Webhook Imobiliária: http://localhost:8000/webhook/{emp_imob.webhook_token}")
-    print(f"Webhook Beleza: http://localhost:8000/webhook/{emp_beleza.webhook_token}")
+    # --- Criando Empresa 4 (Agência de Viagens) ---
+    config_agencia_viagens = {
+        "nome_agente": "Luana",
+        "cargo_agente": "Consultora de Viagens Virtual",
+        "nome_empresa": "Horizonte Viagens",
+        "missao": "Transformar sonhos em viagens inesquecíveis, oferecendo pacotes personalizados com o melhor custo-benefício.",
+        "tom_voz": "Inspirador, caloroso, apaixonado por viagens e muito atencioso.",
+        "destinos_destaque": ["Europa", "Caribe", "Miami", "Fernando de Noronha", "Machu Picchu"],
+        "tipos_pacote": ["Pacotes Completos", "Passagens Aéreas", "Cruzeiros", "Lua de Mel", "Viagens Corporativas"],
+        "horarios": "Segunda a Sexta das 09:00 às 18:00 | Sábados das 09:00 às 13:00",
+        "pagamentos": ["Cartão de Crédito (até 12x)", "Pix", "Boleto"],
+        "modulos_ativos": ["listas_transmissao"],
+        "regras": [
+            "Sempre pergunte para qual destino ou tipo de viagem o cliente tem interesse.",
+            "Pergunte quantas pessoas vão viajar e se há crianças.",
+            "Pergunte a data pretendida para a viagem.",
+            "Apresente 2-3 opções de pacotes quando possível.",
+            "Ao final, convide para uma consultoria mais detalhada por WhatsApp ou presencial.",
+        ]
+    }
+
+    tel_agencia = "5511955550000"
+    emp_agencia = db.query(Empresa).filter(Empresa.telefone_whatsapp == tel_agencia).first()
+    if not emp_agencia:
+        emp_agencia = Empresa(
+            nome="Horizonte Viagens",
+            slug="horizonte-viagens",
+            telefone_whatsapp=tel_agencia,
+            webhook_token="horizonte-viagens-token-001",
+            nicho="agencia_viagens"
+        )
+        db.add(emp_agencia)
+        db.commit()
+        db.refresh(emp_agencia)
+    else:
+        emp_agencia.nicho = "agencia_viagens"
+        emp_agencia.slug = "horizonte-viagens"
+        db.commit()
+
+    # Configuração Agência de Viagens
+    conf_agencia = db.query(Configuracao).filter(Configuracao.empresa_id == emp_agencia.id).first()
+    if conf_agencia:
+        conf_agencia.config = config_agencia_viagens
+    else:
+        db.add(Configuracao(empresa_id=emp_agencia.id, config=config_agencia_viagens))
+
+    # Usuário Agência de Viagens
+    from app.auth import get_password_hash
+    from app.database import Usuario
+    user_agencia = db.query(Usuario).filter(Usuario.email == "agencia@teste.com").first()
+    if not user_agencia:
+        db.add(Usuario(
+            empresa_id=emp_agencia.id,
+            email="agencia@teste.com",
+            senha_hash=get_password_hash("senha123")
+        ))
+
+    db.commit()
+
+    print(f"Seed concluído! Temos 4 empresas de nichos diferentes.")
+    print(f"Webhook Academia:       http://localhost:8000/webhook/{emp_academia.webhook_token}")
+    print(f"Webhook Imobiliária:    http://localhost:8000/webhook/{emp_imob.webhook_token}")
+    print(f"Webhook Beleza:         http://localhost:8000/webhook/{emp_beleza.webhook_token}")
+    print(f"Webhook Agência Viag.:  http://localhost:8000/webhook/{emp_agencia.webhook_token}")
+    print(f"Login Agência:          agencia@teste.com / senha123")
 
     db.close()
 

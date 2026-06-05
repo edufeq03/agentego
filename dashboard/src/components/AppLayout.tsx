@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap, Utensils, ClipboardList, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Filter, Lightbulb, MessageCircle, Settings, Dumbbell, Menu, X, LogOut, Smartphone, Mic, Users, Megaphone, Briefcase, CalendarCheck, FileText, Share2, Sliders, Zap, Utensils, ClipboardList, TrendingUp, ListFilter, Plane } from "lucide-react";
 import api from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -58,6 +58,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Empresas Clientes", href: `/${slug}/clientes`, icon: Briefcase },
       { name: "Obrigações Fiscais", href: `/${slug}/obrigacoes`, icon: CalendarCheck },
       { name: "Base Legal", href: `/${slug}/documentos`, icon: FileText },
+    ] : []),
+
+    // Nicho Agência de Viagens
+    ...(nicho === 'agencia_viagens' ? [
+      { name: "Clientes", href: `/${slug}/clientes-viagens`, icon: Plane },
+    ] : []),
+
+    // Módulo Listas de Transmissão (multi-nicho: habilitado via modulos_ativos ou nicho agência)
+    ...(nicho === 'agencia_viagens' || modulosAtivos.includes('listas_transmissao') ? [
+      { name: "Transmissão", href: `/${slug}/listas-transmissao`, icon: ListFilter },
     ] : []),
 
     { name: "Métricas & Insights", href: `/${slug}/funil`, icon: TrendingUp },

@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, UploadFile, File, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 import pytz
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
-from app.database import get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario, MembroAcademia, CodigoRecuperacao
+from app.database import (
+    get_db, SessionLocal, Empresa, Lead, Mensagem, Evento, Configuracao, Usuario,
+    MembroAcademia, CodigoRecuperacao, ClienteAgenciaViagens,
+    ListaTransmissao, ListaTransmissaoContato, DisparoLista
+)
 from app.auth import verify_password, create_access_token, decode_access_token, get_password_hash
 import logging
 import os
@@ -601,6 +605,7 @@ def get_whatsapp_status(background_tasks: BackgroundTasks, empresa: Empresa = De
         "telefone_proprietario": empresa.telefone_proprietario or "",
         "telefones_ignorados": telefones_ignorados,
         "whatsapp_cozinha": whatsapp_cozinha,
+        "whatsapp_consultor": (empresa.configuracoes.config or {}).get("whatsapp_consultor", "") if empresa.configuracoes else "",
         "nicho": empresa.nicho or "generico"
     }
 
@@ -608,6 +613,7 @@ class SaveWhatsappConfigRequest(BaseModel):
     telefone_proprietario: Optional[str] = None
     telefones_ignorados: Optional[List[str]] = None
     whatsapp_cozinha: Optional[str] = None
+    whatsapp_consultor: Optional[str] = None
 
 @router.post("/whatsapp/config")
 def save_whatsapp_config(req: SaveWhatsappConfigRequest, empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
@@ -628,6 +634,9 @@ def save_whatsapp_config(req: SaveWhatsappConfigRequest, empresa: Empresa = Depe
         
     if req.whatsapp_cozinha is not None:
         config_dict["whatsapp_cozinha"] = req.whatsapp_cozinha.strip()
+
+    if req.whatsapp_consultor is not None:
+        config_dict["whatsapp_consultor"] = req.whatsapp_consultor.strip()
         
     configuracao.config = config_dict
     db.commit()
@@ -1675,4 +1684,558 @@ def api_gerar_qrcode_mesa(
     }
 
 
+# =============================================================================
+# NICHO: AGÊNCIA DE VIAGENS — Gestão de Clientes
+# =============================================================================
 
+class ClienteAgenciaRequest(BaseModel):
+    nome: str
+    telefone: str
+    email: Optional[str] = None
+    canal_entrada: str = "manual"
+    destinos_interesse: Optional[List[str]] = None
+    observacoes: Optional[str] = None
+
+class ClienteAgenciaUpdateRequest(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    destinos_interesse: Optional[List[str]] = None
+    observacoes: Optional[str] = None
+
+@router.get("/agencia/clientes")
+async def listar_clientes_agencia(
+    search: Optional[str] = None,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Lista clientes da agência de viagens com busca opcional por nome/telefone."""
+    query = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.empresa_id == empresa.id
+    )
+    if search:
+        query = query.filter(
+            (ClienteAgenciaViagens.nome.ilike(f"%{search}%")) |
+            (ClienteAgenciaViagens.telefone.ilike(f"%{search}%"))
+        )
+    clientes = query.order_by(ClienteAgenciaViagens.criado_em.desc()).all()
+    return [{
+        "id": str(c.id),
+        "nome": c.nome,
+        "telefone": c.telefone,
+        "email": c.email,
+        "canal_entrada": c.canal_entrada,
+        "destinos_interesse": c.destinos_interesse or [],
+        "observacoes": c.observacoes,
+        "criado_em": c.criado_em.isoformat() if c.criado_em else None,
+        "atualizado_em": c.atualizado_em.isoformat() if c.atualizado_em else None,
+    } for c in clientes]
+
+@router.post("/agencia/clientes")
+async def criar_cliente_agencia(
+    req: ClienteAgenciaRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Cadastra manualmente um cliente da agência de viagens."""
+    # Normaliza telefone
+    tel = "".join(filter(str.isdigit, req.telefone))
+    if len(tel) == 11:
+        tel = "55" + tel
+
+    # Verifica duplicata
+    existente = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.empresa_id == empresa.id,
+        ClienteAgenciaViagens.telefone == tel
+    ).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Já existe um cliente cadastrado com este telefone.")
+
+    # Cria ou encontra o Lead correspondente
+    lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == tel).first()
+    if not lead:
+        lead = Lead(empresa_id=empresa.id, telefone=tel, nome=req.nome, stage="novo")
+        db.add(lead)
+        db.flush()
+
+    novo = ClienteAgenciaViagens(
+        empresa_id=empresa.id,
+        lead_id=lead.id,
+        nome=req.nome.strip(),
+        telefone=tel,
+        email=req.email.strip() if req.email else None,
+        canal_entrada=req.canal_entrada,
+        destinos_interesse=req.destinos_interesse or [],
+        observacoes=req.observacoes,
+    )
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return {"status": "ok", "id": str(novo.id)}
+
+@router.put("/agencia/clientes/{cliente_id}")
+async def atualizar_cliente_agencia(
+    cliente_id: uuid.UUID,
+    req: ClienteAgenciaUpdateRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Atualiza dados de um cliente da agência."""
+    cliente = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.id == cliente_id,
+        ClienteAgenciaViagens.empresa_id == empresa.id
+    ).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    if req.nome is not None:
+        cliente.nome = req.nome.strip()
+    if req.email is not None:
+        cliente.email = req.email.strip()
+    if req.destinos_interesse is not None:
+        cliente.destinos_interesse = req.destinos_interesse
+    if req.observacoes is not None:
+        cliente.observacoes = req.observacoes
+    cliente.atualizado_em = datetime.utcnow()
+
+    db.commit()
+    return {"status": "ok"}
+
+@router.delete("/agencia/clientes/{cliente_id}")
+async def remover_cliente_agencia(
+    cliente_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove um cliente da agência (não remove o Lead base)."""
+    cliente = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.id == cliente_id,
+        ClienteAgenciaViagens.empresa_id == empresa.id
+    ).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    db.delete(cliente)
+    db.commit()
+    return {"status": "ok"}
+
+@router.get("/agencia/clientes/stats")
+async def stats_clientes_agencia(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Estatísticas dos clientes da agência."""
+    from datetime import date
+    total = db.query(ClienteAgenciaViagens).filter(ClienteAgenciaViagens.empresa_id == empresa.id).count()
+    hoje_inicio = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    novos_hoje = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.empresa_id == empresa.id,
+        ClienteAgenciaViagens.criado_em >= hoje_inicio
+    ).count()
+    via_whatsapp = db.query(ClienteAgenciaViagens).filter(
+        ClienteAgenciaViagens.empresa_id == empresa.id,
+        ClienteAgenciaViagens.canal_entrada == "whatsapp"
+    ).count()
+    return {"total": total, "novos_hoje": novos_hoje, "via_whatsapp": via_whatsapp}
+
+
+# =============================================================================
+# MÓDULO INDEPENDENTE: LISTAS DE TRANSMISSÃO
+# Habilitado por: nicho == 'agencia_viagens' OU 'listas_transmissao' em modulos_ativos
+# =============================================================================
+
+class ListaTransmissaoRequest(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+
+class ContatoListaRequest(BaseModel):
+    nome: Optional[str] = None
+    telefone: str
+
+class ContatosLoteRequest(BaseModel):
+    """Para adicionar múltiplos contatos de uma vez (ex: importar dos clientes/leads)."""
+    contatos: List[ContatoListaRequest]
+
+class DisparoListaRequest(BaseModel):
+    mensagem: str
+    imagem_url: Optional[str] = None
+
+@router.get("/listas-transmissao")
+async def listar_listas(
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Lista todas as listas de transmissão da empresa."""
+    listas = db.query(ListaTransmissao).filter(
+        ListaTransmissao.empresa_id == empresa.id
+    ).order_by(ListaTransmissao.criado_em.desc()).all()
+
+    resultado = []
+    for lista in listas:
+        total_contatos = db.query(ListaTransmissaoContato).filter(
+            ListaTransmissaoContato.lista_id == lista.id
+        ).count()
+        ultimo_disparo = db.query(DisparoLista).filter(
+            DisparoLista.lista_id == lista.id
+        ).order_by(DisparoLista.criado_em.desc()).first()
+
+        resultado.append({
+            "id": str(lista.id),
+            "nome": lista.nome,
+            "descricao": lista.descricao,
+            "total_contatos": total_contatos,
+            "ultimo_disparo": ultimo_disparo.criado_em.isoformat() if ultimo_disparo else None,
+            "criado_em": lista.criado_em.isoformat() if lista.criado_em else None,
+        })
+    return resultado
+
+@router.post("/listas-transmissao")
+async def criar_lista(
+    req: ListaTransmissaoRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Cria uma nova lista de transmissão."""
+    if not req.nome.strip():
+        raise HTTPException(status_code=400, detail="Nome da lista não pode ser vazio.")
+    nova = ListaTransmissao(
+        empresa_id=empresa.id,
+        nome=req.nome.strip(),
+        descricao=req.descricao.strip() if req.descricao else None,
+    )
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
+    return {"status": "ok", "id": str(nova.id), "nome": nova.nome}
+
+@router.delete("/listas-transmissao/{lista_id}")
+async def remover_lista(
+    lista_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove uma lista e todos seus contatos/disparos."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+    db.delete(lista)
+    db.commit()
+    return {"status": "ok"}
+
+@router.get("/listas-transmissao/buscar-contatos")
+def buscar_contatos_lista(q: str = Query("", min_length=2), empresa: Empresa = Depends(obter_empresa), db: Session = Depends(get_db)):
+    """Busca contatos na base da empresa (Leads, Clientes ou Membros) pelo nome ou telefone."""
+    query_str = f"%{q}%"
+    resultados = []
+    
+    # 1. Busca na tabela genérica de Leads
+    leads = db.query(Lead).filter(
+        Lead.empresa_id == empresa.id,
+        or_(Lead.nome.ilike(query_str), Lead.telefone.ilike(query_str))
+    ).limit(10).all()
+    for l in leads:
+        resultados.append({"nome": l.nome or "Desconhecido", "telefone": l.telefone})
+        
+    # 2. Busca em Agência de Viagens (se for do nicho)
+    if empresa.nicho == "agencia_viagens":
+        clientes = db.query(ClienteAgenciaViagens).filter(
+            ClienteAgenciaViagens.empresa_id == empresa.id,
+            or_(ClienteAgenciaViagens.nome.ilike(query_str), ClienteAgenciaViagens.telefone.ilike(query_str))
+        ).limit(10).all()
+        for c in clientes:
+            resultados.append({"nome": c.nome, "telefone": c.telefone})
+            
+    # 3. Busca em Academia (se for do nicho)
+    if empresa.nicho == "academia":
+        membros = db.query(MembroAcademia).filter(
+            MembroAcademia.empresa_id == empresa.id,
+            or_(MembroAcademia.nome.ilike(query_str), MembroAcademia.telefone.ilike(query_str))
+        ).limit(10).all()
+        for m in membros:
+            if m.telefone:
+                resultados.append({"nome": m.nome, "telefone": m.telefone})
+                
+    # Remove duplicados baseados no telefone
+    unicos = {}
+    for r in resultados:
+        tel = r["telefone"]
+        if tel and tel not in unicos:
+            unicos[tel] = r
+            
+    # Retorna no máximo 15 resultados
+    return list(unicos.values())[:15]
+
+@router.get("/listas-transmissao/{lista_id}/contatos")
+async def listar_contatos_lista(
+    lista_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Lista os contatos de uma lista de transmissão."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+
+    contatos = db.query(ListaTransmissaoContato).filter(
+        ListaTransmissaoContato.lista_id == lista_id
+    ).order_by(ListaTransmissaoContato.adicionado_em.desc()).all()
+
+    return {
+        "lista": {"id": str(lista.id), "nome": lista.nome, "descricao": lista.descricao},
+        "contatos": [{
+            "id": str(c.id),
+            "nome": c.nome or "",
+            "telefone": c.telefone,
+            "adicionado_em": c.adicionado_em.isoformat() if c.adicionado_em else None,
+        } for c in contatos]
+    }
+
+@router.post("/listas-transmissao/{lista_id}/contatos")
+async def adicionar_contato_lista(
+    lista_id: uuid.UUID,
+    req: ContatoListaRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Adiciona um único contato a uma lista de transmissão."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+
+    tel = "".join(filter(str.isdigit, req.telefone))
+    if len(tel) == 11:
+        tel = "55" + tel
+    if len(tel) not in [12, 13]:
+        raise HTTPException(status_code=400, detail=f"Telefone inválido: {req.telefone}")
+
+    # Evita duplicatas na mesma lista
+    existente = db.query(ListaTransmissaoContato).filter(
+        ListaTransmissaoContato.lista_id == lista_id,
+        ListaTransmissaoContato.telefone == tel
+    ).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Este contato já está na lista.")
+
+    # Tenta pegar o nome do Lead se não fornecido
+    nome_final = req.nome
+    if not nome_final:
+        lead = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.telefone == tel).first()
+        if lead and lead.nome:
+            nome_final = lead.nome
+
+    novo = ListaTransmissaoContato(
+        lista_id=lista_id,
+        empresa_id=empresa.id,
+        nome=nome_final,
+        telefone=tel,
+    )
+    db.add(novo)
+    db.commit()
+    return {"status": "ok"}
+
+@router.post("/listas-transmissao/{lista_id}/contatos/lote")
+async def adicionar_contatos_lote(
+    lista_id: uuid.UUID,
+    req: ContatosLoteRequest,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Adiciona múltiplos contatos de uma vez (útil para importar clientes/leads)."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+
+    adicionados = 0
+    ignorados = 0
+    for c in req.contatos:
+        tel = "".join(filter(str.isdigit, c.telefone))
+        if len(tel) == 11:
+            tel = "55" + tel
+        if len(tel) not in [12, 13]:
+            ignorados += 1
+            continue
+        existente = db.query(ListaTransmissaoContato).filter(
+            ListaTransmissaoContato.lista_id == lista_id,
+            ListaTransmissaoContato.telefone == tel
+        ).first()
+        if existente:
+            ignorados += 1
+            continue
+        db.add(ListaTransmissaoContato(
+            lista_id=lista_id,
+            empresa_id=empresa.id,
+            nome=c.nome,
+            telefone=tel,
+        ))
+        adicionados += 1
+
+    db.commit()
+    return {"status": "ok", "adicionados": adicionados, "ignorados": ignorados}
+
+@router.delete("/listas-transmissao/{lista_id}/contatos/{contato_id}")
+async def remover_contato_lista(
+    lista_id: uuid.UUID,
+    contato_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove um contato de uma lista de transmissão."""
+    contato = db.query(ListaTransmissaoContato).filter(
+        ListaTransmissaoContato.id == contato_id,
+        ListaTransmissaoContato.lista_id == lista_id,
+        ListaTransmissaoContato.empresa_id == empresa.id
+    ).first()
+    if not contato:
+        raise HTTPException(status_code=404, detail="Contato não encontrado")
+    db.delete(contato)
+    db.commit()
+    return {"status": "ok"}
+
+async def _disparar_lista_background(
+    empresa_id: uuid.UUID,
+    lista_id: uuid.UUID,
+    disparo_id: uuid.UUID,
+    mensagem: str,
+    imagem_url: Optional[str] = None
+):
+    """Dispara mensagens para todos os contatos de uma lista em background."""
+    import asyncio
+    import random
+    from app.whatsapp import enviar_whatsapp, enviar_imagem_whatsapp
+
+    db = SessionLocal()
+    try:
+        empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+        if not empresa:
+            return
+
+        contatos = db.query(ListaTransmissaoContato).filter(
+            ListaTransmissaoContato.lista_id == lista_id
+        ).all()
+
+        disparo = db.query(DisparoLista).filter(DisparoLista.id == disparo_id).first()
+        if disparo:
+            disparo.status = "enviando"
+            db.commit()
+
+        for contato in contatos:
+            try:
+                final_url = imagem_url
+                if final_url and final_url.startswith("/uploads/"):
+                    base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+                    final_url = f"{base_url}{final_url}"
+
+                if final_url:
+                    enviar_imagem_whatsapp(contato.telefone, final_url, mensagem, empresa.evolution_instance)
+                else:
+                    enviar_whatsapp(contato.telefone, mensagem, empresa.evolution_instance)
+
+                if disparo:
+                    db.query(DisparoLista).filter(DisparoLista.id == disparo_id).update({
+                        "enviados": DisparoLista.enviados + 1
+                    })
+                    db.commit()
+            except Exception as e:
+                logger.error(f"Erro ao enviar para {contato.telefone} na lista {lista_id}: {e}")
+                if disparo:
+                    db.query(DisparoLista).filter(DisparoLista.id == disparo_id).update({
+                        "erros": DisparoLista.erros + 1
+                    })
+                    db.commit()
+
+            delay = 5 + random.uniform(0, 5)
+            await asyncio.sleep(delay)
+
+        if disparo:
+            db.query(DisparoLista).filter(DisparoLista.id == disparo_id).update({
+                "status": "enviado",
+                "enviado_em": datetime.utcnow()
+            })
+            db.commit()
+    finally:
+        db.close()
+
+@router.post("/listas-transmissao/{lista_id}/disparar")
+async def disparar_lista(
+    lista_id: uuid.UUID,
+    req: DisparoListaRequest,
+    background_tasks: BackgroundTasks,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Dispara uma mensagem para todos os contatos de uma lista de transmissão."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+
+    if not req.mensagem.strip():
+        raise HTTPException(status_code=400, detail="Mensagem não pode ser vazia.")
+
+    total = db.query(ListaTransmissaoContato).filter(
+        ListaTransmissaoContato.lista_id == lista_id
+    ).count()
+
+    if total == 0:
+        raise HTTPException(status_code=400, detail="A lista não possui contatos.")
+
+    novo_disparo = DisparoLista(
+        lista_id=lista_id,
+        empresa_id=empresa.id,
+        mensagem=req.mensagem,
+        imagem_url=req.imagem_url,
+        status="pendente",
+        total_contatos=total,
+    )
+    db.add(novo_disparo)
+    db.commit()
+    db.refresh(novo_disparo)
+
+    background_tasks.add_task(
+        _disparar_lista_background,
+        empresa.id, lista_id, novo_disparo.id, req.mensagem, req.imagem_url
+    )
+
+    return {"status": "ok", "disparo_id": str(novo_disparo.id), "total_contatos": total}
+
+@router.get("/listas-transmissao/{lista_id}/disparos")
+async def listar_disparos_lista(
+    lista_id: uuid.UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    """Lista o histórico de disparos de uma lista de transmissão."""
+    lista = db.query(ListaTransmissao).filter(
+        ListaTransmissao.id == lista_id,
+        ListaTransmissao.empresa_id == empresa.id
+    ).first()
+    if not lista:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+
+    disparos = db.query(DisparoLista).filter(
+        DisparoLista.lista_id == lista_id
+    ).order_by(DisparoLista.criado_em.desc()).all()
+
+    return [{
+        "id": str(d.id),
+        "mensagem": d.mensagem,
+        "imagem_url": d.imagem_url,
+        "status": d.status,
+        "total_contatos": d.total_contatos,
+        "enviados": d.enviados,
+        "erros": d.erros,
+        "criado_em": d.criado_em.isoformat() if d.criado_em else None,
+        "enviado_em": d.enviado_em.isoformat() if d.enviado_em else None,
+    } for d in disparos]

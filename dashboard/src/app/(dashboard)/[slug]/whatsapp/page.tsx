@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Smartphone, CheckCircle2, XCircle, Loader2, RefreshCw, LogOut, Plus, Trash2, Save, ChefHat, Info, ShieldAlert } from "lucide-react";
+import { Smartphone, CheckCircle2, XCircle, Loader2, RefreshCw, LogOut, Plus, Trash2, Save, ChefHat, Info, ShieldAlert, Phone, Building2, Plane } from "lucide-react";
 import api from "@/lib/api";
 
 export default function WhatsAppConnection() {
@@ -15,6 +15,7 @@ export default function WhatsAppConnection() {
   const [telefoneProprietario, setTelefoneProprietario] = useState("");
   const [telefonesIgnorados, setTelefonesIgnorados] = useState<string[]>([]);
   const [whatsappCozinha, setWhatsappCozinha] = useState("");
+  const [whatsappConsultor, setWhatsappConsultor] = useState("");
   const [nicho, setNicho] = useState("generico");
   
   const [newIgnoredPhone, setNewIgnoredPhone] = useState("");
@@ -37,6 +38,7 @@ export default function WhatsAppConnection() {
         setTelefoneProprietario(data.telefone_proprietario || "");
         setTelefonesIgnorados(data.telefones_ignorados || []);
         setWhatsappCozinha(data.whatsapp_cozinha || "");
+        setWhatsappConsultor(data.whatsapp_consultor || "");
         setNicho(data.nicho || "generico");
         setHasLoadedInitial(true);
       }
@@ -109,7 +111,8 @@ export default function WhatsAppConnection() {
       await api.post("dashboard/whatsapp/config", {
         telefone_proprietario: telefoneProprietario,
         telefones_ignorados: telefonesIgnorados,
-        whatsapp_cozinha: whatsappCozinha
+        whatsapp_cozinha: whatsappCozinha,
+        whatsapp_consultor: whatsappConsultor,
       });
       setSavedConfig(true);
       setTimeout(() => setSavedConfig(false), 3000);
@@ -386,71 +389,85 @@ export default function WhatsAppConnection() {
           </div>
         </div>
 
-        {/* Card 3: Contatos Setoriais e Nicho */}
-        <div className="glass-panel p-6 border border-white/10 flex flex-col justify-between">
+        {/* Card 3: Central de Telefones por Nicho */}
+        <div className="glass-panel p-6 border border-white/10 flex flex-col space-y-6">
           <div>
             <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-              {nicho === "lanchonete" ? (
-                <>
-                  <ChefHat className="text-blue-400" size={20} />
-                  Contatos de Produção (Cozinha)
-                </>
-              ) : (
-                <>
-                  <Info className="text-blue-400" size={20} />
-                  Direcionamento e Transbordo Humano
-                </>
-              )}
+              <Phone className="text-emerald-400" size={20} />
+              Central de Telefones
             </h2>
-            <p className="text-xs text-slate-400">
-              {nicho === "lanchonete" 
-                ? "Configure para onde o robô deve despachar as comandas e comandar a produção."
-                : "Veja o fluxo de funcionamento e atendimento humano da sua inteligência."}
-            </p>
+            <p className="text-xs text-slate-400">Números adicionais utilizados pelo robô para notificações e operação.</p>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center space-y-4 py-4">
-            {nicho === "lanchonete" ? (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 ml-1">
-                  WhatsApp da Cozinha / Despacho
-                </label>
+          <div className="space-y-5">
+            {/* Lanchonete: Cozinha */}
+            {nicho === "lanchonete" && (
+              <div className="space-y-2 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <ChefHat size={16} className="text-orange-400" />
+                  <label className="text-sm font-semibold text-white">WhatsApp da Cozinha / Despacho</label>
+                </div>
                 <input
                   type="text"
                   value={whatsappCozinha}
                   onChange={(e) => setWhatsappCozinha(e.target.value)}
                   placeholder="Ex: 5519996737713"
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all text-sm font-mono"
+                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2.5 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-all text-sm font-mono"
                 />
-                <p className="text-[10px] text-slate-500 italic">Pedidos feitos pelo cardápio automático da IA serão despachados diretamente para este número.</p>
+                <p className="text-[10px] text-slate-500 italic">Pedidos feitos pelo cardápio automático serão despachados para este número via WhatsApp.</p>
               </div>
-            ) : (
+            )}
+
+            {/* Agência de Viagens: Consultor Humano */}
+            {nicho === "agencia_viagens" && (
+              <div className="space-y-2 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plane size={16} className="text-sky-400" />
+                  <label className="text-sm font-semibold text-white">WhatsApp do Consultor de Viagens</label>
+                </div>
+                <input
+                  type="text"
+                  value={whatsappConsultor}
+                  onChange={(e) => setWhatsappConsultor(e.target.value)}
+                  placeholder="Ex: 5511999999999"
+                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2.5 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-all text-sm font-mono"
+                />
+                <p className="text-[10px] text-slate-500 italic">Quando o lead solicitar atendimento humano ou for uma solicitação complexa, o robô encaminhará para este número.</p>
+              </div>
+            )}
+
+            {/* Beleza/Agenda: Profissional */}
+            {(nicho === "beleza" || nicho === "agenda" || nicho === "higienizacao") && (
+              <div className="space-y-2 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 size={16} className="text-purple-400" />
+                  <label className="text-sm font-semibold text-white">WhatsApp do Profissional / Salão</label>
+                </div>
+                <input
+                  type="text"
+                  value={whatsappConsultor}
+                  onChange={(e) => setWhatsappConsultor(e.target.value)}
+                  placeholder="Ex: 5511999999999"
+                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2.5 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-all text-sm font-mono"
+                />
+                <p className="text-[10px] text-slate-500 italic">Notificações de confirmação e lembretes de agendamento são enviados para este número.</p>
+              </div>
+            )}
+
+            {/* Info geral se nenhum nicho específico */}
+            {nicho !== "lanchonete" && nicho !== "agencia_viagens" && nicho !== "beleza" && nicho !== "agenda" && nicho !== "higienizacao" && (
               <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-900 space-y-3">
-                <div className="flex gap-3 items-start">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    <strong>Nicho Ativo:</strong> Nível de atendimento personalizado para <span className="text-blue-400 font-bold uppercase">{nicho}</span>.
-                  </p>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    <strong>Transbordo Inteligente:</strong> Quando o robô necessita de auxílio manual de um atendente físico, ele dispara instantaneamente uma notificação contendo o histórico para o seu número administrativo de controle.
-                  </p>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Você pode alterar este comportamento cadastrando novos parâmetros ou configurando novas chaves de comportamento em Configurações Gerais.
-                  </p>
-                </div>
+                <p className="text-xs text-slate-400">
+                  Nicho ativo: <span className="text-white font-bold">{nicho.toUpperCase()}</span>.
+                  Campos específicos de telefone aparecerão aqui conforme o nicho configurado.
+                </p>
               </div>
             )}
           </div>
 
           <div className="pt-2 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
             <Info size={14} className="text-slate-400" />
-            <span>Utilize apenas números com DDI brasileiro (55) + DDD (ex: 5519...).</span>
+            <span>Utilize apenas números com DDI (55) + DDD (ex: 5519...).</span>
           </div>
         </div>
       </form>
