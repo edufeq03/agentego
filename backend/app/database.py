@@ -619,6 +619,7 @@ class DisparoLista(Base):
     enviados = Column(Integer, default=0)
     erros = Column(Integer, default=0)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    data_programada = Column(DateTime, nullable=True)
     enviado_em = Column(DateTime, nullable=True)
 
     lista = relationship("ListaTransmissao", back_populates="disparos")
@@ -635,6 +636,7 @@ def init_db():
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
             conn.execute(text('ALTER TABLE prompt_templates ADD COLUMN IF NOT EXISTS etapas_funil JSONB DEFAULT \'["novo", "curioso", "interessado", "agendado"]\''))
             conn.execute(text('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT \'client\''))
+            conn.execute(text('ALTER TABLE disparos_lista ADD COLUMN IF NOT EXISTS data_programada TIMESTAMP'))
             
             # Novas colunas de Billing
             conn.execute(text('ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano VARCHAR DEFAULT \'trial\''))
@@ -1126,6 +1128,7 @@ def init_db():
                     enviados INTEGER DEFAULT 0,
                     erros INTEGER DEFAULT 0,
                     criado_em TIMESTAMP DEFAULT NOW(),
+                    data_programada TIMESTAMP,
                     enviado_em TIMESTAMP
                 )
             '''))

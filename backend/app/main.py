@@ -198,6 +198,37 @@ def tarefa_disparo_agendado():
     finally:
         db.close()
 
+def tarefa_disparo_lista_agendado():
+    """Verifica e dispara mensagens agendadas para listas de transmissão."""
+    from app.database import SessionLocal, DisparoLista
+    from app.dashboard_api import _disparar_lista_background
+    from datetime import datetime
+    import asyncio
+    
+    db = SessionLocal()
+    try:
+        agora = datetime.now()
+        pendentes = db.query(DisparoLista).filter(
+            DisparoLista.status == 'pendente',
+            DisparoLista.data_programada <= agora
+        ).all()
+        
+        for disp in pendentes:
+            logger.info(f"Disparando lista agendada {disp.id} para empresa {disp.empresa_id}")
+            disp.status = "enviando"
+            db.commit()
+            
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(_disparar_lista_background(disp.empresa_id, disp.lista_id, disp.id, disp.mensagem, disp.imagem_url))
+            except Exception as e:
+                logger.error(f"Erro no disparo de lista agendado {disp.id}: {e}")
+                disp.status = "erro"
+                db.commit()
+    finally:
+        db.close()
+
 async def tarefa_followup_delivery():
     """Verifica e dispara as pesquisas de satisfação de delivery agendadas."""
     from app.database import SessionLocal, Empresa, FollowupDelivery
@@ -599,6 +630,7 @@ def on_startup():
     scheduler.add_job(tarefa_avisos_vencimento, 'cron', hour=9, minute=0, id="tarefa_avisos_vencimento")
     scheduler.add_job(tarefa_avisos_obrigacoes, 'cron', hour=8, minute=0, id="tarefa_avisos_obrigacoes")
     scheduler.add_job(tarefa_disparo_agendado, 'interval', minutes=10, id="tarefa_disparo_agendado")
+    scheduler.add_job(tarefa_disparo_lista_agendado, 'interval', minutes=10, id="tarefa_disparo_lista_agendado")
     scheduler.add_job(tarefa_reengajamento_automatico, 'interval', minutes=5, id="tarefa_reengajamento_automatico")
     from app.agenda_service import tarefa_processar_agenda, job_expirar_lista_espera
     scheduler.add_job(tarefa_processar_agenda, 'interval', minutes=5, id="tarefa_processar_agenda")
