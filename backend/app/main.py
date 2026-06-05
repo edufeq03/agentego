@@ -767,6 +767,25 @@ async def webhook(token: str, request: Request):
                         lead.nome = push_name
                         db.commit()
                     logger.info(f"👤 [CONTACT SYNC] Nome do WhatsApp sincronizado para {telefone}: {push_name}")
+
+                    # Auto-cadastro para nicho Agência de Viagens
+                    if empresa.nicho == "agencia_viagens":
+                        from app.database import ClienteAgenciaViagens
+                        cliente_existente = db.query(ClienteAgenciaViagens).filter(
+                            ClienteAgenciaViagens.empresa_id == empresa.id,
+                            ClienteAgenciaViagens.telefone == telefone
+                        ).first()
+                        if not cliente_existente:
+                            novo_cliente = ClienteAgenciaViagens(
+                                empresa_id=empresa.id,
+                                lead_id=lead.id,
+                                nome=push_name,
+                                telefone=telefone,
+                                canal_entrada="whatsapp"
+                            )
+                            db.add(novo_cliente)
+                            db.commit()
+                            logger.info(f"✈️ [AGENCIA] Novo cliente cadastrado automaticamente: {push_name} ({telefone})")
                 except Exception as e:
                     logger.error(f"Erro ao salvar nome de perfil do WhatsApp para {telefone}: {e}")
             

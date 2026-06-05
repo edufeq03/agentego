@@ -65,6 +65,8 @@ class Empresa(Base):
     documentos_legais = relationship("DocumentoLegal", back_populates="empresa", cascade="all, delete-orphan")
     comunicados = relationship("Comunicado", back_populates="empresa", cascade="all, delete-orphan")
     leads_seguro = relationship("LeadSeguro", back_populates="empresa", cascade="all, delete-orphan")
+    clientes_agencia_viagens = relationship("ClienteAgenciaViagens", back_populates="empresa", cascade="all, delete-orphan")
+    listas_transmissao = relationship("ListaTransmissao", back_populates="empresa", cascade="all, delete-orphan")
 
 class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
@@ -553,6 +555,76 @@ class EstadoAuxiliar(Base):
     empresa = relationship("Empresa")
 
 
+# ─── Nicho: Agência de Viagens ────────────────────────────────────────────────
+
+class ClienteAgenciaViagens(Base):
+    """Clientes específicos do nicho Agência de Viagens.
+    Criados automaticamente ao primeiro contato via WhatsApp (pushName)."""
+    __tablename__ = "clientes_agencia_viagens"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+    nome = Column(String, nullable=False)
+    telefone = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    canal_entrada = Column(String, default="whatsapp")  # whatsapp, manual, csv
+    destinos_interesse = Column(JSONB, default=list)
+    observacoes = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa", back_populates="clientes_agencia_viagens")
+    lead = relationship("Lead")
+
+
+# ─── Módulo Independente: Listas de Transmissão ───────────────────────────────
+
+class ListaTransmissao(Base):
+    """Lista nomeada de transmissão. Módulo independente aplicável a qualquer nicho."""
+    __tablename__ = "listas_transmissao"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    nome = Column(String, nullable=False)
+    descricao = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa", back_populates="listas_transmissao")
+    contatos = relationship("ListaTransmissaoContato", back_populates="lista", cascade="all, delete-orphan")
+    disparos = relationship("DisparoLista", back_populates="lista", cascade="all, delete-orphan")
+
+
+class ListaTransmissaoContato(Base):
+    """Contato pertencente a uma lista de transmissão."""
+    __tablename__ = "listas_transmissao_contatos"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    lista_id = Column(UUID(as_uuid=True), ForeignKey("listas_transmissao.id", ondelete="CASCADE"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    nome = Column(String, nullable=True)
+    telefone = Column(String, nullable=False)
+    adicionado_em = Column(DateTime, default=datetime.utcnow)
+
+    lista = relationship("ListaTransmissao", back_populates="contatos")
+
+
+class DisparoLista(Base):
+    """Registro de um disparo de mensagem para uma lista de transmissão."""
+    __tablename__ = "disparos_lista"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    lista_id = Column(UUID(as_uuid=True), ForeignKey("listas_transmissao.id", ondelete="CASCADE"), nullable=False)
+    empresa_id = Column(UUID(as_uuid=True), ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
+    mensagem = Column(Text, nullable=False)
+    imagem_url = Column(Text, nullable=True)
+    status = Column(String, default="pendente")  # pendente, enviando, enviado, erro
+    total_contatos = Column(Integer, default=0)
+    enviados = Column(Integer, default=0)
+    erros = Column(Integer, default=0)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    enviado_em = Column(DateTime, nullable=True)
+
+    lista = relationship("ListaTransmissao", back_populates="disparos")
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
@@ -1002,6 +1074,61 @@ def init_db():
             conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS tem_variacao_caracteristica BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS caracteristicas JSONB DEFAULT '[]'::jsonb"))
             conn.execute(text("ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia_sugerida_dias INTEGER DEFAULT 0"))
+
+            # ── Nicho: Agência de Viagens ──────────────────────────────────────────
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS clientes_agencia_viagens (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+                    nome VARCHAR NOT NULL,
+                    telefone VARCHAR NOT NULL,
+                    email VARCHAR,
+                    canal_entrada VARCHAR DEFAULT \'whatsapp\',
+                    destinos_interesse JSONB DEFAULT \'[]\',
+                    observacoes TEXT,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            # ── Módulo: Listas de Transmissão ──────────────────────────────────────
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS listas_transmissao (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    nome VARCHAR NOT NULL,
+                    descricao TEXT,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS listas_transmissao_contatos (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    lista_id UUID REFERENCES listas_transmissao(id) ON DELETE CASCADE,
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    nome VARCHAR,
+                    telefone VARCHAR NOT NULL,
+                    adicionado_em TIMESTAMP DEFAULT NOW()
+                )
+            '''))
+
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS disparos_lista (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    lista_id UUID REFERENCES listas_transmissao(id) ON DELETE CASCADE,
+                    empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE,
+                    mensagem TEXT NOT NULL,
+                    imagem_url TEXT,
+                    status VARCHAR DEFAULT \'pendente\',
+                    total_contatos INTEGER DEFAULT 0,
+                    enviados INTEGER DEFAULT 0,
+                    erros INTEGER DEFAULT 0,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    enviado_em TIMESTAMP
+                )
+            '''))
 
             conn.commit()
             
