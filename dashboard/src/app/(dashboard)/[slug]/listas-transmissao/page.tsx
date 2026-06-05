@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ListFilter, Plus, Trash2, Send, Users, ChevronLeft,
   X, CheckCircle2, AlertCircle, Clock, Image as ImageIcon,
-  UserPlus, History, Loader2, MessageSquare, Search
+  UserPlus, History, Loader2, MessageSquare, Search, Calendar
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -32,7 +32,8 @@ interface Disparo {
   total_contatos: number;
   enviados: number;
   erros: number;
-  criado_em: string | null;
+  criado_em: string;
+  data_programada: string | null;
   enviado_em: string | null;
 }
 
@@ -55,10 +56,13 @@ export default function ListasTransmissaoPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
   const [formLista, setFormLista] = useState({ nome: "", descricao: "" });
   const [formContato, setFormContato] = useState({ nome: "", telefone: "" });
-  const [formDisparo, setFormDisparo] = useState({ mensagem: "", imagem_url: "" });
+  const [formDisparo, setFormDisparo] = useState({ mensagem: "", imagem_url: "", data_programada: "" });
   const [showDisparos, setShowDisparos] = useState(false);
 
   // Estados da Busca
@@ -170,6 +174,26 @@ export default function ListasTransmissaoPage() {
     } catch { alert("Erro ao remover contato."); }
   }
 
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('dashboard/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormDisparo({ ...formDisparo, imagem_url: res.data.url });
+    } catch (err) {
+      alert("Erro ao subir imagem.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function disparar(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedLista || !formDisparo.mensagem.trim()) return;
@@ -178,9 +202,10 @@ export default function ListasTransmissaoPage() {
       await api.post(`dashboard/listas-transmissao/${selectedLista.id}/disparar`, {
         mensagem: formDisparo.mensagem,
         imagem_url: formDisparo.imagem_url || null,
+        data_programada: formDisparo.data_programada ? new Date(formDisparo.data_programada).toISOString() : null,
       });
       setModal(null);
-      setFormDisparo({ mensagem: "", imagem_url: "" });
+      setFormDisparo({ mensagem: "", imagem_url: "", data_programada: "" });
       await fetchDisparos(selectedLista.id);
       setShowDisparos(true);
       alert(`✅ Disparo iniciado para ${selectedLista.total_contatos} contato(s)! O envio está sendo processado em background.`);
@@ -237,7 +262,7 @@ export default function ListasTransmissaoPage() {
               Contato
             </button>
             <button
-              onClick={() => { setFormDisparo({ mensagem: "", imagem_url: "" }); setModal("disparar"); }}
+              onClick={() => { setFormDisparo({ mensagem: "", imagem_url: "", data_programada: "" }); setModal("disparar"); }}
               disabled={contatos.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-lg shadow-violet-600/20"
             >
@@ -325,9 +350,14 @@ export default function ListasTransmissaoPage() {
                         <BadgeIcon size={12} className={d.status === "enviando" ? "animate-spin" : ""} />
                         {badge.label}
                       </span>
-                      <span className="text-xs text-[var(--color-foreground-muted)]">
-                        {d.criado_em ? new Date(d.criado_em).toLocaleString("pt-BR") : ""}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-white">
+                          {d.data_programada ? new Date(d.data_programada).toLocaleDateString("pt-BR") : new Date(d.criado_em || Date.now()).toLocaleDateString("pt-BR")}
+                        </span>
+                        <span className="text-[10px] text-[var(--color-foreground-muted)]">
+                          {d.data_programada ? new Date(d.data_programada).toLocaleTimeString("pt-BR", {hour: '2-digit', minute: '2-digit'}) : new Date(d.criado_em || Date.now()).toLocaleTimeString("pt-BR", {hour: '2-digit', minute: '2-digit'})}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-white text-sm mb-4 bg-[var(--color-background)] rounded-xl p-3 whitespace-pre-wrap">{d.mensagem}</p>
                     <div className="flex gap-4 text-sm text-[var(--color-foreground-muted)]">
@@ -516,19 +546,68 @@ export default function ListasTransmissaoPage() {
                 className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl py-2 px-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50 resize-none"
               />
             </div>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[var(--color-foreground-muted)] flex items-center gap-2">
+                  <ImageIcon size={14} className="text-[var(--color-brand-400)]" />
+                  Imagem / Anexo (Opcional)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[var(--color-background)] border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-brand-500)]/50 rounded-xl cursor-pointer transition-all">
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleUpload}
+                    />
+                    {uploading ? (
+                      <Loader2 className="animate-spin text-[var(--color-brand-400)]" size={20} />
+                    ) : (
+                      <ImageIcon size={20} className="text-[var(--color-foreground-muted)]" />
+                    )}
+                    <span className="text-sm text-[var(--color-foreground-muted)]">
+                      {formDisparo.imagem_url ? "Alterar imagem" : "Clique para anexar imagem"}
+                    </span>
+                  </label>
+                  {formDisparo.imagem_url && (
+                    <button 
+                      type="button"
+                      onClick={() => setFormDisparo({ ...formDisparo, imagem_url: "" })}
+                      className="p-3 text-red-400 hover:bg-red-400/10 rounded-xl transition-colors"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {formDisparo.imagem_url && (
+                <div className="relative aspect-video w-full bg-[var(--color-background)] rounded-xl overflow-hidden border border-[var(--color-border)] group">
+                  <img 
+                    src={formDisparo.imagem_url.startsWith('http') ? formDisparo.imagem_url : `${apiBaseUrl}${formDisparo.imagem_url}`} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-xs text-white font-medium">Prévia da Imagem</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--color-foreground-muted)] mb-1">
-                URL de Imagem (opcional)
-                <span className="ml-1 text-xs text-[var(--color-foreground-muted)]/60">Será enviada junto com o texto</span>
+              <label className="text-sm font-medium text-[var(--color-foreground-muted)] mb-1 flex items-center gap-2">
+                <Calendar size={14} className="text-[var(--color-brand-400)]" />
+                Programar Envio (Opcional)
               </label>
-              <input
-                value={formDisparo.imagem_url}
-                onChange={(e) => setFormDisparo({ ...formDisparo, imagem_url: e.target.value })}
-                placeholder="https://... ou /uploads/..."
+              <input 
+                type="datetime-local"
+                value={formDisparo.data_programada}
+                onChange={(e) => setFormDisparo({ ...formDisparo, data_programada: e.target.value })}
                 className="w-full bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl py-2 px-4 text-white placeholder:text-[var(--color-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/50"
               />
             </div>
-            <ModalFooter onCancel={() => setModal(null)} saving={saving} label="Enviar Agora" labelColor="bg-violet-600 hover:bg-violet-700" />
+            <ModalFooter onCancel={() => setModal(null)} saving={saving} label={formDisparo.data_programada ? "Agendar Disparo" : "Enviar Agora"} labelColor="bg-violet-600 hover:bg-violet-700" />
           </form>
         </ModalWrapper>
       )}

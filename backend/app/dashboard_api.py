@@ -261,18 +261,35 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
             "grafico_conversas": grafico_conversas
         }
         
-    # Nichos Generico / Academia / Outros: Fluxo padrao de leads
+    # Nichos Generico / Academia / Outros / Viagens: Fluxo padrao de leads
     total_leads = db.query(Lead).filter(Lead.empresa_id == empresa.id).count()
     leads_recentes = db.query(Lead).filter(Lead.empresa_id == empresa.id, Lead.criado_em >= limite_data).count()
-    leads_interessados = db.query(Lead).filter(
-        Lead.empresa_id == empresa.id, 
-        Lead.stage.in_(["interessado", "quente", "agendado"])
-    ).count()
+    
+    if empresa.nicho == "agencia_viagens":
+        leads_interessados = db.query(Lead).filter(
+            Lead.empresa_id == empresa.id, 
+            Lead.stage.in_(["interessado", "curioso"])
+        ).count()
+    else:
+        leads_interessados = db.query(Lead).filter(
+            Lead.empresa_id == empresa.id, 
+            Lead.stage.in_(["interessado", "quente", "agendado"])
+        ).count()
     
     visitas = db.query(Evento).filter(
         Evento.empresa_id == empresa.id,
         Evento.tipo.in_(["visita_aceita", "perguntou_visita"]),
         Evento.timestamp >= limite_data
+    ).count()
+    
+    em_cotacao = db.query(Lead).filter(
+        Lead.empresa_id == empresa.id,
+        Lead.stage.in_(["quente", "agendado", "em_cotacao"])
+    ).count()
+    
+    fechados = db.query(Lead).filter(
+        Lead.empresa_id == empresa.id,
+        Lead.stage.in_(["fechado", "concluido"])
     ).count()
     
     mensagens_query = db.query(
@@ -324,6 +341,8 @@ def visao_geral(periodos_dias: int = 7, empresa: Empresa = Depends(obter_empresa
             "leads_recentes": leads_recentes,
             "leads_interessados": leads_interessados,
             "visitas": visitas,
+            "em_cotacao": em_cotacao,
+            "fechados": fechados,
             "pausados": total_pausados,
             "horario_comercial_pct": round(pct_comercial, 1),
             "fora_horario_pct": round(pct_fora, 1),
@@ -1857,6 +1876,7 @@ class ContatosLoteRequest(BaseModel):
 class DisparoListaRequest(BaseModel):
     mensagem: str
     imagem_url: Optional[str] = None
+    data_programada: Optional[datetime] = None
 
 @router.get("/listas-transmissao")
 async def listar_listas(
@@ -2198,15 +2218,17 @@ async def disparar_lista(
         imagem_url=req.imagem_url,
         status="pendente",
         total_contatos=total,
+        data_programada=req.data_programada
     )
     db.add(novo_disparo)
     db.commit()
     db.refresh(novo_disparo)
 
-    background_tasks.add_task(
-        _disparar_lista_background,
-        empresa.id, lista_id, novo_disparo.id, req.mensagem, req.imagem_url
-    )
+    if not req.data_programada:
+        background_tasks.add_task(
+            _disparar_lista_background,
+            empresa.id, lista_id, novo_disparo.id, req.mensagem, req.imagem_url
+        )
 
     return {"status": "ok", "disparo_id": str(novo_disparo.id), "total_contatos": total}
 

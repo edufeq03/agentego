@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { 
   Users, UserPlus, Flame, CalendarCheck, Clock, Moon, PauseCircle, 
-  ShoppingBag, DollarSign, TrendingUp, Utensils, ChefHat, Sparkles 
+  ShoppingBag, DollarSign, TrendingUp, Utensils, ChefHat, Sparkles, CheckCircle2 
 } from "lucide-react";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -19,6 +19,8 @@ interface VisaoGeralData {
     leads_recentes?: number;
     leads_interessados?: number;
     visitas?: number;
+    em_cotacao?: number;
+    fechados?: number;
     pausados: number;
     horario_comercial_pct?: number;
     fora_horario_pct?: number;
@@ -102,23 +104,31 @@ export default function Home() {
           color: "text-purple-400" 
         },
       ]
-    : [
-        { name: "Total de Leads", value: data.cards.total_leads ?? 0, icon: Users, color: "text-blue-400" },
-        { name: "Novos (7 dias)", value: data.cards.leads_recentes ?? 0, icon: UserPlus, color: "text-green-400" },
-        { 
-          name: data.nicho === "corretora" ? "Leads Triados" : "Interessados", 
-          value: data.cards.leads_interessados ?? 0, 
-          icon: Flame, 
-          color: "text-orange-400" 
-        },
-        { 
-          name: data.nicho === "corretora" ? "Cotações / Triagem" : "Visitas", 
-          value: data.cards.visitas ?? 0, 
-          icon: CalendarCheck, 
-          color: "text-purple-400" 
-        },
-        { name: "Aguardando Humano", value: data.cards.pausados, icon: PauseCircle, color: "text-red-400" },
-      ];
+    : data.nicho === "agencia_viagens"
+      ? [
+          { name: "Novos (7 dias)", value: data.cards.leads_recentes ?? 0, icon: UserPlus, color: "text-green-400" },
+          { name: "Interessados", value: data.cards.leads_interessados ?? 0, icon: Flame, color: "text-orange-400" },
+          { name: "Em Cotação", value: data.cards.em_cotacao ?? 0, icon: CalendarCheck, color: "text-purple-400" },
+          { name: "Concluídos", value: data.cards.fechados ?? 0, icon: CheckCircle2, color: "text-emerald-400" },
+          { name: "Aguardando Humano", value: data.cards.pausados, icon: PauseCircle, color: "text-red-400" },
+        ]
+      : [
+          { name: "Total de Leads", value: data.cards.total_leads ?? 0, icon: Users, color: "text-blue-400" },
+          { name: "Novos (7 dias)", value: data.cards.leads_recentes ?? 0, icon: UserPlus, color: "text-green-400" },
+          { 
+            name: data.nicho === "corretora" ? "Leads Triados" : "Interessados", 
+            value: data.cards.leads_interessados ?? 0, 
+            icon: Flame, 
+            color: "text-orange-400" 
+          },
+          { 
+            name: data.nicho === "corretora" ? "Cotações / Triagem" : "Visitas", 
+            value: data.cards.visitas ?? 0, 
+            icon: CalendarCheck, 
+            color: "text-purple-400" 
+          },
+          { name: "Aguardando Humano", value: data.cards.pausados, icon: PauseCircle, color: "text-red-400" },
+        ];
 
   const pizzaData = isLanchonete 
     ? [
