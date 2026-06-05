@@ -735,8 +735,8 @@ export default function Configuracoes() {
 
         {/* Sidebar: Configurações Rápidas */}
         <div className="space-y-8">
-          {/* 4. Planos e Mensalidades (Dinamizado) */}
-          {nicho !== "lanchonete" && (
+          {/* 4. Planos e Mensalidades (Apenas Academia) */}
+          {nicho === "academia" && (
             <section className="glass-panel p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
               <div className="flex items-center gap-2 text-white font-semibold text-lg">
@@ -1017,8 +1017,8 @@ export default function Configuracoes() {
             </div>
           </section>
 
-          {/* Avisos de Vencimento */}
-          {nicho !== "lanchonete" && (
+          {/* Avisos de Vencimento (Apenas Academia) */}
+          {nicho === "academia" && (
             <section className="glass-panel p-6 space-y-6">
             <div className="flex items-center gap-2 text-white font-semibold text-lg border-b border-[var(--color-border)] pb-3">
               <CalendarCheck className="text-blue-400" size={20} />
