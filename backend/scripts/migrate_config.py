@@ -5,6 +5,9 @@ from sqlalchemy.orm import sessionmaker
 
 # Configuração da conexão com o banco de dados
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@db:5432/atendimento")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
