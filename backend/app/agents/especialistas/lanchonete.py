@@ -11,7 +11,7 @@ class EspecialistaLanchonete(BaseAgent):
         # Instrução de tags de reforço
         lembrete = (
             "\n\n[INSTRUÇÃO DO SISTEMA: Lembre-se de sempre anexar as tags corretas de acordo com a ação "
-            "(ex: [DEFINIR_MODO: modo=...], [ADICIONAR_ITEM: nome=..., quantidade=..., obs=...], [REMOVER_ITEM: nome=...], [SOLICITAR_CONFIRMACAO], [CONFIRMAR_PEDIDO] ou [SALVAR_AVALIACAO: nota=..., comentario=...]) no final da sua resposta!]"
+            "(ex: [DEFINIR_MODO: modo=...], [ADICIONAR_ITEM: nome=...], [SOLICITAR_CONFIRMACAO], [CONFIRMAR_PEDIDO], [FECHAR_CONTA] ou [SALVAR_AVALIACAO: ...]) no final da sua resposta!]"
         )
         mensagem_com_lembrete = mensagem + lembrete
         temperature = contexto.get("config", {}).get("openai_temperature", 0.2)
@@ -43,6 +43,11 @@ class EspecialistaLanchonete(BaseAgent):
                 carrinho_list.append(f"- {it['quantidade']}x {it['nome']} (R$ {it['preco_unit']:.2f} cada){obs}")
             carrinho_str = "\n".join(carrinho_list)
             
+        comanda_aberta_str = ctx.get("comanda_aberta_str", "")
+        instrucao_comanda = ""
+        if comanda_aberta_str:
+            instrucao_comanda = "7. Fechamento de Comanda Aberta: Quando o cliente pedir 'a conta', 'fechar a conta' ou 'trazer a máquina', use a tag [FECHAR_CONTA]."
+            
         # Obter instruções base da lanchonete (ou usar a padrão cadastrada)
         prompt_sistema = config.get("prompt_sistema") or ""
         
@@ -67,7 +72,9 @@ Mesa: {mesa_pedido or 'Não aplicável'}
 Endereço de Entrega: {endereco_pedido or 'Não aplicável'}
 Nome para Retirada (Balcão): {nome_balcao_pedido or 'Não aplicável'}
 
-=== ITENS NO CARRINHO (MEMÓRIA DO SISTEMA) ===
+{comanda_aberta_str}
+
+=== ITENS NO CARRINHO ATUAL (NÃO ENVIADOS PARA COZINHA) ===
 {carrinho_str}
 
 === SUA DIRETRIZ POR ESTADO ===
@@ -102,6 +109,8 @@ Você controla o estado do pedido através de tags técnicas adicionadas na últ
 6. Avaliação de Pós-Venda: Se o cliente estiver respondendo a uma mensagem de pós-venda dando uma nota para o pedido (ex: de 1 a 5) e/ou um comentário sobre como foi a experiência:
    - Tag: [SALVAR_AVALIACAO: nota=Nota numérica de 1 a 5, comentario=Comentário do cliente]
    - Agradeça a avaliação de forma carinhosa.
+
+{instrucao_comanda}
 
 Nunca misture o formato das tags. Assegure-se de que a resposta final contenha a tag correta em uma nova linha no final.
 """
