@@ -98,7 +98,7 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
         # 6. Preparar o contexto do agente
         config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
         nome_agente = config_dict.get("nome_agente", "Rosana")
-        modo_comanda_aberta = config_dict.get("modo_comanda_aberta", False)
+        modo_comanda_aberta = config_dict.get("modo_comanda_aberta", True)
         
         # Modo de Recepção: injeta flag para omitir apresentação formal para contatos conhecidos
         if is_retomar:
