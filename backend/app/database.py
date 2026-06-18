@@ -400,6 +400,7 @@ class Pedido(Base):
     numero_mesa = Column(Integer, nullable=True)
     avaliacao_nota = Column(Integer, nullable=True)
     avaliacao_comentario = Column(Text, nullable=True)
+    pagamento_status = Column(String, default="pendente") # pendente, pago
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -731,6 +732,7 @@ def init_db():
             # Migração de campos no Pedido e tabela FollowupDelivery
             conn.execute(text('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS avaliacao_nota INTEGER'))
             conn.execute(text('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS avaliacao_comentario TEXT'))
+            conn.execute(text('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS pagamento_status VARCHAR DEFAULT \'pendente\''))
             
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS followup_delivery (

@@ -8,7 +8,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database import SessionLocal, Lead, Mensagem, Empresa, Cardapio
 from app.agents.especialistas import get_especialista
 from app.cardapio_service import listar_itens, obter_item_por_nome
-from app.pedido_service import criar_pedido, notificar_cozinha
+from app.pedido_service import criar_pedido, notificar_cozinha, obter_comanda_aberta, fechar_comanda
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +98,24 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
         # 6. Preparar o contexto do agente
         config_dict = empresa.configuracoes.config if empresa.configuracoes else {}
         nome_agente = config_dict.get("nome_agente", "Rosana")
+        modo_comanda_aberta = config_dict.get("modo_comanda_aberta", False)
         
         # Modo de Recepção: injeta flag para omitir apresentação formal para contatos conhecidos
         if is_retomar:
             config_dict["_retomar_sem_apresentacao"] = True
+            
+        # Comanda Aberta (Buscar histórico de pedidos pendentes de pagamento do lead)
+        comanda_aberta_str = ""
+        if modo_comanda_aberta:
+            pedidos_comanda = obter_comanda_aberta(db, empresa.id, lead.id)
+            if pedidos_comanda:
+                linhas_comanda = []
+                total_comanda = 0.0
+                for ped in pedidos_comanda:
+                    for it in ped.itens:
+                        linhas_comanda.append(f"- {it.quantidade}x {it.nome} (R$ {it.preco_unit:.2f})")
+                    total_comanda += ped.total
+                comanda_aberta_str = "=== CONTA ABERTA ATUAL ===\nO cliente já consumiu e mandou para a cozinha os seguintes itens:\n" + "\n".join(linhas_comanda) + f"\nTotal Parcial: R$ {total_comanda:.2f}\n"
         
         dados_pedido_ctx = {
             "estado": pedido_estado,
@@ -121,7 +135,8 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
             "stage": lead.stage,
             "sentimento": "positivo",
             "cardapio_formatado": cardapio_formatado,
-            "dados_pedido": dados_pedido_ctx
+            "dados_pedido": dados_pedido_ctx,
+            "comanda_aberta_str": comanda_aberta_str
         }
 
         # 7. Chamar o especialista de Lanchonete
@@ -234,18 +249,41 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
                 # Notificar a cozinha imediatamente!
                 notificar_cozinha(db, empresa, pedido_db)
                 
-                # Resetar carrinho do lead
-                pedido_estado = "pedido_feito"
-                pedido_itens = []
-                pedido_modo = None
-                pedido_mesa = None
-                pedido_endereco = None
-                pedido_nome_balcao = None
+                # Resetar carrinho do lead baseado no modo
+                if modo_comanda_aberta:
+                    pedido_estado = "montando" # Volta para montando para continuar pedindo
+                    pedido_itens = []
+                    # Mantem o modo, mesa, endereco, etc
+                    logger.info(f"[{telefone}] Pedido Parcial #{pedido_criado_numero} enviado p/ cozinha. Comanda continua aberta.")
+                else:
+                    pedido_estado = "pedido_feito"
+                    pedido_itens = []
+                    pedido_modo = None
+                    pedido_mesa = None
+                    pedido_endereco = None
+                    pedido_nome_balcao = None
+                    
                 dados_custom.pop("observacao_pedido_geral", None)
-                
-                logger.info(f"[{telefone}] Pedido #{pedido_criado_numero} criado e carrinho limpo.")
             else:
                 logger.warning(f"[{telefone}] Tentou confirmar pedido com carrinho vazio!")
+
+        # F2. [FECHAR_CONTA] (Apenas p/ Modo Comanda Aberta)
+        conta_fechada_total = None
+        if "[FECHAR_CONTA]" in resposta_raw and modo_comanda_aberta:
+            pedidos_comanda = obter_comanda_aberta(db, empresa.id, lead.id)
+            if pedidos_comanda:
+                conta_fechada_total = sum(p.total for p in pedidos_comanda)
+                fechar_comanda(db, empresa.id, lead.id)
+                logger.info(f"[{telefone}] Conta fechada! Total: R$ {conta_fechada_total:.2f}")
+                
+            # Zera o estado do cliente totalmente
+            pedido_estado = "pedido_feito"
+            pedido_itens = []
+            pedido_modo = None
+            pedido_mesa = None
+            pedido_endereco = None
+            pedido_nome_balcao = None
+            dados_custom.pop("observacao_pedido_geral", None)
 
         # G. [SALVAR_AVALIACAO: nota=..., comentario=...]
         match_avaliacao = re.search(r'\[SALVAR_AVALIACAO:\s*nota=([^,\]]+)(?:,\s*comentario=([^\]]+))?\]', resposta_raw, re.IGNORECASE)
@@ -286,7 +324,7 @@ def processar_pipeline_lanchonete(empresa: Empresa, telefone: str, mensagem_text
 
         # 11. Limpar as tags técnicas do texto de resposta do cliente
         resposta_limpa = resposta_raw
-        for tag in ("[SOLICITAR_CONFIRMACAO]", "[CONFIRMAR_PEDIDO]"):
+        for tag in ("[SOLICITAR_CONFIRMACAO]", "[CONFIRMAR_PEDIDO]", "[FECHAR_CONTA]"):
             resposta_limpa = resposta_limpa.replace(tag, "").strip()
             
         resposta_limpa = re.sub(r'\[DEFINIR_MODO:[^\]]*\]', '', resposta_limpa)

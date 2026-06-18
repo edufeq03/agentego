@@ -35,7 +35,8 @@ def criar_pedido(
         observacao=observacao.strip() if observacao else None,
         endereco=endereco.strip() if endereco else None,
         nome_balcao=nome_balcao.strip() if nome_balcao else None,
-        numero_mesa=numero_mesa
+        numero_mesa=numero_mesa,
+        pagamento_status="pendente"
     )
     db.add(pedido)
     db.flush() # Gera o ID do pedido para associar nos itens
@@ -87,6 +88,22 @@ def obter_historico_pedidos(
     if status:
         query = query.filter(Pedido.status == status)
     return query.order_by(Pedido.criado_em.desc()).limit(limit).offset(offset).all()
+
+def obter_comanda_aberta(db: Session, empresa_id: uuid.UUID, lead_id: uuid.UUID) -> List[Pedido]:
+    """Retorna todos os pedidos da comanda aberta (pagamento pendente) do cliente."""
+    return db.query(Pedido).filter(
+        Pedido.empresa_id == empresa_id,
+        Pedido.lead_id == lead_id,
+        Pedido.pagamento_status == "pendente",
+        Pedido.status.notin_(["cancelado"])
+    ).order_by(Pedido.criado_em.asc()).all()
+
+def fechar_comanda(db: Session, empresa_id: uuid.UUID, lead_id: uuid.UUID) -> None:
+    """Marca todos os pedidos com pagamento pendente como pagos (fecha a conta)."""
+    pedidos_pendentes = obter_comanda_aberta(db, empresa_id, lead_id)
+    for p in pedidos_pendentes:
+        p.pagamento_status = "pago"
+    db.commit()
 
 def atualizar_status_pedido(db: Session, pedido_id: uuid.UUID, novo_status: str) -> Optional[Pedido]:
     """Atualiza o status de um pedido e envia notificações automáticas."""
