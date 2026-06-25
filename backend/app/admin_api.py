@@ -451,3 +451,32 @@ def diagnostico_empresa(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
         },
         "ultimos_eventos": log_atividades
     }
+
+@router.post("/empresas/{empresa_id}/sync", dependencies=[Depends(verify_admin)])
+def sync_empresa_admin(empresa_id: uuid.UUID, db: Session = Depends(get_db)):
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+    if not empresa.evolution_instance:
+        raise HTTPException(status_code=404, detail="Nenhuma instância vinculada")
+        
+    try:
+        base_url = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+        webhook_url = f"{base_url}/webhook/{empresa.webhook_token}"
+        
+        # 1. Sincroniza Webhook
+        w_sucesso, w_erro = whatsapp_service.set_webhook(empresa.evolution_instance, webhook_url)
+        if not w_sucesso:
+            raise Exception(f"Erro Webhook: {w_erro}")
+        
+        # 2. Sincroniza Comportamento (Rejeitar chamadas, etc)
+        s_sucesso, s_erro = whatsapp_service.update_settings(empresa.evolution_instance)
+        if not s_sucesso:
+            raise Exception(f"Erro Configurações: {s_erro}")
+        
+        return {"status": "ok", "mensagem": "Sincronização forçada concluída com sucesso!"}
+            
+    except Exception as e:
+        logger.error(f"ERRO NA SINCRONIZAÇÃO FORÇADA: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
