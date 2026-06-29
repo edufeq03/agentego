@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Any
 from uuid import UUID
 from fastapi import HTTPException
 
@@ -24,8 +24,50 @@ def create_deal(db: Session, empresa_id: UUID, deal_in: CrmDealCreate) -> CrmDea
 def get_deal(db: Session, deal_id: UUID) -> Optional[CrmDeal]:
     return db.query(CrmDeal).filter(CrmDeal.id == deal_id).first()
 
-def get_deals_by_empresa(db: Session, empresa_id: UUID, skip: int = 0, limit: int = 100) -> List[CrmDeal]:
-    return db.query(CrmDeal).filter(CrmDeal.empresa_id == empresa_id).offset(skip).limit(limit).all()
+def get_deals_by_empresa(db: Session, empresa_id: UUID, skip: int = 0, limit: int = 100) -> List[Any]:
+    from app.models.atendimento import Lead, Mensagem
+    
+    deals = db.query(CrmDeal).filter(CrmDeal.empresa_id == empresa_id).offset(skip).limit(limit).all()
+    
+    for deal in deals:
+        deal.phone = None
+        deal.intent = None
+        deal.summary = None
+        
+        if deal.contact_id:
+            if deal.contact:
+                deal.phone = deal.contact.phone
+                
+            lead = db.query(Lead).filter(Lead.crm_contact_id == deal.contact_id).first()
+            if lead:
+                # Tenta pegar a intenção da última mensagem do usuário
+                last_msg = db.query(Mensagem).filter(
+                    Mensagem.lead_id == lead.id,
+                    Mensagem.tipo == "usuario"
+                ).order_by(Mensagem.timestamp.desc()).first()
+                
+                if last_msg and getattr(last_msg, 'intencao', None):
+                    deal.intent = last_msg.intencao
+                else:
+                    # Fallback para o stage do lead
+                    deal.intent = lead.stage.capitalize() if lead.stage else None
+                    
+                # Formata os dados capturados como um resumo curto
+                dados = lead.dados_customizados or {}
+                if dados:
+                    parts = []
+                    for k, v in dados.items():
+                        if isinstance(v, (str, int, float, bool)) and len(str(v)) < 50:
+                            parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
+                    if parts:
+                        deal.summary = " | ".join(parts)
+                    elif "resumo_ia" in dados:
+                        deal.summary = dados["resumo_ia"]
+                
+                if not deal.summary:
+                    deal.summary = "Nenhum dado capturado durante a triagem."
+                    
+    return deals
 
 def move_deal_stage(db: Session, deal_id: UUID, new_stage_id: str) -> Optional[CrmDeal]:
     deal = get_deal(db, deal_id)
