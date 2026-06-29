@@ -70,6 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Transmissão", href: `/${slug}/listas-transmissao`, icon: ListFilter },
     ] : []),
 
+    { name: "CRM (Comercial OS)", href: `/${slug}/crm`, icon: Briefcase },
     { name: "Métricas & Insights", href: `/${slug}/funil`, icon: TrendingUp },
     { name: "Marketing", href: `/${slug}/marketing`, icon: Share2 },
     { name: "Triagem da IA", href: `/${slug}/triagem`, icon: Sliders },
