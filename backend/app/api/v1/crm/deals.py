@@ -19,6 +19,14 @@ def create_deal(
 ):
     return deal_service.create_deal(db, empresa.id, deal_in)
 
+@router.post("/from-lead/{lead_id}", response_model=CrmDealResponse)
+def create_deal_from_lead(
+    lead_id: UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    return deal_service.convert_lead_to_deal(db, empresa.id, lead_id)
+
 @router.get("/", response_model=List[CrmDealResponse])
 def list_deals(
     skip: int = 0, 

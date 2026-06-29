@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragStartEvent, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -52,13 +52,14 @@ export default function CRMPage() {
   const [activeDeal, setActiveDeal] = useState<any | null>(null);
   const [error, setError] = useState('');
   const router = useRouter();
+  const params = useParams();
 
   const getApiUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   };
 
   const fetchDeals = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('agentego_token') || localStorage.getItem('token');
     fetch(`${getApiUrl()}/api/crm/deals/`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -110,7 +111,7 @@ export default function CRMPage() {
     const previousDeals = [...deals];
     setDeals(deals.map(d => d.id === dealId ? { ...d, stage_id: newStage } : d));
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('agentego_token') || localStorage.getItem('token');
     try {
       const res = await fetch(`${getApiUrl()}/api/crm/deals/${dealId}/stage`, {
         method: 'PATCH',
@@ -141,8 +142,8 @@ export default function CRMPage() {
         <div className="flex justify-between items-end">
           <div>
             <div className="flex gap-4 mb-2">
-              <a href="/crm" className="text-sm font-bold text-[var(--color-brand-600)] border-b-2 border-[var(--color-brand-600)] pb-1">Kanban</a>
-              <a href="/crm/contacts" className="text-sm font-medium text-gray-500 hover:text-gray-900 pb-1">Contatos (360)</a>
+              <a href={`/${params?.slug || ''}/crm`} className="text-sm font-bold text-[var(--color-brand-600)] border-b-2 border-[var(--color-brand-600)] pb-1">Kanban</a>
+              <a href={`/${params?.slug || ''}/crm/contacts`} className="text-sm font-medium text-gray-500 hover:text-gray-900 pb-1">Contatos (360)</a>
             </div>
             <h2 className="text-2xl font-bold text-gray-900">CRM de Vendas</h2>
             <p className="mt-1 text-sm text-gray-600">Acompanhe e movimente seus negócios ativos (Comercial OS).</p>

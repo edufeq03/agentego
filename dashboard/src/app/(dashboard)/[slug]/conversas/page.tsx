@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
-import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle, ChevronLeft, Sliders } from "lucide-react";
+import { MessageCircle, Bot, User, Power, Search, Pause, AlertTriangle, ChevronLeft, Sliders, Target } from "lucide-react";
 
 interface ConversaData {
   id: string;
@@ -31,6 +32,25 @@ export default function Conversas() {
   const [loadingMensagens, setLoadingMensagens] = useState(false);
   const [mensagemInput, setMensagemInput] = useState("");
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
+  const [convertendo, setConvertendo] = useState(false);
+  
+  const router = useRouter();
+  const params = useParams();
+
+  async function converterLead() {
+    if (!conversaAtiva) return;
+    setConvertendo(true);
+    try {
+      await api.post(`/crm/deals/from-lead/${conversaAtiva.id}`);
+      alert("Sucesso! O lead foi convertido em Oportunidade no CRM.");
+      router.push(`/${params?.slug || ''}/crm`);
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.detail || "Erro ao converter lead");
+    } finally {
+      setConvertendo(false);
+    }
+  }
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +84,15 @@ export default function Conversas() {
     try {
       const response = await api.get("dashboard/conversas");
       setConversas(response.data);
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const telefoneQuery = searchParams.get("telefone");
+      if (telefoneQuery) {
+        const target = response.data.find((c: any) => c.telefone === telefoneQuery);
+        if (target) {
+          abrirConversa(target);
+        }
+      }
     } catch (error) {
       console.error("Erro ao buscar conversas:", error);
     } finally {
@@ -399,10 +428,24 @@ export default function Conversas() {
                   </div>
                   <div>
                     <span className="text-xs text-[var(--color-foreground-muted)] uppercase tracking-wider block">Estágio do Funil</span>
-                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-white/5 border border-white/10 text-white rounded-md mt-1">
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-white/5 border border-white/10 text-white rounded-md mt-1 mb-4">
                       {conversaAtivaAtualizada.stage}
                     </span>
                   </div>
+
+                  <button
+                    onClick={converterLead}
+                    disabled={convertendo}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                  >
+                    {convertendo ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    ) : (
+                      <>
+                        <Target size={16} /> Converter em Oportunidade
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="border-t border-white/5 pt-4 space-y-4">

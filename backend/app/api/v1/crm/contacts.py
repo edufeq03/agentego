@@ -6,8 +6,9 @@ from uuid import UUID
 from app.database import get_db, Empresa
 from app.dashboard_api import obter_empresa
 
-from app.schemas.crm import CrmContactCreate, CrmContactResponse
-from app.services.crm import contact_service
+from app.schemas.crm import CrmContactCreate, CrmContactResponse, CrmContextResponse
+from app.services.crm import contact_service, context_extractor
+from app.models.crm import CrmContext
 
 router = APIRouter()
 
@@ -38,3 +39,22 @@ def import_lead_to_contact(
     if not contact:
         raise HTTPException(status_code=404, detail="Lead not found or does not belong to this company")
     return contact
+
+@router.get("/{contact_id}/context", response_model=CrmContextResponse)
+def get_contact_context(
+    contact_id: UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    context = db.query(CrmContext).filter(CrmContext.contact_id == contact_id, CrmContext.empresa_id == empresa.id).first()
+    if not context:
+        raise HTTPException(status_code=404, detail="Contexto não encontrado para este contato")
+    return context
+
+@router.post("/{contact_id}/summarize", response_model=CrmContextResponse)
+def summarize_contact(
+    contact_id: UUID,
+    empresa: Empresa = Depends(obter_empresa),
+    db: Session = Depends(get_db)
+):
+    return context_extractor.generate_ai_summary(db, empresa.id, contact_id)
