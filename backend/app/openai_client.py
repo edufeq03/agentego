@@ -14,25 +14,44 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None, temperature=0.
     
     # Se o prompt do sistema exigir regras de sinalização (tags), reforçamos com uma mensagem de sistema no final da lista
     if "[ATUALIZAR_LEAD" in contexto_sistema or "REGRA DE OURO" in contexto_sistema:
+        is_lanchonete = "[ADICIONAR_ITEM" in contexto_sistema
+        is_corretora = "seguro" in contexto_sistema.lower() or "corretora" in contexto_sistema.lower()
+        
+        if is_corretora:
+            exemplos = (
+                "Exemplos:\n"
+                "- Se informou nome: [ATUALIZAR_LEAD: nome_segurado=Eduardo Targine Capella]\n"
+                "- Se quer plano de saúde: [ATUALIZAR_LEAD: tipo_seguro=saude]\n"
+                "- Se quer plano odontológico: [ATUALIZAR_LEAD: tipo_seguro=odontologico]\n"
+                "- Se informou idade/nascimento: [ATUALIZAR_LEAD: idade_segurado=41]\n"
+                "- Se informou CNPJ: [ATUALIZAR_LEAD: tem_cnpj=false]\n"
+                "- Se informou plano anterior: [ATUALIZAR_LEAD: tem_plano_anterior=true] [ATUALIZAR_LEAD: plano_anterior_nome=Unimed]\n"
+                "- Se informou região: [ATUALIZAR_LEAD: regiao=Campinas]\n"
+            )
+        else:
+            exemplos = (
+                "Exemplos:\n"
+                "- Se informou nome: [ATUALIZAR_LEAD: nome_cliente=Eduardo]\n"
+            )
+
         lembrete_sistema = (
             "Lembrete de Formatação Crítico (MANDATÓRIO): Se o usuário acabou de fornecer, alterar ou confirmar qualquer dado "
-            "dele ou do seguro na última mensagem, você DEVE incluir a tag invisível correspondente "
+            "dele na última mensagem, você DEVE incluir a tag invisível correspondente "
             "no final da sua resposta, exatamente no formato '[ATUALIZAR_LEAD: campo=valor]'.\n"
-            "Exemplos:\n"
-            "- Se informou nome: [ATUALIZAR_LEAD: nome_segurado=Eduardo Targine Capella]\n"
-            "- Se quer plano de saúde: [ATUALIZAR_LEAD: tipo_seguro=saude]\n"
-            "- Se quer plano odontológico: [ATUALIZAR_LEAD: tipo_seguro=odontologico]\n"
-            "- Se informou idade/nascimento: [ATUALIZAR_LEAD: idade_segurado=41]\n"
-            "- Se informou CNPJ: [ATUALIZAR_LEAD: tem_cnpj=false]\n"
-            "- Se informou plano anterior: [ATUALIZAR_LEAD: tem_plano_anterior=true] [ATUALIZAR_LEAD: plano_anterior_nome=Unimed]\n"
-            "- Se informou região: [ATUALIZAR_LEAD: regiao=Campinas]\n"
+            f"{exemplos}"
             "Não responda sem incluir a tag correspondente! As tags são essenciais para salvar os dados no banco de dados.\n\n"
-            "=== AUTOMAÇÃO INTELIGENTE DE CRM (NOVO) ===\n"
-            "Se o cliente expressar forte intenção de compra, aceitar os valores passados, ou se a triagem de vendas "
-            "estiver completa e você identificar que o lead está 'quente' e pronto para fechamento, você DEVE anexar "
-            "a tag invisível [CRIAR_OPORTUNIDADE: motivo=sua justificativa aqui] no final da sua resposta. Isso criará "
-            "automaticamente um card no CRM Kanban para a equipe comercial."
         )
+        
+        # Não injetar regra de CRM para Lanchonete, pois ela usa a tag de fechamento de pedido [CONFIRMAR_PEDIDO]
+        if not is_lanchonete:
+            lembrete_sistema += (
+                "=== AUTOMAÇÃO INTELIGENTE DE CRM (NOVO) ===\n"
+                "Se o cliente expressar forte intenção de compra, aceitar os valores passados, ou se a triagem de vendas "
+                "estiver completa e você identificar que o lead está 'quente' e pronto para fechamento, você DEVE anexar "
+                "a tag invisível [CRIAR_OPORTUNIDADE: motivo=sua justificativa aqui] no final da sua resposta. Isso criará "
+                "automaticamente um card no CRM Kanban para a equipe comercial."
+            )
+            
         mensagens.append({"role": "system", "content": lembrete_sistema})
     
     # Usar temperatura configurável (garantir que esteja nos limites permitidos)
