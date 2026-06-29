@@ -140,6 +140,10 @@ export default function CRMPage() {
       <div className="mb-6 flex flex-col gap-4">
         <div className="flex justify-between items-end">
           <div>
+            <div className="flex gap-4 mb-2">
+              <a href="/crm" className="text-sm font-bold text-[var(--color-brand-600)] border-b-2 border-[var(--color-brand-600)] pb-1">Kanban</a>
+              <a href="/crm/contacts" className="text-sm font-medium text-gray-500 hover:text-gray-900 pb-1">Contatos (360)</a>
+            </div>
             <h2 className="text-2xl font-bold text-gray-900">CRM de Vendas</h2>
             <p className="mt-1 text-sm text-gray-600">Acompanhe e movimente seus negócios ativos (Comercial OS).</p>
           </div>
