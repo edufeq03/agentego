@@ -91,12 +91,12 @@ export default function ContactProfilePage() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 pb-2 border-b border-[var(--color-border)]">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+        <button onClick={() => router.back()} className="p-2 hover:bg-[var(--color-surface-hover)] rounded-lg text-[var(--color-foreground-muted)]">
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{contact.first_name} {contact.last_name}</h2>
-          <p className="text-sm text-gray-500">Visão 360º do Cliente</p>
+          <h2 className="text-2xl font-bold text-[var(--color-foreground)]">{contact.first_name} {contact.last_name}</h2>
+          <p className="text-sm text-[var(--color-foreground-muted)]">Visão 360º do Cliente</p>
         </div>
       </div>
 
@@ -105,7 +105,7 @@ export default function ContactProfilePage() {
         <div className="col-span-1 flex flex-col gap-6">
           
           {/* Card Resumo */}
-          <div className="bg-white p-6 rounded-xl border border-[var(--color-border)] shadow-sm">
+          <div className="bg-[var(--color-surface)] p-6 rounded-xl border border-[var(--color-border)] shadow-sm">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white text-2xl font-bold">
                 {contact.first_name?.charAt(0)}
@@ -121,16 +121,16 @@ export default function ContactProfilePage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Phone size={16} className="text-gray-400" />
+              <div className="flex items-center gap-3 text-sm text-[var(--color-foreground-muted)]">
+                <Phone size={16} className="text-[var(--color-foreground-muted)]" />
                 <span>{contact.phone}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Mail size={16} className="text-gray-400" />
+              <div className="flex items-center gap-3 text-sm text-[var(--color-foreground-muted)]">
+                <Mail size={16} className="text-[var(--color-foreground-muted)]" />
                 <span>{contact.email || 'Não informado'}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Briefcase size={16} className="text-gray-400" />
+              <div className="flex items-center gap-3 text-sm text-[var(--color-foreground-muted)]">
+                <Briefcase size={16} className="text-[var(--color-foreground-muted)]" />
                 <span>Origem: {contact.source || 'Orgânico'}</span>
               </div>
             </div>
@@ -186,7 +186,7 @@ export default function ContactProfilePage() {
                     </span>
                   )}
                   {aiContext.tags && aiContext.tags.map((tag: string, idx: number) => (
-                    <span key={idx} className="bg-white border border-indigo-200 text-indigo-600 text-xs px-2 py-1 rounded-md font-medium">
+                    <span key={idx} className="bg-[var(--color-background)] border border-[var(--color-border)] text-indigo-400 text-xs px-2 py-1 rounded-md font-medium">
                       {tag}
                     </span>
                   ))}
@@ -212,7 +212,7 @@ export default function ContactProfilePage() {
 
         {/* Coluna Direita: Timeline de Atividades */}
         <div className="col-span-1 lg:col-span-2">
-          <div className="bg-white p-6 rounded-xl border border-[var(--color-border)] shadow-sm h-full">
+          <div className="bg-[var(--color-surface)] p-6 rounded-xl border border-[var(--color-border)] shadow-sm h-full">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-gray-900">Timeline de Atividades</h3>
               <button className="text-sm text-[var(--color-brand-600)] font-medium hover:underline">
@@ -237,7 +237,7 @@ export default function ContactProfilePage() {
                     <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-[var(--color-brand-100)] text-[var(--color-brand-600)] shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
                       <MessageSquare size={16} />
                     </div>
-                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-[var(--color-border)] bg-white shadow-sm">
+                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-sm">
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-bold text-gray-900 text-sm">{act.subject}</span>
                         <span className="text-[10px] font-semibold text-gray-500 uppercase">

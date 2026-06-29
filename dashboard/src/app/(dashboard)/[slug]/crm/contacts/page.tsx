@@ -35,14 +35,14 @@ export default function ContactsListPage() {
   }, []);
 
   return (
-    <div className="flex-1 w-full bg-white rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden">
+    <div className="flex-1 w-full bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden">
       <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Meus Contatos</h2>
-          <p className="text-sm text-gray-500 mt-1">Lista de leads qualificados capturados pelo Comercial OS.</p>
+          <h2 className="text-xl font-bold text-[var(--color-foreground)]">Meus Contatos</h2>
+          <p className="text-sm text-[var(--color-foreground-muted)] mt-1">Lista de leads qualificados capturados pelo Comercial OS.</p>
         </div>
         <div className="flex gap-3">
-          <Link href={`/${params?.slug || ''}/crm`} className="px-4 py-2 bg-gray-100 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-200 transition-colors">
+          <Link href={`/${params?.slug || ''}/crm`} className="px-4 py-2 bg-[var(--color-surface-hover)] text-[var(--color-foreground)] font-medium text-sm rounded-lg hover:bg-[var(--color-border)] transition-colors">
             Voltar ao Kanban
           </Link>
           <button className="px-4 py-2 bg-[var(--color-brand-500)] text-white font-medium text-sm rounded-lg hover:bg-[var(--color-brand-600)] transition-colors">
@@ -52,41 +52,41 @@ export default function ContactsListPage() {
       </div>
       
       {loading ? (
-        <div className="p-8 text-center text-gray-500">Carregando contatos...</div>
+        <div className="p-8 text-center text-[var(--color-foreground-muted)]">Carregando contatos...</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-[var(--color-border)]">
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefone</th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Última Atualização</th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Ação</th>
+              <tr className="bg-[var(--color-background)] border-b border-[var(--color-border)]">
+                <th className="p-4 text-xs font-semibold text-[var(--color-foreground-muted)] uppercase tracking-wider">Nome</th>
+                <th className="p-4 text-xs font-semibold text-[var(--color-foreground-muted)] uppercase tracking-wider">Telefone</th>
+                <th className="p-4 text-xs font-semibold text-[var(--color-foreground-muted)] uppercase tracking-wider">Status</th>
+                <th className="p-4 text-xs font-semibold text-[var(--color-foreground-muted)] uppercase tracking-wider">Última Atualização</th>
+                <th className="p-4 text-xs font-semibold text-[var(--color-foreground-muted)] uppercase tracking-wider text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {contacts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-500">
+                  <td colSpan={5} className="p-8 text-center text-[var(--color-foreground-muted)]">
                     Nenhum contato encontrado. Importe leads para começar!
                   </td>
                 </tr>
               ) : (
                 contacts.map(contact => (
-                  <tr key={contact.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-4 font-medium text-gray-900">{contact.first_name} {contact.last_name}</td>
-                    <td className="p-4 text-gray-600">{contact.phone}</td>
+                  <tr key={contact.id} className="hover:bg-[var(--color-background)] transition-colors">
+                    <td className="p-4 font-medium text-[var(--color-foreground)]">{contact.first_name} {contact.last_name}</td>
+                    <td className="p-4 text-[var(--color-foreground-muted)]">{contact.phone}</td>
                     <td className="p-4">
                       <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                        contact.status === 'lead' ? 'bg-yellow-100 text-yellow-800' :
-                        contact.status === 'client' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
+                        contact.status === 'lead' ? 'bg-yellow-900/30 text-yellow-500 border border-yellow-900' :
+                        contact.status === 'client' ? 'bg-green-900/30 text-green-500 border border-green-900' :
+                        'bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)]'
                       }`}>
                         {contact.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="p-4 text-gray-500 text-sm">
+                    <td className="p-4 text-[var(--color-foreground-muted)] text-sm">
                       {new Date(contact.updated_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="p-4 text-right">
