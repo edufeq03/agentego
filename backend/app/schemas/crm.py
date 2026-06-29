@@ -70,6 +70,11 @@ class CrmDealResponse(CrmDealBase):
     empresa_id: UUID
     created_at: datetime
     updated_at: datetime
+    
+    # Custom fields for UI rendering
+    phone: Optional[str] = None
+    intent: Optional[str] = None
+    summary: Optional[str] = None
 
     class Config:
         from_attributes = True

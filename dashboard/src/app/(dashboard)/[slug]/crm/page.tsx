@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragStartEvent, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Phone, Bot } from 'lucide-react';
 
 const STAGES = [
   { id: 'new', title: 'Novos Leads' },
@@ -40,9 +41,36 @@ function SortableDealCard({ deal }: { deal: any }) {
       className="bg-white p-4 rounded-lg shadow border border-gray-200 cursor-grab active:cursor-grabbing mb-3 hover:border-blue-300 transition-colors"
     >
       <h4 className="font-medium text-gray-900 text-sm mb-1">{deal.title}</h4>
-      <p className="text-gray-500 text-xs font-semibold">
-        R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-      </p>
+      
+      {deal.phone && (
+        <div className="flex items-center text-xs text-gray-400 mb-2">
+          <Phone className="w-3 h-3 mr-1" />
+          <span>{deal.phone}</span>
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-gray-500 text-xs font-semibold">
+          R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </p>
+        
+        {deal.intent && (
+          <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-medium border border-blue-100 truncate max-w-[100px]">
+            {deal.intent}
+          </span>
+        )}
+      </div>
+
+      {deal.summary && (
+        <div className="mt-3 pt-2 border-t border-gray-100">
+          <div className="flex items-start">
+            <Bot className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
+            <p className="text-gray-400 text-[11px] leading-tight line-clamp-2" title={deal.summary}>
+              {deal.summary}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
