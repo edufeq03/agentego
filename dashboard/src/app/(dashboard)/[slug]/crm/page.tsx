@@ -38,9 +38,9 @@ function SortableDealCard({ deal }: { deal: any }) {
       style={style} 
       {...attributes} 
       {...listeners}
-      className="bg-white p-4 rounded-lg shadow border border-gray-200 cursor-grab active:cursor-grabbing mb-3 hover:border-blue-300 transition-colors"
+      className="bg-[var(--color-background)] p-4 rounded-lg shadow-sm border border-[var(--color-border)] cursor-grab active:cursor-grabbing mb-3 hover:border-[var(--color-brand-400)] transition-colors"
     >
-      <h4 className="font-medium text-gray-900 text-sm mb-1">{deal.title}</h4>
+      <h4 className="font-medium text-[var(--color-foreground)] text-sm mb-1">{deal.title}</h4>
       
       {deal.phone && (
         <div className="flex items-center text-xs text-gray-400 mb-2">
@@ -50,22 +50,22 @@ function SortableDealCard({ deal }: { deal: any }) {
       )}
       
       <div className="flex items-center justify-between mb-2">
-        <p className="text-gray-500 text-xs font-semibold">
+        <p className="text-[var(--color-foreground-muted)] text-xs font-semibold">
           R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </p>
         
         {deal.intent && (
-          <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-medium border border-blue-100 truncate max-w-[100px]">
+          <span className="bg-[var(--color-brand-900)] text-[var(--color-brand-100)] text-[10px] px-2 py-0.5 rounded-full font-medium border border-[var(--color-brand-700)] truncate max-w-[100px]">
             {deal.intent}
           </span>
         )}
       </div>
 
       {deal.summary && (
-        <div className="mt-3 pt-2 border-t border-gray-100">
+        <div className="mt-3 pt-2 border-t border-[var(--color-border)]">
           <div className="flex items-start">
             <Bot className="w-3 h-3 mr-1 mt-0.5 text-gray-400 flex-shrink-0" />
-            <p className="text-gray-400 text-[11px] leading-tight line-clamp-2" title={deal.summary}>
+            <p className="text-[var(--color-foreground-muted)] text-[11px] leading-tight line-clamp-2" title={deal.summary}>
               {deal.summary}
             </p>
           </div>
@@ -165,18 +165,18 @@ export default function CRMPage() {
   };
 
   return (
-    <div className="flex-1 w-full flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-gray-50 p-6">
+    <div className="flex-1 w-full flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-transparent p-6">
       <div className="mb-6 flex flex-col gap-4">
         <div className="flex justify-between items-end">
           <div>
             <div className="flex gap-4 mb-2">
-              <a href={`/${params?.slug || ''}/crm`} className="text-sm font-bold text-[var(--color-brand-600)] border-b-2 border-[var(--color-brand-600)] pb-1">Kanban</a>
-              <a href={`/${params?.slug || ''}/crm/contacts`} className="text-sm font-medium text-gray-500 hover:text-gray-900 pb-1">Contatos (360)</a>
+              <a href={`/${params?.slug || ''}/crm`} className="text-sm font-bold text-[var(--color-brand-500)] border-b-2 border-[var(--color-brand-500)] pb-1">Kanban</a>
+              <a href={`/${params?.slug || ''}/crm/contacts`} className="text-sm font-medium text-[var(--color-foreground-muted)] hover:text-white pb-1">Contatos (360)</a>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">CRM de Vendas</h2>
-            <p className="mt-1 text-sm text-gray-600">Acompanhe e movimente seus negócios ativos (Comercial OS).</p>
+            <h2 className="text-2xl font-bold text-[var(--color-foreground)]">CRM de Vendas</h2>
+            <p className="mt-1 text-sm text-[var(--color-foreground-muted)]">Acompanhe e movimente seus negócios ativos (Comercial OS).</p>
           </div>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-700 transition-colors font-medium text-sm">
+          <button className="bg-[var(--color-brand-600)] text-white px-4 py-2 rounded-md shadow-sm hover:bg-[var(--color-brand-500)] transition-colors font-medium text-sm">
             + Novo Negócio
           </button>
         </div>
@@ -198,10 +198,10 @@ export default function CRMPage() {
             const stageDeals = deals.filter(d => d.stage_id === stage.id);
             
             return (
-              <div key={stage.id} className="flex-shrink-0 w-80 flex flex-col bg-gray-100 rounded-xl h-full border border-gray-200">
-                <div className="p-4 flex justify-between items-center border-b border-gray-200 bg-gray-50/50 rounded-t-xl">
-                  <h3 className="font-semibold text-gray-700">{stage.title}</h3>
-                  <span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">{stageDeals.length}</span>
+              <div key={stage.id} className="flex-shrink-0 w-80 flex flex-col bg-[var(--color-surface)] rounded-xl h-full border border-[var(--color-border)]">
+                <div className="p-4 flex justify-between items-center border-b border-[var(--color-border)] bg-[var(--color-surface)] rounded-t-xl">
+                  <h3 className="font-semibold text-[var(--color-foreground)]">{stage.title}</h3>
+                  <span className="bg-[var(--color-surface-hover)] text-[var(--color-foreground-muted)] text-xs font-bold px-2 py-1 rounded-full">{stageDeals.length}</span>
                 </div>
                 
                 <DroppableColumn id={stage.id}>
@@ -216,7 +216,7 @@ export default function CRMPage() {
                   </SortableContext>
                   
                   {stageDeals.length === 0 && (
-                    <div className="h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm font-medium">
+                    <div className="h-24 rounded-lg border-2 border-dashed border-[var(--color-border)] flex items-center justify-center text-[var(--color-foreground-muted)] text-sm font-medium">
                       Arraste para cá
                     </div>
                   )}
@@ -227,9 +227,9 @@ export default function CRMPage() {
           
           <DragOverlay>
             {activeDeal ? (
-              <div className="bg-white p-4 rounded-lg shadow-xl border-2 border-blue-400 opacity-90 rotate-2">
-                <h4 className="font-medium text-gray-900 text-sm mb-1">{activeDeal.title}</h4>
-                <p className="text-gray-500 text-xs font-semibold">
+              <div className="bg-[var(--color-background)] p-4 rounded-lg shadow-xl border-2 border-[var(--color-brand-400)] opacity-90 rotate-2">
+                <h4 className="font-medium text-[var(--color-foreground)] text-sm mb-1">{activeDeal.title}</h4>
+                <p className="text-[var(--color-foreground-muted)] text-xs font-semibold">
                   R$ {activeDeal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
