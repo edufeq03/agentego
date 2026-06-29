@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ContactsListPage() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const params = useParams();
 
   const getApiUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -41,7 +42,7 @@ export default function ContactsListPage() {
           <p className="text-sm text-gray-500 mt-1">Lista de leads qualificados capturados pelo Comercial OS.</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/crm" className="px-4 py-2 bg-gray-100 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-200 transition-colors">
+          <Link href={`/${params?.slug || ''}/crm`} className="px-4 py-2 bg-gray-100 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-200 transition-colors">
             Voltar ao Kanban
           </Link>
           <button className="px-4 py-2 bg-[var(--color-brand-500)] text-white font-medium text-sm rounded-lg hover:bg-[var(--color-brand-600)] transition-colors">
@@ -74,7 +75,7 @@ export default function ContactsListPage() {
               ) : (
                 contacts.map(contact => (
                   <tr key={contact.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-4 font-medium text-gray-900">{contact.name}</td>
+                    <td className="p-4 font-medium text-gray-900">{contact.first_name} {contact.last_name}</td>
                     <td className="p-4 text-gray-600">{contact.phone}</td>
                     <td className="p-4">
                       <span className={`px-2 py-1 text-xs font-bold rounded-full ${
@@ -90,7 +91,7 @@ export default function ContactsListPage() {
                     </td>
                     <td className="p-4 text-right">
                       <Link 
-                        href={`/crm/contacts/${contact.id}`}
+                        href={`/${params?.slug || ''}/crm/contacts/${contact.id}`}
                         className="text-[var(--color-brand-600)] hover:text-[var(--color-brand-800)] text-sm font-medium"
                       >
                         Ver Perfil

@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, MessageSquare, Clock, Calendar, Briefcase, Zap } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, MessageSquare, Clock, Calendar, Briefcase, Zap, Sparkles } from 'lucide-react';
 
 export default function ContactProfilePage() {
   const [contact, setContact] = useState<any>(null);
   const [activities, setActivities] = useState<any[]>([]);
+  const [aiContext, setAiContext] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
   
   const params = useParams();
   const contactId = params?.id as string;
@@ -20,8 +22,8 @@ export default function ContactProfilePage() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('agentego_token');
-      // Buscar Contatos e Filtrar (Ideal: ter endpoint GET /contacts/:id)
+      const token = localStorage.getItem('agentego_token') || localStorage.getItem('token');
+      // Buscar Contatos e Filtrar
       const resContact = await fetch(`${getApiUrl()}/api/crm/contacts/`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -37,10 +39,44 @@ export default function ContactProfilePage() {
         const dataAct = await resAct.json();
         setActivities(dataAct);
       }
+
+      // Buscar Memória da IA
+      try {
+        const resContext = await fetch(`${getApiUrl()}/api/crm/contacts/${contactId}/context`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resContext.ok) {
+          const dataContext = await resContext.json();
+          setAiContext(dataContext);
+        }
+      } catch (err) {}
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateAiSummary = async () => {
+    setGeneratingSummary(true);
+    try {
+      const token = localStorage.getItem('agentego_token') || localStorage.getItem('token');
+      const res = await fetch(`${getApiUrl()}/api/crm/contacts/${contactId}/summarize`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const newContext = await res.json();
+        setAiContext(newContext);
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Erro ao gerar resumo.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar ao servidor para gerar resumo.");
+    } finally {
+      setGeneratingSummary(false);
     }
   };
 
@@ -59,7 +95,7 @@ export default function ContactProfilePage() {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{contact.name}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{contact.first_name} {contact.last_name}</h2>
           <p className="text-sm text-gray-500">Visão 360º do Cliente</p>
         </div>
       </div>
@@ -72,10 +108,10 @@ export default function ContactProfilePage() {
           <div className="bg-white p-6 rounded-xl border border-[var(--color-border)] shadow-sm">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[var(--color-brand-600)] to-[var(--color-brand-400)] flex items-center justify-center text-white text-2xl font-bold">
-                {contact.name.charAt(0)}
+                {contact.first_name?.charAt(0)}
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{contact.name}</h3>
+                <h3 className="text-lg font-bold text-gray-900">{contact.first_name} {contact.last_name}</h3>
                 <span className={`px-2 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full ${
                   contact.status === 'lead' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                 }`}>
@@ -98,20 +134,78 @@ export default function ContactProfilePage() {
                 <span>Origem: {contact.source || 'Orgânico'}</span>
               </div>
             </div>
+
+            <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+              <Link
+                href={`/${params?.slug || ''}/conversas?telefone=${contact.phone}`}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              >
+                <MessageSquare size={16} /> Abrir no WhatsApp
+              </Link>
+            </div>
           </div>
 
           {/* Card Memória da IA (CrmContext) - Estático por enquanto */}
           <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-xl border border-indigo-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap size={18} className="text-indigo-600" />
-              <h3 className="font-bold text-indigo-900">Memória da IA (Resumo)</h3>
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-2">
+                <Zap size={18} className="text-indigo-600" />
+                <h3 className="font-bold text-indigo-900">Memória da IA</h3>
+              </div>
+              <button 
+                onClick={generateAiSummary}
+                disabled={generatingSummary}
+                className="text-indigo-600 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 p-1.5 rounded-md transition-colors disabled:opacity-50"
+                title="Atualizar com IA"
+              >
+                {generatingSummary ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" /> : <Sparkles size={16} />}
+              </button>
             </div>
-            <p className="text-sm text-indigo-900/80 leading-relaxed mb-4">
-              Ainda não há interações recentes o suficiente para a IA gerar um resumo semanal para este cliente.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-md font-medium">Interesse: Médio</span>
-            </div>
+            
+            {aiContext ? (
+              <>
+                <p className="text-sm text-indigo-900/80 leading-relaxed mb-4">
+                  {aiContext.summary || "Sem resumo ainda."}
+                </p>
+                
+                {aiContext.key_points && aiContext.key_points.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-indigo-800 uppercase tracking-wider mb-2">Pontos Chave</h4>
+                    <ul className="list-disc list-inside text-sm text-indigo-900/80 space-y-1">
+                      {aiContext.key_points.map((kp: string, idx: number) => (
+                        <li key={idx} className="leading-snug">{kp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-indigo-100/50">
+                  {aiContext.sentiment && (
+                    <span className="bg-indigo-600 text-white text-xs px-2 py-1 rounded-md font-medium shadow-sm">
+                      Sentimento: {aiContext.sentiment}
+                    </span>
+                  )}
+                  {aiContext.tags && aiContext.tags.map((tag: string, idx: number) => (
+                    <span key={idx} className="bg-white border border-indigo-200 text-indigo-600 text-xs px-2 py-1 rounded-md font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm text-indigo-900/60 leading-relaxed mb-4">
+                  Nenhum resumo gerado ainda para este cliente.
+                </p>
+                <button 
+                  onClick={generateAiSummary}
+                  disabled={generatingSummary}
+                  className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Gerar Primeiro Resumo ✨
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

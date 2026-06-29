@@ -14,3 +14,5 @@ redis
 slowapi
 python-dateutil
 python-multipart
+email-validator
+alembic
