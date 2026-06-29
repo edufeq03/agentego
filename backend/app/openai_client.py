@@ -26,7 +26,12 @@ def perguntar(mensagem_usuario, contexto_sistema, historico=None, temperature=0.
             "- Se informou CNPJ: [ATUALIZAR_LEAD: tem_cnpj=false]\n"
             "- Se informou plano anterior: [ATUALIZAR_LEAD: tem_plano_anterior=true] [ATUALIZAR_LEAD: plano_anterior_nome=Unimed]\n"
             "- Se informou região: [ATUALIZAR_LEAD: regiao=Campinas]\n"
-            "Não responda sem incluir a tag correspondente! As tags são essenciais para salvar os dados no banco de dados."
+            "Não responda sem incluir a tag correspondente! As tags são essenciais para salvar os dados no banco de dados.\n\n"
+            "=== AUTOMAÇÃO INTELIGENTE DE CRM (NOVO) ===\n"
+            "Se o cliente expressar forte intenção de compra, aceitar os valores passados, ou se a triagem de vendas "
+            "estiver completa e você identificar que o lead está 'quente' e pronto para fechamento, você DEVE anexar "
+            "a tag invisível [CRIAR_OPORTUNIDADE: motivo=sua justificativa aqui] no final da sua resposta. Isso criará "
+            "automaticamente um card no CRM Kanban para a equipe comercial."
         )
         mensagens.append({"role": "system", "content": lembrete_sistema})
     

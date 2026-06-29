@@ -19,6 +19,7 @@ def limpar_tags(texto: str) -> str:
     texto = re.sub(r'\[SOLICITAR_HUMANO:[^\]]*\]', '', texto)
     texto = re.sub(r'\[DOCUMENTO_RECEBIDO:[^\]]*\]', '', texto)
     texto = re.sub(r'\[ALERTA_ESFRIAMENTO[^\]]*\]', '', texto)
+    texto = re.sub(r'\[CRIAR_OPORTUNIDADE:[^\]]*\]', '', texto)
     return texto.strip()
 
 def detectar_template_seguro(texto: str) -> bool:
@@ -646,6 +647,57 @@ def _processar_tags(db, empresa, lead, resposta_raw, telefone):
                 lead_seguro.docs_pendentes = docs_p
             
         db.commit()
+
+    # 5. Processar [CRIAR_OPORTUNIDADE: motivo=...] para gerar card no Kanban
+    if "[CRIAR_OPORTUNIDADE" in resposta_raw:
+        motivo = "Lead aquecido detectado pela IA"
+        match_opp = re.search(r'\[CRIAR_OPORTUNIDADE:\s*motivo=([^\]]+)\]', resposta_raw)
+        if match_opp:
+            motivo = match_opp.group(1).strip()
+            
+        logger.info(f"[{telefone}] 🚀 IA solicitou CRIAR OPORTUNIDADE! Motivo: {motivo}")
+        
+        try:
+            from app.services.crm.deal_service import convert_lead_to_deal
+            deal = convert_lead_to_deal(db, empresa.id, lead.id)
+            logger.info(f"[{telefone}] ✅ Deal criado com sucesso: ID {deal.id}")
+            
+            # Verificar se auto-pause está ativado
+            config = empresa.configuracoes.config if empresa.configuracoes else {}
+            auto_pause = config.get("auto_pause_on_deal", True) # Padrão: Pausar
+            
+            if auto_pause:
+                atualizar_status_transbordo(db, empresa.id, telefone, "pausado", lead_id=lead.id)
+                logger.info(f"[{telefone}] Robô pausado após criar oportunidade (auto_pause_on_deal=True).")
+                
+            # Notificar usuário sobre a nova oportunidade
+            tel_notificacao = config.get("telefone_notificacao") or config.get("telefone_corretor") or empresa.telefone_proprietario
+            if tel_notificacao:
+                tel_notif_limpo = "".join(filter(str.isdigit, str(tel_notificacao)))
+                if tel_notif_limpo:
+                    if len(tel_notif_limpo) in (10, 11):
+                        tel_notif_limpo = "55" + tel_notif_limpo
+                        
+                    msg_alerta = (
+                        f"🚀 *NOVA OPORTUNIDADE GERADA PELA IA* 🚀\n\n"
+                        f"O assistente detectou um alto interesse e gerou um card no CRM Kanban!\n\n"
+                        f"👤 *Cliente:* {lead.nome or 'Não informado'}\n"
+                        f"📱 *WhatsApp:* https://wa.me/{telefone}\n"
+                        f"🧠 *Motivo da IA:* {motivo}\n\n"
+                    )
+                    
+                    if auto_pause:
+                        msg_alerta += "_O robô foi pausado. Você já pode assumir o fechamento!_"
+                    else:
+                        msg_alerta += "_O robô continua atendendo. Acesse o CRM para acompanhar!_"
+                        
+                    try:
+                        enviar_whatsapp(tel_notif_limpo, msg_alerta, empresa.evolution_instance)
+                    except Exception as e:
+                        logger.error(f"Erro ao enviar notificação de oportunidade: {e}")
+        except Exception as e:
+            logger.error(f"Erro ao processar tag [CRIAR_OPORTUNIDADE]: {e}")
+
 
 def _finalizar(db, empresa, lead, resposta_raw, resposta_limpa, t_in, t_out):
     # Registra tokens da resposta principal
