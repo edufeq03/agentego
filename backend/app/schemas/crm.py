@@ -76,3 +76,48 @@ class CrmDealResponse(CrmDealBase):
 
 class DealStageUpdate(BaseModel):
     stage_id: str
+
+# --- Activities ---
+
+class CrmActivityBase(BaseModel):
+    type: str
+    subject: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    done: bool = False
+    done_at: Optional[datetime] = None
+    deal_id: Optional[UUID] = None
+    contact_id: Optional[UUID] = None
+    owner_id: Optional[UUID] = None
+
+class CrmActivityCreate(CrmActivityBase):
+    pass
+
+class CrmActivityResponse(CrmActivityBase):
+    id: UUID
+    empresa_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Contexts ---
+
+class CrmContextBase(BaseModel):
+    contact_id: Optional[UUID] = None
+    summary: Optional[str] = None
+    sentiment: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    key_points: List[str] = Field(default_factory=list)
+
+class CrmContextCreate(CrmContextBase):
+    pass
+
+class CrmContextResponse(CrmContextBase):
+    id: UUID
+    empresa_id: UUID
+    last_analyzed_at: datetime
+
+    class Config:
+        from_attributes = True
