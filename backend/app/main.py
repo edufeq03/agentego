@@ -59,6 +59,11 @@ from fastapi.staticfiles import StaticFiles
 
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
+from app.api.v1.crm import contacts_router, deals_router, pipelines_router
+app.include_router(contacts_router, prefix="/api/crm/contacts", tags=["crm-contacts"])
+app.include_router(deals_router, prefix="/api/crm/deals", tags=["crm-deals"])
+app.include_router(pipelines_router, prefix="/api/crm/pipelines", tags=["crm-pipelines"])
+
 # Criar pasta de uploads se não existir
 if not os.path.exists("app/uploads"):
     os.makedirs("app/uploads")
