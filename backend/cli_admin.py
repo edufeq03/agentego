@@ -8,10 +8,14 @@ from app.auth import get_password_hash
 def register_admin():
     print("=== Cadastro de Nova Academia e Administrador (SaaS) ===")
     
-    nome_empresa = input("Nome da Academia: ")
-    telefone_whatsapp = input("Número de WhatsApp (ex: 5511999999999): ")
-    email_admin = input("E-mail do Administrador (para login no painel): ")
-    senha_admin = input("Senha do Administrador: ")
+    nome_empresa = input("Nome da Academia: ").strip()
+    while not nome_empresa:
+        print("Erro: O nome da academia não pode ficar em branco.")
+        nome_empresa = input("Nome da Academia: ").strip()
+
+    telefone_whatsapp = input("Número de WhatsApp (ex: 5511999999999): ").strip()
+    email_admin = input("E-mail do Administrador (para login no painel): ").strip()
+    senha_admin = input("Senha do Administrador: ").strip()
     
     print("\nIniciando banco de dados...")
     init_db()
@@ -31,9 +35,15 @@ def register_admin():
             print("Erro: Já existe um usuário com esse e-mail.")
             return
 
-        # 3. Cria a Empresa
+        # 3. Cria a Empresa (com geração de slug)
+        import re, uuid
+        slug = re.sub(r'[^a-z0-9]+', '-', nome_empresa.lower()).strip('-')
+        if not slug:
+            slug = f"empresa-{uuid.uuid4().hex[:6]}"
+
         nova_empresa = Empresa(
             nome=nome_empresa,
+            slug=slug,
             telefone_whatsapp=telefone_whatsapp
         )
         db.add(nova_empresa)
