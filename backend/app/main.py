@@ -30,18 +30,24 @@ app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+default_origins = [
+    "http://localhost:3000",
+    "https://app.agentego.com.br",
+    "https://agentego.com.br",
+    "https://www.agentego.com.br",
+    "http://agentego.com.br",
+    "http://www.agentego.com.br",
+]
+
+cors_env = os.getenv("CORS_ORIGINS")
+if cors_env:
+    allowed_origins = [o.strip() for o in cors_env.split(",") if o.strip()]
+else:
+    allowed_origins = default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://agentego.ignotec.com.br",
-        "https://agentego.com.br",
-        "https://www.agentego.com.br",
-        "http://agentego.com.br",
-        "http://www.agentego.com.br",
-        "https://sites-academia-dashboard.zdgx3l.easypanel.host",
-        "https://sites-academia-agente.zdgx3l.easypanel.host",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
