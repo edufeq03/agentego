@@ -9,3 +9,5 @@ __pycache__/
 vendas/
 *.db
 docs/
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
