@@ -6,7 +6,7 @@ import {
   X, CheckCircle2, AlertCircle, Clock, Image as ImageIcon,
   UserPlus, History, Loader2, MessageSquare, Search, Calendar
 } from "lucide-react";
-import api from "@/lib/api";
+import api, { getApiBaseUrl } from "@/lib/api";
 
 interface Lista {
   id: string;
@@ -58,7 +58,7 @@ export default function ListasTransmissaoPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const apiBaseUrl = getApiBaseUrl();
 
   const [formLista, setFormLista] = useState({ nome: "", descricao: "" });
   const [formContato, setFormContato] = useState({ nome: "", telefone: "" });
