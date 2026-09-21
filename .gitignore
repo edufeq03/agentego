@@ -11,3 +11,4 @@ vendas/
 docs/
 backend/app/uploads/*
 !backend/app/uploads/.gitkeep
+backend/backups/*.sql
