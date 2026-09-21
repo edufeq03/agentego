@@ -10,6 +10,7 @@ vendas/
 *.db
 docs/*
 !docs/assets/
+!docs/*.md
 backend/app/uploads/*
 !backend/app/uploads/.gitkeep
 backend/backups/*.sql

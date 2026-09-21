@@ -1,72 +1,119 @@
-# AgenteGo: AI-Powered Customer Service & CRM SaaS
+# Agente Go
 
-**AgenteGo** is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. The system was developed and validated through real-world client usage and operational testing.
+![Python](https://img.shields.io/badge/Python-3.x-blue?style=flat-square)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.95+-009688?style=flat-square)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?style=flat-square)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square)
+![Next.js](https://img.shields.io/badge/Next.js-13-black?style=flat-square)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square)
+![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat-square)
+![OpenAI](https://img.shields.io/badge/OpenAI-API-412991?style=flat-square)
 
-This project demonstrates end-to-end system development—from translating operational bottlenecks into technical requirements, to architecting and deploying a complete hardware/software integration.
+## 1. Overview
+Agente Go is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. This repository contains the core services connecting WhatsApp (Evolution API), a FastAPI AI processing backend, a PostgreSQL relational database, and a Next.js admin dashboard.
 
----
+For detailed technical documentation, please refer to the `docs/` folder:
+- [Architecture Details](docs/architecture.md)
+- [Requirements & Design Decisions](docs/requirements.md)
+- [Testing & Validation](docs/testing.md)
 
-## 1. Business Problem & Systems Design
-Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp. Manual customer service often results in high response times outside business hours, disorganized tracking of lead status, and lost revenue.
+## 2. The Problem
+Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp, their primary communication channel. Manual customer service often results in high response times outside business hours, disorganized tracking of lead status, and inconsistent communication leading to lost revenue.
 
-To solve this, I designed a solution that bridges the gap between communication and CRM, ensuring no lead is dropped.
+## 3. The Solution
+I designed a scalable multi-tenant platform that bridges the gap between customer communication and CRM. The system intercepts WhatsApp messages, passes them through a specialized AI triage pipeline, qualifies the lead, schedules appointments, and updates a visual CRM funnel.
 
-**Key Business Analysis Decisions:**
-- **Dynamic Custom Fields:** Different customers require different qualification fields. Instead of hard-coding every workflow, I designed configurable custom fields that can be added per tenant and incorporated directly into the AI context (validated via `test_triage_custom_fields.py`).
-- **Multi-Tenancy as a Core Concept:** The system was built from day one to serve multiple isolated companies. The `tenant` entity isolates leads, events, CRM data, and AI configuration, providing a true scalable SaaS architecture.
+## 4. Key Features
+- **Multi-tenant Architecture:** Isolated environments for different businesses on the same infrastructure.
+- **Dynamic Custom Fields:** Configurable data extraction points tailored to each tenant's specific needs.
+- **Deterministic Human Handoff:** Strict business rules allowing the AI to transfer complex conversations to a human operator.
+- **Smart Re-engagement:** Automated, multi-step follow-up cadences with anti-spam safeguards.
+- **Domain-Specific Agents:** Specialized AI behaviors configured for different industries (Gym, Beauty, Real Estate).
 
-## 2. System Architecture & Data Modeling
-The system uses a decoupled architecture to ensure scalability and ease of maintenance, with a clear abstraction layer for the WhatsApp provider:
-
+## 5. Architecture
 ```mermaid
 graph TD
-    WA[WhatsApp] --> API[Evolution API / Meta]
-    API --> FA[FastAPI Backend]
-    
-    FA --> CRM[CRM & Pipeline]
-    FA --> CAL[Scheduling]
-    
-    FA --> TRI[Triage & Context]
-    TRI --> EXP[Specialized Agents]
-    EXP --> OAI[OpenAI]
-    
-    FA --> DB[(PostgreSQL)]
-    FA --> REDIS[(Redis)]
-    DB --> DASH[Next.js Dashboard]
+                 WA[WhatsApp] --> EV[Evolution API / Meta]
+                 EV --> FA[FastAPI Backend]
+                 
+                 FA --- CRM[CRM & Pipeline]
+                 FA --- CAL[Scheduling]
+                 
+                 FA --> TRI[AI Pipeline / Context]
+                 TRI --> AG[Agent Router]
+                 
+                 AG --> GYM[Gym Specialist]
+                 AG --> BEU[Beauty Specialist]
+                 AG --> RE[Real Estate Specialist]
+                 
+                 GYM --> OAI[OpenAI]
+                 BEU --> OAI
+                 RE --> OAI
+                 
+                 FA --> DB[(PostgreSQL)]
+                 FA --> RED[(Redis)]
+                 DB --> DASH[Next.js Dashboard]
 ```
 
-- **Integration Abstraction:** The integration layer is abstracted (`app/whatsapp/base.py`, `dispatcher.py`), allowing seamless switching between Evolution API and official Meta APIs without rewriting business logic.
-- **Data Persistence & Schema Evolution:** **PostgreSQL** handles the relational data model. The system evolved incrementally through schema migrations (via **Alembic**) as new business capabilities and integration requirements were introduced.
+## 6. Technology Stack
+- **Backend:** Python, FastAPI, SQLAlchemy, PostgreSQL, Redis, Alembic.
+- **Frontend:** Next.js, React, TailwindCSS.
+- **Integrations:** OpenAI API, Evolution API.
+- **DevOps/QA:** Docker, Docker Compose, Pytest.
 
-## 3. Advanced Operational Features
-- **Deterministic Human Handoff:** The AI does not control everything. There is a strict deterministic business rule around it. If the AI detects frustration or a complex request, it pauses itself and notifies a human agent (using explicit tags like `[SOLICITAR_HUMANO]`), ensuring a safe fallback.
-- **Smart Re-engagement:** Automated customer re-engagement workflows with configurable multi-step cadences, delays, and anti-spam guardrails (validated via `test_smart_reengagement.py`).
+## 7. Business & System Requirements
+| Business Requirement | System Solution |
+|---|---|
+| Different businesses require different workflows | Multi-tenant architecture |
+| Each business needs different qualification info | Configurable custom fields |
+| Some conversations require human intervention | Deterministic human handoff workflow |
+| Different industries require different behavior | Specialized modular agents |
+| Customers need appointment scheduling | Integrated scheduling module |
+| Automated follow-up must avoid spam | Configurable re-engagement with safeguards |
 
-## 4. Implementation & Quality Assurance
-The application features rigorous automated testing to ensure reliability during business-critical workflows.
+## 8. Testing & Validation
+The project includes automated tests covering multi-agent behavior, customer triage, custom fields, scheduling workflows, WhatsApp integration, automated re-engagement, and domain-specific agents. See [Testing Documentation](docs/testing.md) for details.
 
-- **Testing Strategy:** Developed tests using mocks for external services (OpenAI, WhatsApp, external calendars) to execute and document application and system tests (e.g., `test_agenda.py`, `test_multiagents.py`, `test_whatsapp_agenda.py`).
-- **Security:** Security mechanisms implemented include JWT authentication, bcrypt password hashing, tenant data separation, rate limiting, and webhook validation.
-- **Deployment:** The ecosystem is containerized using **Docker** and orchestrated via `docker-compose`.
+## 9. Deployment
+The system is fully containerized. A `docker-compose.yml` file is provided to orchestrate the backend, frontend, database, and caching layers securely.
 
-## Screenshots
+## 10. Project Status
+The platform has been developed and validated through real-world operational scenarios. Some components are actively used/tested, while others represent ongoing product development and future expansion. This repository contains the technical implementation and documentation of the project.
 
-### The Admin Dashboard
-![Dashboard Overview](docs/assets/dashboard-overview.png)
-*Centralized view of AI metrics, active conversations, and system health.*
+## 11. Screenshots
 
-### CRM & Pipeline Management
-![CRM Pipeline](docs/assets/crm-pipeline.png)
-*Visual sales funnel automatically updated by the AI based on conversation outcomes.*
+### Dashboard Overview
+![Dashboard](docs/assets/dashboard-overview.png)
+*Centralized interface for monitoring AI-assisted customer interactions and transferring conversations to human operators when required.*
 
 ### AI Configuration
 ![AI Config](docs/assets/ai-config.png)
 *Dynamic tenant configuration where users can adjust business rules, pricing, and AI persona.*
 
----
+### CRM Pipeline
+![CRM](docs/assets/crm-pipeline.png)
+*Visual sales funnel automatically updated by the AI based on conversation outcomes.*
 
-## Technical Stack Summary
-- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis.
-- **Frontend:** Next.js, React, TypeScript, TailwindCSS.
-- **Integrations:** OpenAI API, Evolution API (WhatsApp).
-- **DevOps/QA:** Docker, Pytest, Bash Scripting.
+### Architecture
+![Architecture](docs/assets/architecture.png)
+*Visual representation of the system components.*
+
+## 12. My Role
+I designed and developed the platform, including:
+- Backend architecture and REST APIs
+- Database modeling
+- AI agent orchestration
+- WhatsApp integrations
+- CRM and scheduling workflows
+- Multi-tenant architecture
+- Frontend/dashboard
+- Automated tests
+- Docker-based deployment
+- System evolution based on operational requirements
+
+## 13. Architecture Decisions
+- **Why FastAPI?** For asynchronous APIs and seamless integration with the Python/AI ecosystem.
+- **Why PostgreSQL?** Relational persistence for structured data across multiple isolated tenants.
+- **Why Redis?** Buffering, caching, and processing specific background tasks (like anti-spam and debouncing).
+- **Why modular agents?** To allow specific behavior per domain without duplicating the core architecture.
+- **Why multi-tenancy?** To allow the same platform infrastructure to securely support different companies.
