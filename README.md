@@ -12,6 +12,8 @@
 ## 1. Overview
 Agente Go is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. This repository contains the core services connecting WhatsApp (Evolution API), a FastAPI AI processing backend, a PostgreSQL relational database, and a Next.js admin dashboard.
 
+Project development: 2025–2026
+
 For detailed technical documentation, please refer to the `docs/` folder:
 - [Architecture Details](docs/architecture.md)
 - [Requirements & Design Decisions](docs/requirements.md)
@@ -21,7 +23,7 @@ For detailed technical documentation, please refer to the `docs/` folder:
 Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp, their primary communication channel. Manual customer service often results in high response times outside business hours, disorganized tracking of lead status, and inconsistent communication leading to lost revenue.
 
 ## 3. The Solution
-I designed a scalable multi-tenant platform that bridges the gap between customer communication and CRM. The system intercepts WhatsApp messages, passes them through a specialized AI triage pipeline, qualifies the lead, schedules appointments, and updates a visual CRM funnel.
+I designed a modular multi-tenant platform that bridges the gap between customer communication and CRM. The system intercepts WhatsApp messages, passes them through a specialized AI triage pipeline, qualifies the lead, schedules appointments, and updates a visual CRM funnel.
 
 ## 4. Key Features
 - **Multi-tenant Architecture:** Isolated environments for different businesses on the same infrastructure.
@@ -100,6 +102,10 @@ The platform has been developed and validated through real-world operational sce
 
 ## 12. My Role
 I designed and developed the platform, including:
+- Translated operational requirements into system workflows and technical solutions
+- Designed business rules and validation flows
+- Defined and tested system behavior for different business scenarios
+- Iteratively evolved the system based on operational requirements
 - Backend architecture and REST APIs
 - Database modeling
 - AI agent orchestration
@@ -109,7 +115,6 @@ I designed and developed the platform, including:
 - Frontend/dashboard
 - Automated tests
 - Docker-based deployment
-- System evolution based on operational requirements
 
 ## 13. Architecture Decisions
 - **Why FastAPI?** For asynchronous APIs and seamless integration with the Python/AI ecosystem.
@@ -117,3 +122,12 @@ I designed and developed the platform, including:
 - **Why Redis?** Buffering, caching, and processing specific background tasks (like anti-spam and debouncing).
 - **Why modular agents?** To allow specific behavior per domain without duplicating the core architecture.
 - **Why multi-tenancy?** To allow the same platform infrastructure to securely support different companies.
+
+## 14. Limitations & Future Work
+Current development areas include:
+- expanding automated test coverage;
+- improving observability and monitoring;
+- expanding WhatsApp provider support;
+- further hardening tenant isolation;
+- performance/load testing;
+- expanding documentation.

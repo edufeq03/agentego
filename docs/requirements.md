@@ -18,3 +18,11 @@ Off-the-shelf WhatsApp bots often fail because they enforce a rigid, one-size-fi
 ### 3. Smart Re-engagement
 * **Business Requirement:** Following up with leads is crucial for sales, but automated spam can result in WhatsApp bans.
 * **System Solution:** An automated customer re-engagement workflow with configurable multi-step cadences, delays, state management, and anti-spam guardrails. The system ensures follow-ups are context-aware and time-appropriate.
+
+### 4. Modular Behavior
+* **Business Requirement:** Different businesses need different conversational behavior.
+* **System Solution:** Modular domain-specific agents sharing a common orchestration layer.
+
+### 5. Integration Flexibility
+* **Business Requirement:** External communication providers may change.
+* **System Solution:** WhatsApp provider abstraction layer separating provider-specific implementation from core business logic.

@@ -7,8 +7,8 @@ Instead of tightly coupling the application to a single WhatsApp provider (like 
 This design decision ensures that the backend can seamlessly switch between Evolution API, the official Meta API, or other providers without rewriting the core AI and business logic.
 
 ## 2. Multi-Tenancy Design
-The application is designed as a true SaaS platform. The `Tenant` (Company) entity is the central pivot of the architecture. All major models (Leads, Messages, Events, CRM Deals, Pipelines, Configurations) contain a `tenant_id` foreign key.
-This ensures strict data isolation at the application layer while allowing all clients to run on a shared infrastructure, significantly reducing hosting costs and simplifying deployments.
+The application is designed as a multi-tenant SaaS platform. The `Tenant` (Company) entity is the central pivot of the architecture. All major models (Leads, Messages, Events, CRM Deals, Pipelines, Configurations) contain a `tenant_id` foreign key.
+This provides tenant-level data isolation at the application layer while allowing all clients to run on a shared infrastructure, significantly reducing hosting costs and simplifying deployments.
 
 ## 3. Database & Schema Evolution
 - **PostgreSQL** handles the relational data model. The schema is highly normalized to support complex CRM and scheduling queries.

@@ -1,10 +1,17 @@
 # Testing & Validation
 
-The platform includes a comprehensive suite of automated tests designed to validate both technical integration and complex business workflows.
+The platform includes an automated test suite designed to validate both technical integration and complex business workflows.
 
 ## Automated Testing Strategy
 
 The test suite relies heavily on isolated unit and integration tests, using **mocks** for external services like OpenAI, WhatsApp providers, and external calendars. This allows testing of deterministic business logic without incurring API costs or network latency.
+
+### Test Execution
+
+Tests can be executed locally with:
+```bash
+pytest
+```
 
 ### Key Test Coverages:
 - **`test_triage_custom_fields.py`:** Verifies that dynamic custom fields are correctly injected into the AI context, extracted from user messages, and saved to the CRM lead profile.
