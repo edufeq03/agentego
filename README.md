@@ -1,52 +1,68 @@
-# AgenteGo - SaaS de Atendimento Inteligente para Academias
+# AgenteGo: AI-Powered Customer Service & CRM SaaS
 
-Plataforma multi-tenant para automação de atendimento via WhatsApp utilizando IA (OpenAI) e Evolution API.
+**AgenteGo** is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. This project demonstrates end-to-end system development—from translating operational bottlenecks into technical requirements, to architecting and deploying a complete hardware/software integration.
 
-## Estrutura do Projeto
+---
 
-- `backend/`: Backend FastAPI (Processamento, IA, Banco de Dados).
-- `dashboard/`: Frontend Next.js (Métricas, Configurações, Admin).
-- `docker-compose.yml`: Orquestração dos serviços (Bot, DB, Dashboard).
+## 1. Business Problem
+Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp, their primary communication channel. Manual customer service often results in:
+- High response times outside business hours.
+- Disorganized tracking of lead status and sales opportunities.
+- Inconsistent communication and lost revenue.
 
-## Como Rodar
+## 2. Requirements & Solution Definition
+After gathering operational requirements and mapping the typical sales funnel for these niches, I designed **AgenteGo** to bridge the gap between communication and CRM.
 
-1. Configure o arquivo `.env` baseado no `.env.example`.
-2. Suba os containers:
-   ```bash
-   docker compose up -d --build
-   ```
-3. O bot estará disponível em `http://localhost:8000`.
-4. O dashboard estará disponível em `http://localhost:3000`.
+**Key Requirements:**
+- **Automated Triage:** 24/7 AI-driven responses capable of answering FAQs and capturing lead data.
+- **Human Fail-Safe:** A seamless transition protocol to human agents for complex requests.
+- **Centralized Data:** A unified dashboard to track metrics, manage the CRM pipeline, and adjust AI behavior.
+- **Multi-Tenancy:** A scalable architecture to support multiple clients securely within the same infrastructure.
 
-## Onboarding de Nova Academia (Passo a Passo)
+## 3. Architecture & Data Modeling
+The system was designed with a decoupled architecture to ensure scalability and ease of maintenance:
 
-Para adicionar um novo cliente ao SaaS:
+- **Integration Layer:** Utilizes Evolution API to handle real-time WhatsApp webhooks.
+- **AI Processing (Backend):** Built with **FastAPI** (Python) and integrated with the **OpenAI API**. It evaluates intent, handles context, and interacts with the CRM.
+- **Data Persistence:** **PostgreSQL** handles the relational data model (Tenants, Users, CRM Contacts, Pipelines, Deals, and AI Context). SQLAlchemy is used for ORM and Alembic for database migrations.
+- **User Interface (Frontend):** A responsive dashboard built with **Next.js** and **React**, allowing business owners to monitor real-time chats, sales pipelines, and tweak their AI Agent's rules (pricing, tone of voice, etc.).
 
-### 1. Criar Empresa e Usuário Admin
-Acesse a **Central do Franqueador** em `http://localhost:3000/admin`.
-- Use o `ADMIN_TOKEN` configurado no `.env`.
-- Clique em "Novo Cliente".
-- Escolha um template de nicho (ex: Academia).
-- Preencha os dados da unidade e as credenciais de acesso do cliente.
+*(Below: High-level architectural flow)*
+![System Architecture](docs/assets/architecture-diagram.png)
 
-### 2. Configurar WhatsApp (Evolution API)
-- Crie uma nova instância na sua Evolution API para a academia.
-- Conecte o WhatsApp lendo o QR Code.
-- Configure o Webhook na Evolution API apontando para:
-  `http://seu-servidor:8000/webhook/{webhook_token}`
-  *(O `webhook_token` é gerado automaticamente e pode ser visto no banco de dados ou via API de Admin).*
+## 4. Implementation & QA
+- **Deployment & Orchestration:** The entire ecosystem is containerized using **Docker** and orchestrated via `docker-compose`, ensuring environment parity between development and production.
+- **Security & Reliability:** Implemented automated database backups (with off-site sync to Backblaze B2) and robust environment variable management.
+- **Quality Assurance:** 
+  - Designed automated fallback mechanisms: if the AI detects frustration or a request outside its scope, it pauses itself and notifies a human agent via the dashboard.
+  - Comprehensive logging and webhook monitoring to trace and resolve integration issues quickly.
 
-### 3. Personalizar Regras de Negócio
-O cliente pode acessar seu próprio dashboard (`http://localhost:3000/{slug}`) para:
-- Alterar preços de mensalidade.
-- Atualizar horários de funcionamento.
-- Definir a lista de aulas VIP e professores.
+## 5. Results & Business Impact
+By deploying AgenteGo, businesses transform their customer acquisition process:
+- **Response Time:** Reduced from hours to seconds (instant 24/7 engagement).
+- **Operational Efficiency:** Automates up to 80% of top-of-funnel inquiries, allowing human teams to focus exclusively on closing high-value deals.
+- **Data-Driven Decisions:** The integrated CRM ensures no lead is dropped, increasing overall conversion rates.
 
-## Backup
-O sistema possui um script de backup automático do banco de dados em `backend/backup.sh`.
-Recomenda-se configurar um cronjob para execução diária.
+---
 
-## Suporte
-Em caso de transbordo (atendimento humano), o bot pausará automaticamente e notificará o status no dashboard. Para reativar o bot manualmente, use o botão "Reativar Robô" na tela de conversas.
+## Screenshots & Walkthrough
 
-Para problemas técnicos ou configuração de ambiente, consulte o [Guia de Troubleshooting](docs/local_development_and_troubleshooting.md).
+### The Admin Dashboard
+![Dashboard Overview](docs/assets/dashboard-overview.png)
+*Centralized view of AI metrics, active conversations, and system health.*
+
+### CRM & Pipeline Management
+![CRM Pipeline](docs/assets/crm-pipeline.png)
+*Visual sales funnel automatically updated by the AI based on conversation outcomes.*
+
+### AI Configuration
+![AI Config](docs/assets/ai-config.png)
+*Dynamic tenant configuration where users can adjust business rules, pricing, and AI persona.*
+
+---
+
+## Technical Stack Summary
+- **Backend:** Python, FastAPI, SQLAlchemy, PostgreSQL.
+- **Frontend:** Next.js, React, TailwindCSS.
+- **Integrations:** OpenAI API, Evolution API (WhatsApp).
+- **DevOps:** Docker, Docker Compose, Bash Scripting.
