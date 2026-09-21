@@ -1,51 +1,55 @@
 # AgenteGo: AI-Powered Customer Service & CRM SaaS
 
-**AgenteGo** is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. This project demonstrates end-to-end system development—from translating operational bottlenecks into technical requirements, to architecting and deploying a complete hardware/software integration.
+**AgenteGo** is a multi-tenant SaaS platform built to automate customer service, qualify leads, and manage sales pipelines using AI. The system was developed and validated through real-world client usage and operational testing.
+
+This project demonstrates end-to-end system development—from translating operational bottlenecks into technical requirements, to architecting and deploying a complete hardware/software integration.
 
 ---
 
-## 1. Business Problem
-Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp, their primary communication channel. Manual customer service often results in:
-- High response times outside business hours.
-- Disorganized tracking of lead status and sales opportunities.
-- Inconsistent communication and lost revenue.
+## 1. Business Problem & Systems Design
+Local businesses (such as gyms and real estate agencies) struggle with lead leakage and slow response times on WhatsApp. Manual customer service often results in high response times outside business hours, disorganized tracking of lead status, and lost revenue.
 
-## 2. Requirements & Solution Definition
-After gathering operational requirements and mapping the typical sales funnel for these niches, I designed **AgenteGo** to bridge the gap between communication and CRM.
+To solve this, I designed a solution that bridges the gap between communication and CRM, ensuring no lead is dropped.
 
-**Key Requirements:**
-- **Automated Triage:** 24/7 AI-driven responses capable of answering FAQs and capturing lead data.
-- **Human Fail-Safe:** A seamless transition protocol to human agents for complex requests.
-- **Centralized Data:** A unified dashboard to track metrics, manage the CRM pipeline, and adjust AI behavior.
-- **Multi-Tenancy:** A scalable architecture to support multiple clients securely within the same infrastructure.
+**Key Business Analysis Decisions:**
+- **Dynamic Custom Fields:** Different customers require different qualification fields. Instead of hard-coding every workflow, I designed configurable custom fields that can be added per tenant and incorporated directly into the AI context (validated via `test_triage_custom_fields.py`).
+- **Multi-Tenancy as a Core Concept:** The system was built from day one to serve multiple isolated companies. The `tenant` entity isolates leads, events, CRM data, and AI configuration, providing a true scalable SaaS architecture.
 
-## 3. Architecture & Data Modeling
-The system was designed with a decoupled architecture to ensure scalability and ease of maintenance:
+## 2. System Architecture & Data Modeling
+The system uses a decoupled architecture to ensure scalability and ease of maintenance, with a clear abstraction layer for the WhatsApp provider:
 
-- **Integration Layer:** Utilizes Evolution API to handle real-time WhatsApp webhooks.
-- **AI Processing (Backend):** Built with **FastAPI** (Python) and integrated with the **OpenAI API**. It evaluates intent, handles context, and interacts with the CRM.
-- **Data Persistence:** **PostgreSQL** handles the relational data model (Tenants, Users, CRM Contacts, Pipelines, Deals, and AI Context). SQLAlchemy is used for ORM and Alembic for database migrations.
-- **User Interface (Frontend):** A responsive dashboard built with **Next.js** and **React**, allowing business owners to monitor real-time chats, sales pipelines, and tweak their AI Agent's rules (pricing, tone of voice, etc.).
+```mermaid
+graph TD
+    WA[WhatsApp] --> API[Evolution API / Meta]
+    API --> FA[FastAPI Backend]
+    
+    FA --> CRM[CRM & Pipeline]
+    FA --> CAL[Scheduling]
+    
+    FA --> TRI[Triage & Context]
+    TRI --> EXP[Specialized Agents]
+    EXP --> OAI[OpenAI]
+    
+    FA --> DB[(PostgreSQL)]
+    FA --> REDIS[(Redis)]
+    DB --> DASH[Next.js Dashboard]
+```
 
-*(Below: High-level architectural flow)*
-![System Architecture](docs/assets/architecture-diagram.png)
+- **Integration Abstraction:** The integration layer is abstracted (`app/whatsapp/base.py`, `dispatcher.py`), allowing seamless switching between Evolution API and official Meta APIs without rewriting business logic.
+- **Data Persistence & Schema Evolution:** **PostgreSQL** handles the relational data model. The system evolved incrementally through schema migrations (via **Alembic**) as new business capabilities and integration requirements were introduced.
 
-## 4. Implementation & QA
-- **Deployment & Orchestration:** The entire ecosystem is containerized using **Docker** and orchestrated via `docker-compose`, ensuring environment parity between development and production.
-- **Security & Reliability:** Implemented automated database backups (with off-site sync to Backblaze B2) and robust environment variable management.
-- **Quality Assurance:** 
-  - Designed automated fallback mechanisms: if the AI detects frustration or a request outside its scope, it pauses itself and notifies a human agent via the dashboard.
-  - Comprehensive logging and webhook monitoring to trace and resolve integration issues quickly.
+## 3. Advanced Operational Features
+- **Deterministic Human Handoff:** The AI does not control everything. There is a strict deterministic business rule around it. If the AI detects frustration or a complex request, it pauses itself and notifies a human agent (using explicit tags like `[SOLICITAR_HUMANO]`), ensuring a safe fallback.
+- **Smart Re-engagement:** Automated customer re-engagement workflows with configurable multi-step cadences, delays, and anti-spam guardrails (validated via `test_smart_reengagement.py`).
 
-## 5. Results & Business Impact
-By deploying AgenteGo, businesses transform their customer acquisition process:
-- **Response Time:** Reduced from hours to seconds (instant 24/7 engagement).
-- **Operational Efficiency:** Automates up to 80% of top-of-funnel inquiries, allowing human teams to focus exclusively on closing high-value deals.
-- **Data-Driven Decisions:** The integrated CRM ensures no lead is dropped, increasing overall conversion rates.
+## 4. Implementation & Quality Assurance
+The application features rigorous automated testing to ensure reliability during business-critical workflows.
 
----
+- **Testing Strategy:** Developed tests using mocks for external services (OpenAI, WhatsApp, external calendars) to execute and document application and system tests (e.g., `test_agenda.py`, `test_multiagents.py`, `test_whatsapp_agenda.py`).
+- **Security:** Security mechanisms implemented include JWT authentication, bcrypt password hashing, tenant data separation, rate limiting, and webhook validation.
+- **Deployment:** The ecosystem is containerized using **Docker** and orchestrated via `docker-compose`.
 
-## Screenshots & Walkthrough
+## Screenshots
 
 ### The Admin Dashboard
 ![Dashboard Overview](docs/assets/dashboard-overview.png)
@@ -62,7 +66,7 @@ By deploying AgenteGo, businesses transform their customer acquisition process:
 ---
 
 ## Technical Stack Summary
-- **Backend:** Python, FastAPI, SQLAlchemy, PostgreSQL.
-- **Frontend:** Next.js, React, TailwindCSS.
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis.
+- **Frontend:** Next.js, React, TypeScript, TailwindCSS.
 - **Integrations:** OpenAI API, Evolution API (WhatsApp).
-- **DevOps:** Docker, Docker Compose, Bash Scripting.
+- **DevOps/QA:** Docker, Pytest, Bash Scripting.
